@@ -25,54 +25,70 @@
 /* ------------------------------------------------------------------ */
 /* 01 · TOKENS                                                         */
 /* ------------------------------------------------------------------ */
+/* Palette is warm neutral — stone and ink, not tech slate-gray — the
+   register of a private members' ledger rather than a SaaS console.
+   One reserved accent (deep oxblood) carries action and orientation;
+   everything else is weight, rule and space. Status hues are muted,
+   never saturated: they read as meaning, not decoration. */
 :root{
-  /* surface — five real steps */
+  /* surface — five warm steps */
   --s0:#ffffff;
-  --s1:#fafafa;
-  --s2:#f4f5f7;
-  --s3:#eceef1;
-  --s4:#e2e5ea;
+  --s1:#faf9f6;
+  --s2:#f2f0ea;
+  --s3:#e8e5db;
+  --s4:#dad6c8;
 
   /* rules */
-  --line:#e4e6ea;
-  --line-2:#d2d6dc;
-  --line-3:#bcc2ca;
+  --line:#e6e2d6;
+  --line-2:#d1ccba;
+  --line-3:#b3ac96;
 
-  /* ink */
-  --ink:#15181d;
-  --ink-2:#4d5560;
-  --ink-3:#7c8592;
-  --ink-4:#a8b0ba;
+  /* ink — warm near-black, never pure #000 */
+  --ink:#1c1a16;
+  --ink-2:#4a4639;
+  --ink-3:#6b6656;
+  --ink-4:#928c78;
 
-  /* the accent is a value, not a hue: selection reads as a darker ink.
-     Colour is reserved entirely for meaning (status, warnings, errors). */
-  --accent:#2f3640;
-  --accent-soft:#eef0f3;
-  --accent-line:#c2c8d0;
+  /* the one reserved accent: deep oxblood. Used only where the eye
+     must land first — primary action, focus, selection, orientation. */
+  --accent:#6b2b30;
+  --accent-hover:#7d3339;
+  --accent-ink:#fbf6ee;
+  --accent-soft:#f4e9e7;
+  --accent-line:#d9bcbb;
 
-  /* signals — meaning only, never decoration */
-  --ok:#0f7b52;         --ok-soft:rgba(15,123,82,.08);
-  --warn:#8a5a00;       --warn-soft:rgba(138,90,0,.08);
-  --cold:#7c8592;       --cold-soft:rgba(124,133,146,.09);
-  --danger:#b4441f;     --danger-soft:rgba(180,68,31,.08);
+  /* signals — muted, meaning only, never decoration */
+  --ok:#3d6b49;          --ok-soft:rgba(61,107,73,.09);
+  --warn:#8a6a2c;        --warn-soft:rgba(138,106,44,.10);
+  --cold:#7a7566;        --cold-soft:rgba(122,117,102,.10);
+  --danger:#8a3a2c;      --danger-soft:rgba(138,58,44,.09);
 
-  /* type scale — six steps, nothing between */
-  --t-xs:10.5px; --t-sm:11.5px; --t-md:12.5px; --t-lg:14px; --t-xl:18px; --t-hero:26px;
+  /* type scale — six steps, ~1.12–1.2 progression, nothing between */
+  --t-xs:11px; --t-sm:12px; --t-md:13.5px; --t-lg:15px; --t-xl:19px; --t-hero:28px;
+  --tracking-tight:-.015em;
+  --tracking-label:.045em;
+  --tracking-wide:.09em;
 
   /* space scale — nothing between */
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px;
-  --sp-6:24px; --sp-8:32px; --sp-10:40px;
+  --sp-6:24px; --sp-7:28px; --sp-8:32px; --sp-10:40px;
 
   /* radius: three roles only — control, surface, dialog */
-  --r-1:4px; --r-2:8px; --r-3:12px;
+  --r-1:5px; --r-2:8px; --r-3:12px;
+
+  /* elevation — used sparingly: overlays and floating menus only */
+  --shadow-sm:0 1px 2px rgba(28,24,18,.05), 0 1px 1px rgba(28,24,18,.04);
+  --shadow-md:0 10px 28px rgba(28,24,18,.09);
+  --shadow-dialog:0 26px 60px rgba(28,24,18,.20);
 
   --font:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
   --ease:cubic-bezier(.2,.6,.2,1);
+  --ease-emphasized:cubic-bezier(.16,.8,.24,1);
 
-  --topbar-h:52px;
+  --topbar-h:54px;
   --row-h:44px;
-  --pad-x:26px;          /* the page's left/right breathing room */
+  --pad-x:28px;          /* the page's left/right breathing room */
 }
 
 /* ------------------------------------------------------------------ */
@@ -90,19 +106,31 @@ body{
 #starfield{ display:none; }                 /* retired with the old theme */
 a{ color:inherit; }
 button{ font-family:inherit; }
-:focus-visible{ outline:2px solid var(--ink-2); outline-offset:1px; border-radius:3px; }
+/* the focus ring carries the accent — keyboard orientation borrows the
+   same colour as the product's primary action, not a neutral gray */
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+.skip-link{
+  position:fixed; top:-40px; left:var(--sp-3); z-index:500;
+  background:var(--ink); color:var(--s0); padding:9px 16px; border-radius:var(--r-1);
+  font-size:var(--t-sm); font-weight:600; transition:top .14s var(--ease);
+}
+.skip-link:focus{ top:var(--sp-3); }
 
-::selection{ background:var(--s3); }
+::selection{ background:var(--accent-soft); }
 ::-webkit-scrollbar{ width:10px; height:10px; }
 ::-webkit-scrollbar-track{ background:transparent; }
-::-webkit-scrollbar-thumb{ background:#cfd4da; border-radius:6px; border:3px solid var(--s1); background-clip:padding-box; }
-::-webkit-scrollbar-thumb:hover{ background:#bcc2ca; }
+::-webkit-scrollbar-thumb{ background:#d1cbb8; border-radius:6px; border:3px solid var(--s1); background-clip:padding-box; }
+::-webkit-scrollbar-thumb:hover{ background:#b3ac96; }
 
-@media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
+@media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
 
 .muted{ color:var(--ink-3); }
 .n{ font-variant-numeric:tabular-nums; }
 .l{ color:var(--ink-3); }
+.visually-hidden{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
 .hidden{ display:none!important; }
 
 /* ------------------------------------------------------------------ */
@@ -114,22 +142,28 @@ button{ font-family:inherit; }
   padding:0 var(--pad-x) 0 60px;
   background:var(--s0); border-bottom:1px solid var(--line);
 }
-.topbar-brand{ display:flex; align-items:center; gap:var(--sp-2); min-width:0; }
+.topbar-brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+/* the brand mark is the one place the accent appears unearned by an
+   action — a signature, not a button. Everywhere else accent = "act here". */
 .brand-mark{
-  width:24px; height:24px; border-radius:var(--r-1); flex-shrink:0;
-  background:var(--ink); color:var(--s0);
+  width:26px; height:26px; border-radius:var(--r-1); flex-shrink:0;
+  background:var(--accent); color:var(--accent-ink);
   display:grid; place-items:center; font-size:var(--t-sm); font-weight:600;
+  letter-spacing:0;
 }
-.brand-logo{ width:24px; height:24px; border-radius:var(--r-1); object-fit:cover; display:none; flex-shrink:0; }
+.brand-logo{ width:26px; height:26px; border-radius:var(--r-1); object-fit:cover; display:none; flex-shrink:0; }
 .brand-text{
-  font-size:var(--t-md); font-weight:600; letter-spacing:-.15px; white-space:nowrap;
+  font-size:var(--t-md); font-weight:600; letter-spacing:-.1px; white-space:nowrap;
   display:flex; align-items:baseline; gap:var(--sp-2);
 }
-.brand-text small{ font-size:var(--t-xs); font-weight:400; color:var(--ink-3); letter-spacing:.04em; }
+.brand-text small{
+  font-size:9.5px; font-weight:600; color:var(--ink-3); letter-spacing:var(--tracking-wide);
+  text-transform:uppercase;
+}
 .topbar-actions{ margin-left:auto; display:flex; align-items:center; gap:var(--sp-4); }
 
 .menu-toggle{
-  position:fixed; top:13px; left:var(--sp-5); z-index:80;
+  position:fixed; top:14px; left:var(--sp-5); z-index:80;
   width:26px; height:26px; border-radius:var(--r-1);
   background:transparent; border:1px solid transparent;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
@@ -140,12 +174,12 @@ button{ font-family:inherit; }
 .menu-toggle.open{ opacity:0; pointer-events:none; }
 
 .sidebar-backdrop{
-  position:fixed; inset:0; z-index:70; background:rgba(21,24,29,.28);
+  position:fixed; inset:0; z-index:70; background:rgba(20,17,13,.32);
   opacity:0; pointer-events:none; transition:opacity .18s var(--ease);
 }
 .sidebar-backdrop.show{ opacity:1; pointer-events:auto; }
 .sidebar{
-  position:fixed; top:0; left:0; bottom:0; width:236px; max-width:82vw; z-index:75;
+  position:fixed; top:0; left:0; bottom:0; width:244px; max-width:82vw; z-index:75;
   background:var(--s0); border-right:1px solid var(--line);
   display:flex; flex-direction:column; padding:var(--sp-3);
   transform:translateX(-100%); transition:transform .2s var(--ease);
@@ -154,7 +188,7 @@ button{ font-family:inherit; }
 .sidebar-top-row{ display:flex; align-items:center; justify-content:space-between; padding:2px 6px var(--sp-3); }
 .sidebar-label{ font-size:var(--t-sm); font-weight:600; color:var(--ink-3); }
 .sidebar-close-btn{
-  width:24px; height:24px; border-radius:var(--r-1); background:transparent; border:none;
+  width:26px; height:26px; border-radius:var(--r-1); background:transparent; border:none;
   color:var(--ink-3); cursor:pointer; font-size:13px; line-height:1;
   display:grid; place-items:center; transition:.14s var(--ease);
 }
@@ -175,23 +209,38 @@ button{ font-family:inherit; }
 .sc-name{ font-size:var(--t-md); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sc-role{ font-size:var(--t-xs); color:var(--ink-3); margin-top:1px; }
 .logout-btn{
-  background:transparent; border:none; color:var(--ink-3); width:24px; height:24px;
+  background:transparent; border:none; color:var(--ink-3); width:28px; height:28px;
   border-radius:var(--r-1); cursor:pointer; display:grid; place-items:center; flex-shrink:0;
   transition:.14s var(--ease);
 }
 .logout-btn:hover{ background:var(--s3); color:var(--danger); }
 .logout-btn svg{ width:14px; height:14px; }
 
+/* navigation is grouped by task, not listed flat — ten destinations
+   read faster as three small clusters than one long column */
+.nav-group{ display:flex; flex-direction:column; gap:1px; }
+.nav-group + .nav-group{ margin-top:var(--sp-4); }
+.nav-group-label{
+  font-size:9.5px; font-weight:600; letter-spacing:var(--tracking-wide); text-transform:uppercase;
+  color:var(--ink-3); padding:0 10px; margin-bottom:5px;
+}
 .nav{ display:flex; flex-direction:column; gap:1px; }
 .nav-item{
-  display:flex; align-items:center; gap:var(--sp-2);
-  padding:8px 10px; border-radius:var(--r-1); cursor:pointer;
+  position:relative; display:flex; align-items:center; gap:var(--sp-2);
+  padding:8px 10px 8px 13px; border-radius:var(--r-1); cursor:pointer;
   color:var(--ink-2); font-size:var(--t-md); user-select:none;
   transition:background .12s var(--ease), color .12s var(--ease);
 }
-.nav-item .dot{ width:5px; height:5px; border-radius:50%; background:var(--ink-4); flex-shrink:0; }
+.nav-item .dot{ width:4px; height:4px; border-radius:50%; background:var(--ink-4); flex-shrink:0; }
 .nav-item:hover{ background:var(--s2); color:var(--ink); }
-.nav-item.active{ background:var(--s3); color:var(--ink); font-weight:600; }
+.nav-item:focus-visible{ outline-offset:-2px; }
+/* active state is a precise 2px accent rule, not a gray highlight fill —
+   it reads as "you are here", not "this is selected in a list" */
+.nav-item.active{ background:var(--accent-soft); color:var(--ink); font-weight:600; }
+.nav-item.active::before{
+  content:""; position:absolute; left:0; top:6px; bottom:6px; width:2px;
+  border-radius:1px; background:var(--accent);
+}
 .nav-item.active .dot{ background:var(--accent); }
 .nav-badge{
   margin-left:auto; background:var(--s3); color:var(--ink-2); border:1px solid var(--line-2);
@@ -199,40 +248,41 @@ button{ font-family:inherit; }
   border-radius:9px; display:none; align-items:center; justify-content:center;
 }
 .nav-badge.show{ display:flex; }
-.nav-badge.has{ background:var(--ink); border-color:var(--ink); color:var(--s0); }
+.nav-badge.has{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
 .sidebar-footer{
   margin-top:auto; padding:var(--sp-3) 6px 2px; border-top:1px solid var(--line);
-  font-size:var(--t-xs); color:var(--ink-4);
+  font-size:var(--t-xs); color:var(--ink-3);
 }
-.sidebar-footer b{ color:var(--ink-3); font-weight:500; }
+.sidebar-footer b{ color:var(--ink-2); font-weight:500; }
 
 /* ------------------------------------------------------------------ */
 /* 04 · BUTTONS — text first, wells only where an action must lead     */
 /* ------------------------------------------------------------------ */
 .btn{
-  border:1px solid transparent; cursor:pointer; font-size:var(--t-md); font-weight:500;
-  border-radius:var(--r-1); padding:7px 14px; height:32px;
+  border:1px solid transparent; cursor:pointer; font-size:var(--t-sm); font-weight:600;
+  letter-spacing:var(--tracking-label);
+  border-radius:var(--r-1); padding:7px 15px; height:34px;
   display:inline-flex; align-items:center; justify-content:center; gap:7px;
-  transition:background .14s var(--ease), border-color .14s var(--ease), color .14s var(--ease);
+  transition:background .14s var(--ease), border-color .14s var(--ease), color .14s var(--ease), transform .08s var(--ease);
   white-space:nowrap; color:var(--ink-2); background:transparent;
 }
 .btn svg{ width:14px; height:14px; }
-/* the one filled control: the primary action on a screen */
-.btn-gold{ background:var(--ink); color:var(--s0); border-color:var(--ink); }
-.btn-gold:hover{ background:#2a2f38; border-color:#2a2f38; }
-.btn-azure{ background:var(--ink); color:var(--s0); border-color:var(--ink); }
-.btn-azure:hover{ background:#2a2f38; border-color:#2a2f38; }
+.btn:active{ transform:translateY(1px); }
+/* the one filled control: the primary action on a screen, always the
+   reserved accent — never more than one per view */
+.btn-gold{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.btn-gold:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
 .btn-outline{ border-color:var(--line-2); color:var(--ink-2); background:var(--s0); }
 .btn-outline:hover{ background:var(--s2); color:var(--ink); border-color:var(--line-3); }
 .btn-ghost{ color:var(--ink-3); }
 .btn-ghost:hover{ background:var(--s2); color:var(--ink); }
-.btn-sm{ height:29px; padding:5px 11px; font-size:var(--t-sm); }
+.btn-sm{ height:30px; padding:5px 12px; font-size:var(--t-xs); letter-spacing:var(--tracking-label); }
 .btn-block{ width:100%; }
 .btn[disabled]{ opacity:.45; cursor:not-allowed; }
 .btn.busy{ opacity:.6; pointer-events:none; }
 
 .btn-icon{
-  width:29px; height:29px; border-radius:var(--r-1); border:1px solid transparent;
+  width:30px; height:30px; border-radius:var(--r-1); border:1px solid transparent;
   background:transparent; color:var(--ink-3);
   display:grid; place-items:center; cursor:pointer; flex-shrink:0;
   transition:.14s var(--ease);
@@ -241,10 +291,10 @@ button{ font-family:inherit; }
 .btn-icon svg{ width:15px; height:15px; }
 
 .btn-home{
-  display:none; align-items:center; gap:6px; height:29px; padding:0 11px;
+  display:none; align-items:center; gap:6px; height:30px; padding:0 12px;
   border-radius:var(--r-1); background:transparent; border:1px solid var(--line-2);
-  color:var(--ink-2); font-size:var(--t-sm); font-weight:500; cursor:pointer;
-  transition:.14s var(--ease);
+  color:var(--ink-2); font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label);
+  cursor:pointer; transition:.14s var(--ease);
 }
 .btn-home.show{ display:inline-flex; }
 .btn-home:hover{ background:var(--s2); color:var(--ink); }
@@ -253,80 +303,85 @@ button{ font-family:inherit; }
 /* a link-weight control, used inside panel headers */
 .btn-link{
   background:none; border:none; padding:0; cursor:pointer;
-  color:var(--ink-3); font-family:inherit; font-size:var(--t-sm); font-weight:500;
+  color:var(--ink-3); font-family:inherit; font-size:var(--t-sm); font-weight:600;
   border-bottom:1px solid transparent; transition:.14s var(--ease);
 }
-.btn-link:hover{ color:var(--ink); border-bottom-color:var(--line-3); }
+.btn-link:hover{ color:var(--accent); border-bottom-color:var(--accent-line); }
 
 .btn-delete-icon{
   background:transparent; border:1px solid var(--line-2); color:var(--ink-3);
   width:32px; height:32px; border-radius:var(--r-1); cursor:pointer;
   display:grid; place-items:center; transition:.14s var(--ease);
 }
-.btn-delete-icon:hover{ color:var(--danger); border-color:rgba(180,68,31,.4); background:var(--danger-soft); }
+.btn-delete-icon:hover{ color:var(--danger); border-color:rgba(138,58,44,.4); background:var(--danger-soft); }
 .btn-delete-icon svg{ width:14px; height:14px; }
 
 /* ------------------------------------------------------------------ */
 /* 05 · LAYOUT & TOOLBAR                                               */
 /* ------------------------------------------------------------------ */
-.main{ padding:calc(var(--topbar-h) + var(--sp-6)) var(--pad-x) var(--sp-10); }
+.main{ padding:calc(var(--topbar-h) + var(--sp-7)) var(--pad-x) var(--sp-10); max-width:1520px; margin:0 auto; }
 .page{ display:none; }
 .page.active{ display:block; animation:rise .16s var(--ease); }
 @keyframes rise{ from{ opacity:0; transform:translateY(3px); } to{ opacity:1; transform:none; } }
 
 .page-head{
-  display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4);
-  padding-bottom:var(--sp-4); margin-bottom:var(--sp-5);
+  display:flex; align-items:flex-end; justify-content:space-between; gap:var(--sp-4);
+  padding-bottom:var(--sp-4); margin-bottom:var(--sp-6);
   border-bottom:1px solid var(--line-2);
 }
-.page-title{ font-size:var(--t-xl); font-weight:600; letter-spacing:-.35px; }
+.page-title{
+  font-size:var(--t-xl); font-weight:600; letter-spacing:var(--tracking-tight);
+  margin:0; color:var(--ink);
+}
+.page-title:focus{ outline:none; }
+.page-title:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:2px; }
 .head-actions{ display:flex; gap:var(--sp-2); align-items:center; }
 
 .toolbar{ display:flex; gap:var(--sp-4); align-items:center; margin-bottom:var(--sp-4); }
 /* the search is a ruled field, not a well */
 .search{
-  flex:0 1 300px; min-width:160px; height:30px;
+  flex:0 1 300px; min-width:160px; height:32px;
   background:transparent; border:none; border-bottom:1px solid var(--line-2);
-  border-radius:0; padding:0 2px 6px; color:var(--ink);
+  border-radius:0; padding:0 2px 7px; color:var(--ink);
   font-family:inherit; font-size:var(--t-md); transition:border-color .14s var(--ease);
 }
-.search::placeholder{ color:var(--ink-4); }
-.search:focus{ outline:none; border-bottom-color:var(--ink); }
+.search::placeholder{ color:var(--ink-3); }
+.search:focus{ outline:none; border-bottom-color:var(--accent); border-bottom-width:2px; padding-bottom:6px; }
 
 .filter-wrap{ position:relative; flex-shrink:0; }
 .filter-btn{
-  width:30px; height:30px; border-radius:var(--r-1);
+  width:32px; height:32px; border-radius:var(--r-1);
   background:transparent; border:1px solid var(--line-2); color:var(--ink-3);
   display:grid; place-items:center; cursor:pointer; transition:.14s var(--ease);
 }
 .filter-btn:hover{ background:var(--s2); color:var(--ink); }
-.filter-btn.filtered{ background:var(--s3); border-color:var(--line-3); color:var(--ink); }
+.filter-btn.filtered{ background:var(--accent-soft); border-color:var(--accent-line); color:var(--accent); }
 .filter-btn svg{ width:14px; height:14px; }
 .filter-menu{
-  display:none; position:absolute; top:calc(100% + 6px); right:0; min-width:186px;
+  display:none; position:absolute; top:calc(100% + 6px); right:0; min-width:190px;
   background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-2);
-  padding:var(--sp-1); z-index:90; box-shadow:0 12px 32px rgba(21,24,29,.12);
+  padding:var(--sp-1); z-index:90; box-shadow:var(--shadow-md);
 }
 .filter-menu.open{ display:block; }
-.filter-menu.wide{ min-width:256px; padding:var(--sp-3); }
+.filter-menu.wide{ min-width:260px; padding:var(--sp-3); }
 .filter-opt{
   padding:7px 10px; border-radius:var(--r-1); font-size:var(--t-md);
   color:var(--ink-2); cursor:pointer; display:flex; align-items:center; gap:var(--sp-2);
   transition:.12s var(--ease);
 }
 .filter-opt:hover{ background:var(--s2); color:var(--ink); }
-.filter-opt.active{ background:var(--s2); color:var(--ink); font-weight:600; }
+.filter-opt.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
 .fo-dot{ width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
 .fm-title{
-  font-size:var(--t-xs); letter-spacing:.06em; text-transform:uppercase; font-weight:600;
-  color:var(--ink-4); margin:var(--sp-3) 0 6px;
+  font-size:var(--t-xs); letter-spacing:var(--tracking-label); text-transform:uppercase; font-weight:600;
+  color:var(--ink-3); margin:var(--sp-3) 0 6px;
 }
 .fm-title:first-child{ margin-top:0; }
 .fm-input{
   width:100%; background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-1);
   padding:7px 10px; color:var(--ink); font-family:inherit; font-size:var(--t-md);
 }
-.fm-input:focus{ outline:none; border-color:var(--ink-3); }
+.fm-input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
 .fm-row{ display:flex; gap:var(--sp-2); }
 .fm-row .fm-input{ min-width:0; }
 .fm-sep{ height:1px; background:var(--line); margin:var(--sp-3) 0 var(--sp-1); }
@@ -335,14 +390,20 @@ button{ font-family:inherit; }
 /* ------------------------------------------------------------------ */
 /* 06 · TABLES — the working surface                                   */
 /* ------------------------------------------------------------------ */
+/* .table-wrap keeps the rounded outer frame; .table-scroll only becomes
+   a horizontal scroll container on narrow viewports (see the max-width
+   rules near the bottom of this file), so desktop layout and behavior
+   are unchanged and only phones/small tablets get the scrolling body —
+   the alternative, at any width, was columns silently clipped by
+   .table-wrap's own overflow:hidden with no way to reach them. */
 .table-wrap{ background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden; }
-.table-wrap.allow-overflow{ overflow:visible; }
+.table-scroll{ min-width:0; }
 table{ width:100%; border-collapse:collapse; table-layout:fixed; }
 thead th{
   position:sticky; top:var(--topbar-h); z-index:5; background:var(--s1);
-  text-align:left; font-size:var(--t-xs); font-weight:600; letter-spacing:.05em;
+  text-align:left; font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label);
   text-transform:uppercase; color:var(--ink-3);
-  height:38px; padding:0 var(--sp-3); border-bottom:1px solid var(--line-2); white-space:nowrap;
+  height:40px; padding:0 var(--sp-3); border-bottom:1px solid var(--line-2); white-space:nowrap;
 }
 thead th:first-child{ padding-left:var(--sp-5); }
 tbody td{
@@ -354,52 +415,67 @@ tbody td:nth-child(2){ max-width:none; }
 tbody tr:last-child td{ border-bottom:none; }
 tbody tr.clickable{ cursor:pointer; }
 tbody tr.clickable:hover td{ background:var(--s1); }
+tbody tr.clickable:focus-visible td{ background:var(--s2); }
+tbody tr.clickable:focus-visible{ outline:none; }
+tbody tr.clickable:focus-visible td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
 tbody tr.row-cursor td{ background:var(--s2); }
 tbody tr.row-cursor td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
 .empty-row td{ height:auto; max-width:none; white-space:normal; padding:0; }
 
+/* sort affordance stays faintly visible at rest — a user shouldn't have
+   to discover it by hovering every header */
 th.sortable{ cursor:pointer; user-select:none; }
 th.sortable:hover{ color:var(--ink); }
-th.sortable .sort-arrow{ opacity:0; margin-left:5px; font-size:9px; }
+th.sortable .sort-arrow{ opacity:.35; margin-left:5px; font-size:9px; }
+th.sortable:hover .sort-arrow{ opacity:.7; }
 th.sortable.sorted{ color:var(--ink); }
 th.sortable.sorted .sort-arrow{ opacity:1; color:var(--accent); }
 
 .count-pill{
   background:var(--s3); color:var(--ink-2); font-size:var(--t-xs);
-  padding:1px 7px; border-radius:9px; font-weight:500;
+  padding:1px 7px; border-radius:9px; font-weight:600;
 }
 
-/* status: a dot and a word, never a loud pill */
+/* status: a dot and a word, never a loud pill — the muted signal
+   palette keeps a full table of these legible without turning into a
+   traffic-light grid */
 .tag{ display:inline-flex; align-items:center; gap:6px; font-size:var(--t-sm); font-weight:500; white-space:nowrap; }
 .tag-dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }
 .tag-hot{ color:var(--ok); }        .tag-hot .tag-dot{ background:var(--ok); }
 .tag-warm{ color:var(--warn); }     .tag-warm .tag-dot{ background:var(--warn); }
 .tag-cold{ color:var(--cold); }     .tag-cold .tag-dot{ background:var(--cold); }
-.tag-none{ color:var(--ink-4); }    .tag-none .tag-dot{ background:var(--ink-4); }
-.clickable-tag{ cursor:pointer; }
+.tag-none{ color:var(--ink-3); }    .tag-none .tag-dot{ background:var(--ink-4); }
+.clickable-tag{ cursor:pointer; border-radius:3px; }
 .clickable-tag:hover{ text-decoration:underline; text-underline-offset:3px; }
 
 .status-cell{ display:flex; align-items:center; gap:var(--sp-1); }
+/* row actions stay faintly present at rest (never invisible) and reach
+   full strength on hover, keyboard focus, or touch selection — opacity:0
+   would hide them from touch and keyboard users entirely */
 .row-actions{ display:flex; align-items:center; gap:2px; margin-left:auto; opacity:0; transition:opacity .12s var(--ease); }
-tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
+tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .ra-btn{
-  width:26px; height:26px; border-radius:var(--r-1); background:transparent; border:1px solid transparent;
-  color:var(--ink-4); cursor:pointer; display:grid; place-items:center; transition:.12s var(--ease);
+  width:28px; height:28px; border-radius:var(--r-1); background:transparent; border:1px solid transparent;
+  color:var(--ink-3); cursor:pointer; display:grid; place-items:center; transition:.12s var(--ease);
 }
 .ra-btn:hover{ background:var(--s2); color:var(--ink); border-color:var(--line-2); }
-.ra-btn.danger:hover{ color:var(--danger); border-color:rgba(180,68,31,.35); }
+.ra-btn.danger:hover{ color:var(--danger); border-color:rgba(138,58,44,.35); }
 .ra-btn svg{ width:14px; height:14px; }
 
 .row-menu-wrap{ position:relative; }
 .row-dots{
-  background:none; border:none; color:var(--ink-4); cursor:pointer;
-  padding:2px 5px; border-radius:var(--r-1); font-size:13px; line-height:1; transition:.12s var(--ease);
+  background:none; border:none; color:var(--ink-3); cursor:pointer;
+  padding:4px 6px; border-radius:var(--r-1); font-size:13px; line-height:1; transition:.12s var(--ease);
 }
 .row-dots:hover{ color:var(--ink); background:var(--s3); }
+/* fixed, not absolute: row menus live inside horizontally-scrolling
+   table containers, so they're positioned in viewport space via JS
+   (toggleRowMenu) rather than relative to their scrolling ancestor —
+   otherwise they'd be clipped by that container's own bounds */
 .row-menu{
-  display:none; position:absolute; top:calc(100% + 4px); right:0; min-width:126px;
+  display:none; position:fixed; min-width:130px;
   background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-2);
-  padding:var(--sp-1); z-index:95; box-shadow:0 12px 32px rgba(21,24,29,.12);
+  padding:var(--sp-1); z-index:95; box-shadow:var(--shadow-md);
 }
 .row-menu.open{ display:block; }
 .row-menu-item{
@@ -409,9 +485,9 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .row-menu-item:hover{ background:var(--s2); color:var(--ink); }
 
 /* a marketer who has left stays legible but visibly retired */
-.invited-inactive{ color:var(--ink-4); }
+.invited-inactive{ color:var(--ink-3); }
 .invited-inactive::after{
-  content:"inactive"; font-size:var(--t-xs); color:var(--ink-4);
+  content:"inactive"; font-size:var(--t-xs); color:var(--ink-3);
   border-bottom:1px solid var(--line-2); margin-left:7px;
 }
 .inactive-badge{
@@ -430,7 +506,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   padding:2px 0; color:var(--ink-2); font-family:inherit; font-size:var(--t-md); font-weight:500; cursor:pointer;
   transition:.14s var(--ease);
 }
-.pager-btn:hover:not(:disabled){ color:var(--ink); border-bottom-color:var(--line-3); }
+.pager-btn:hover:not(:disabled){ color:var(--accent); border-bottom-color:var(--accent-line); }
 .pager-btn:disabled{ opacity:.35; cursor:default; }
 
 /* ------------------------------------------------------------------ */
@@ -445,7 +521,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   padding:var(--sp-3) var(--sp-5); min-height:46px;
   border-bottom:1px solid var(--line); background:var(--s1); flex-shrink:0;
 }
-.panel-title{ font-size:var(--t-md); font-weight:600; display:flex; align-items:center; }
+.panel-title{ font-size:var(--t-md); font-weight:600; margin:0; display:flex; align-items:center; }
 .panel-title .count-pill{ margin-left:var(--sp-2); }
 .panel-body{ flex:1 1 auto; min-height:0; overflow-y:auto; }
 .panel-empty{ padding:30px var(--sp-4); text-align:center; color:var(--ink-3); font-size:var(--t-md); }
@@ -479,7 +555,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 /* 08 · GUEST CARD                                                     */
 /* ------------------------------------------------------------------ */
 .customer-layout{ display:flex; gap:var(--sp-5); align-items:flex-start; }
-.customer-layout .table-wrap{ flex:1; min-width:0; }
+.customer-layout .table-wrap{ flex:1; min-width:0; width:100%; }
 .detail-panel{
   width:376px; flex-shrink:0; position:sticky; top:calc(var(--topbar-h) + var(--sp-6));
   background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2);
@@ -506,7 +582,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   overflow:hidden; text-align:left;
 }
 .gc-field{ background:var(--s0); padding:9px 11px; min-width:0; }
-.gf-l{ font-size:var(--t-xs); color:var(--ink-4); }
+.gf-l{ font-size:var(--t-xs); color:var(--ink-3); letter-spacing:var(--tracking-label); text-transform:uppercase; }
 .gf-v{ font-size:var(--t-md); margin-top:2px; overflow-wrap:anywhere; }
 
 .card-tabs{ display:flex; gap:var(--sp-5); padding:0 var(--sp-5); border-top:1px solid var(--line);
@@ -518,7 +594,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 }
 .card-tab:hover{ color:var(--ink-2); }
 .card-tab.active{ color:var(--ink); font-weight:500; border-bottom-color:var(--accent); }
-.ct-count{ font-size:var(--t-xs); color:var(--ink-4); margin-left:5px; }
+.ct-count{ font-size:var(--t-xs); color:var(--ink-3); margin-left:5px; }
 .card-body-scroll{ flex:1; overflow-y:auto; min-height:0; }
 .card-pane{ display:none; padding:var(--sp-4); }
 .card-pane.active{ display:block; }
@@ -543,7 +619,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 }
 .note-block.crm{ border-left-color:var(--ink-3); }
 .nb-date{
-  font-size:var(--t-xs); color:var(--ink-4); margin-bottom:4px;
+  font-size:var(--t-xs); color:var(--ink-3); margin-bottom:4px;
   display:flex; justify-content:space-between; gap:var(--sp-2);
 }
 
@@ -558,7 +634,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .tl-item.t-res .tl-dot{ background:var(--ink-2); }
 .tl-item.t-note .tl-dot{ background:var(--ok); }
 .tl-item.t-assign .tl-dot{ background:var(--warn); }
-.tl-when{ font-size:var(--t-xs); color:var(--ink-4); }
+.tl-when{ font-size:var(--t-xs); color:var(--ink-3); }
 .tl-title{ font-size:var(--t-md); font-weight:500; margin-top:2px; }
 .tl-body{ font-size:var(--t-sm); color:var(--ink-3); margin-top:3px; line-height:1.55; }
 
@@ -584,7 +660,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .pc-metric{ padding:11px var(--sp-3); text-align:center; }
 .pc-metric + .pc-metric{ border-left:1px solid var(--line); }
 .pc-metric .n{ font-size:var(--t-lg); font-weight:500; }
-.pc-metric .l{ font-size:var(--t-xs); color:var(--ink-4); margin-top:3px; }
+.pc-metric .l{ font-size:var(--t-xs); color:var(--ink-3); margin-top:3px; }
 .pc-spark{ display:flex; align-items:flex-end; gap:3px; height:32px; padding:10px var(--sp-5) 12px; border-top:1px solid var(--line); }
 .spark-bar{ flex:1; background:var(--s3); border-radius:1px 1px 0 0; min-height:2px; }
 .spark-bar.on{ background:var(--ink-3); opacity:.85; }
@@ -606,7 +682,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .pd-hero-inner{ position:relative; z-index:1; display:flex; align-items:center; gap:var(--sp-5); flex-wrap:wrap; }
 .pd-hero .avatar{ width:88px; height:88px; font-size:26px; }
 .pd-hero-info{ flex:1; min-width:200px; }
-.pd-kicker{ font-size:var(--t-xs); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-4); font-weight:600; }
+.pd-kicker{ font-size:var(--t-xs); letter-spacing:var(--tracking-wide); text-transform:uppercase; color:var(--accent); font-weight:600; }
 .pd-hero-name{ font-size:var(--t-hero); font-weight:600; letter-spacing:-.7px; margin-top:6px; }
 .pd-chips{ display:flex; gap:var(--sp-4); margin-top:var(--sp-3); flex-wrap:wrap; }
 .pd-chip{ display:inline-flex; align-items:center; gap:6px; font-size:var(--t-sm); color:var(--ink-3); }
@@ -617,9 +693,8 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   border-bottom:1px solid var(--line); margin-bottom:var(--sp-6); }
 .pd-stat{ padding:var(--sp-4) var(--sp-4) var(--sp-4) 0; min-width:0; }
 .pd-stat + .pd-stat{ border-left:1px solid var(--line); padding-left:var(--sp-4); }
-.pd-stat .n{ font-size:24px; font-weight:500; letter-spacing:-.6px; }
-.pd-stat .l{ font-size:var(--t-xs); color:var(--ink-4); margin-top:5px; }
-.pd-stat.t-azure .n, .pd-stat.t-teal .n, .pd-stat.t-violet .n, .pd-stat.t-plain .n{ color:var(--ink); }
+.pd-stat .n{ font-size:24px; font-weight:500; letter-spacing:-.6px; color:var(--ink); }
+.pd-stat .l{ font-size:var(--t-xs); color:var(--ink-3); margin-top:5px; }
 
 .split-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-8); }
 .split-col{ min-width:0; }
@@ -639,37 +714,50 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 /* ------------------------------------------------------------------ */
 /* 10 · DASHBOARD                                                      */
 /* ------------------------------------------------------------------ */
+/* the band is orientation, not the headline — a compact instrument row
+   the eye passes on the way to the panels, which carry the actual
+   decisions. Kept quiet: no fills, no radius per cell, hairline rules. */
 .stat-band{
   display:grid; grid-template-columns:repeat(5,1fr);
   background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden;
 }
-.stat-cell{ padding:var(--sp-4) var(--sp-5); cursor:pointer; min-width:0; transition:background .12s var(--ease); }
+.stat-cell{ padding:var(--sp-3) var(--sp-5); cursor:pointer; min-width:0; transition:background .12s var(--ease); }
 .stat-cell + .stat-cell{ border-left:1px solid var(--line); }
-.stat-cell:hover{ background:var(--s1); }
-.sc-l{ font-size:var(--t-sm); color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sc-n{ font-size:var(--t-hero); font-weight:500; letter-spacing:-.8px; margin-top:6px; line-height:1.15; }
+.stat-cell:hover, .stat-cell:focus-visible{ background:var(--s1); }
+.stat-cell:focus-visible{ outline-offset:-2px; }
+.sc-l{ font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sc-n{ font-size:22px; font-weight:600; letter-spacing:-.5px; margin-top:5px; line-height:1.15; color:var(--ink); }
 .sc-flag{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--warn); margin-left:8px; vertical-align:middle; }
 .kpi-arrow{ display:none; }
 
-.dash-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-4); align-items:stretch; margin-top:var(--sp-4); }
-.dash-col{ display:grid; grid-template-rows:1fr 1fr; gap:var(--sp-4); min-width:0; }
+/* the working column (attention + pending) leads and runs wider; the
+   informational column (notifications + recent activity) trails —
+   composition carries the hierarchy, not four equal-weight cards */
+.dash-grid{ display:grid; grid-template-columns:1.32fr 1fr; gap:var(--sp-5); align-items:start; margin-top:var(--sp-6); }
+.dash-grid.has-rank{ grid-template-columns:1.15fr .95fr .95fr; }
+.dash-col{ display:grid; grid-template-rows:auto auto auto; gap:var(--sp-3) var(--sp-4); min-width:0; }
+.dash-col > .dash-section-label{ margin-bottom:0; }
 .dash-col .panel{ min-height:0; }
+.dash-section-label{
+  font-size:9.5px; font-weight:600; letter-spacing:var(--tracking-wide); text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:var(--sp-2);
+}
 
 .rank-row{ display:flex; align-items:center; gap:var(--sp-3); padding:10px var(--sp-5); border-bottom:1px solid var(--line); }
 .rank-row:last-child{ border-bottom:none; }
-.rank-pos{ width:16px; font-size:var(--t-sm); color:var(--ink-4); font-weight:600; }
+.rank-pos{ width:16px; font-size:var(--t-sm); color:var(--ink-3); font-weight:600; }
 .rank-name{ flex:1; min-width:0; font-size:var(--t-md); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .rank-bar{ width:92px; height:4px; background:var(--s3); border-radius:2px; overflow:hidden; flex-shrink:0; }
-.rank-fill{ height:100%; background:var(--ink-2); opacity:.75; border-radius:2px; }
-.rank-val{ width:24px; text-align:right; font-size:var(--t-sm); color:var(--ink-3); }
+.rank-fill{ height:100%; background:var(--accent); opacity:.8; border-radius:2px; }
+.rank-val{ width:24px; text-align:right; font-size:var(--t-sm); color:var(--ink-3); font-variant-numeric:tabular-nums; }
 
 /* reports */
 .report-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:var(--sp-4); margin-top:var(--sp-4); }
 .bar-row{ display:flex; align-items:center; gap:var(--sp-3); padding:8px 0; }
 .bar-label{ font-size:var(--t-md); width:38%; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bar-track{ flex:1; height:4px; background:var(--s3); border-radius:2px; overflow:hidden; }
-.bar-fill{ height:100%; background:var(--ink-2); opacity:.75; border-radius:2px; }
-.bar-value{ font-size:var(--t-sm); color:var(--ink-3); width:32px; text-align:right; flex-shrink:0; }
+.bar-fill{ height:100%; background:var(--accent); opacity:.8; border-radius:2px; }
+.bar-value{ font-size:var(--t-sm); color:var(--ink-3); width:32px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
 
 /* notifications */
 .notif-list{ background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden; }
@@ -691,24 +779,21 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .notif-main{ flex:1; min-width:0; }
 .notif-title{ font-size:var(--t-md); font-weight:500; }
 .notif-text{ font-size:var(--t-sm); color:var(--ink-3); margin-top:2px; line-height:1.5; }
-.notif-time{ font-size:var(--t-xs); color:var(--ink-4); flex-shrink:0; }
-.notif-dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-2); flex-shrink:0; margin-top:9px; }
+.notif-time{ font-size:var(--t-xs); color:var(--ink-3); flex-shrink:0; }
+.notif-dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0; margin-top:9px; }
 .notif-x{
-  position:absolute; top:10px; right:10px; width:20px; height:20px; border-radius:var(--r-1);
-  background:transparent; border:none; color:var(--ink-4); cursor:pointer; font-size:12px; line-height:1;
+  position:absolute; top:10px; right:10px; width:22px; height:22px; border-radius:var(--r-1);
+  background:transparent; border:none; color:var(--ink-3); cursor:pointer; font-size:12px; line-height:1;
   display:grid; place-items:center; opacity:0; transition:.14s var(--ease);
 }
-.notif-item:hover .notif-x{ opacity:1; }
+.notif-item:hover .notif-x, .notif-item:focus-within .notif-x{ opacity:1; }
 .notif-x:hover{ background:var(--s3); color:var(--danger); }
-
-/* legacy quick-action blocks, kept harmless if ever rendered */
-.qa-gold, .qa-azure, .qa-teal, .qa-violet{ color:var(--ink-2); }
 
 /* ------------------------------------------------------------------ */
 /* 11 · MODALS & FORMS                                                 */
 /* ------------------------------------------------------------------ */
 .overlay{
-  position:fixed; inset:0; background:rgba(21,24,29,.34); backdrop-filter:blur(2px);
+  position:fixed; inset:0; background:rgba(20,17,13,.4); backdrop-filter:blur(2px);
   display:none; align-items:center; justify-content:center; z-index:100; padding:var(--sp-6);
 }
 .overlay.show{ display:flex; }
@@ -717,7 +802,7 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   width:520px; max-width:100%; max-height:88vh;
   background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-3);
   overflow:hidden; display:flex; flex-direction:column;
-  box-shadow:0 24px 60px rgba(21,24,29,.18); animation:rise .16s var(--ease);
+  box-shadow:var(--shadow-dialog); animation:rise .16s var(--ease-emphasized);
 }
 .modal.modal-wide{ width:900px; }
 .modal.modal-full{ width:100%; height:100%; max-height:100%; border-radius:0; border:none; }
@@ -725,9 +810,9 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3);
   padding:var(--sp-4) var(--sp-6); border-bottom:1px solid var(--line); flex-shrink:0; background:var(--s1);
 }
-.modal-title{ font-size:var(--t-lg); font-weight:600; letter-spacing:-.2px; }
+.modal-title{ font-size:var(--t-lg); font-weight:600; letter-spacing:var(--tracking-tight); margin:0; }
 .modal-close{
-  background:transparent; border:none; width:28px; height:28px; border-radius:var(--r-1);
+  background:transparent; border:none; width:30px; height:30px; border-radius:var(--r-1);
   color:var(--ink-3); font-size:14px; cursor:pointer; line-height:1; flex-shrink:0;
   display:grid; place-items:center; transition:.14s var(--ease);
 }
@@ -744,24 +829,24 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .form-group:last-child{ margin-bottom:0; }
 .form-group.first{ margin-top:0; }
 .form-group-title{
-  font-size:var(--t-xs); font-weight:600; letter-spacing:.06em; text-transform:uppercase;
-  color:var(--ink-4); padding-bottom:var(--sp-2); margin-bottom:var(--sp-4);
+  font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase;
+  color:var(--ink-3); padding-bottom:var(--sp-2); margin-bottom:var(--sp-4);
   border-bottom:1px solid var(--line);
 }
 .field{ margin-bottom:var(--sp-4); }
 .field:last-child{ margin-bottom:0; }
-.field label{ display:block; font-size:var(--t-sm); color:var(--ink-2); margin-bottom:5px; }
+.field label{ display:block; font-size:var(--t-sm); font-weight:500; color:var(--ink-2); margin-bottom:6px; }
 .field input, .field select, .field textarea{
   width:100%; background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-1);
-  padding:8px 11px; color:var(--ink); font-family:inherit; font-size:var(--t-md); height:34px;
+  padding:8px 11px; color:var(--ink); font-family:inherit; font-size:var(--t-md); height:36px;
   transition:border-color .14s var(--ease), box-shadow .14s var(--ease);
 }
-.field textarea{ height:auto; min-height:76px; resize:vertical; line-height:1.6; padding:9px 11px; }
+.field textarea{ height:auto; min-height:80px; resize:vertical; line-height:1.6; padding:9px 11px; }
 .field input:focus, .field select:focus, .field textarea:focus{
-  outline:none; border-color:var(--ink-3); box-shadow:0 0 0 3px var(--s3);
+  outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);
 }
 .field input:disabled{ background:var(--s2); color:var(--ink-3); cursor:not-allowed; }
-.field input::placeholder, .field textarea::placeholder{ color:var(--ink-4); }
+.field input::placeholder, .field textarea::placeholder{ color:var(--ink-3); }
 .field-row{ display:flex; gap:var(--sp-3); }
 .field-row .field{ flex:1; min-width:0; }
 .field-error{ font-size:var(--t-xs); color:var(--danger); margin-top:5px; display:none; }
@@ -772,7 +857,6 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   display:flex; gap:var(--sp-4); align-items:flex-start;
   padding:var(--sp-4) 0; border-bottom:1px solid var(--line);
 }
-.form-hero.tone-violet, .form-hero.tone-teal{ background:transparent; }
 .form-hero-fields{ flex:1; min-width:0; }
 .form-hero-fields .field{ margin-bottom:var(--sp-3); }
 .form-hero-fields .field:last-child{ margin-bottom:0; }
@@ -781,16 +865,16 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   border:1px dashed var(--line-3); background:var(--s2);
   background-size:cover; background-position:center;
   display:grid; place-items:center; cursor:pointer; overflow:hidden;
-  color:var(--ink-3); font-size:var(--t-xs); font-weight:600; letter-spacing:.06em;
+  color:var(--ink-3); font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label);
   text-align:center; padding:var(--sp-2); transition:.14s var(--ease);
 }
-.photo-drop:hover{ border-color:var(--ink-3); color:var(--ink-2); }
+.photo-drop:hover{ border-color:var(--accent); color:var(--accent); }
 
 .check-row{
   display:flex; align-items:center; gap:var(--sp-3);
   padding:11px 0; border-top:1px solid var(--line); cursor:pointer;
 }
-.check-row input{ width:15px; height:15px; accent-color:var(--ink); cursor:pointer; flex-shrink:0; }
+.check-row input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
 .cr-text{ font-size:var(--t-md); }
 
 .entity-preview{
@@ -798,7 +882,6 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   padding:var(--sp-3) 0; margin-top:var(--sp-3); border-top:1px solid var(--line);
 }
 .entity-preview.show{ display:flex; }
-.entity-preview.tone-teal, .entity-preview.tone-violet{ background:transparent; }
 .ep-info{ flex:1; min-width:0; }
 .ep-name{ font-size:var(--t-lg); font-weight:600; letter-spacing:-.15px; }
 .ep-meta{ font-size:var(--t-sm); color:var(--ink-3); margin-top:3px; line-height:1.5; }
@@ -812,40 +895,40 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .crop-ring{ position:absolute; inset:0; border-radius:50%; pointer-events:none; box-shadow:0 0 0 1px var(--line-2); }
 .crop-controls{ display:flex; align-items:center; gap:var(--sp-3); max-width:300px; margin:0 auto var(--sp-2); }
 .crop-controls label{ font-size:var(--t-sm); color:var(--ink-3); }
-.crop-controls input[type=range]{ flex:1; accent-color:var(--ink); }
+.crop-controls input[type=range]{ flex:1; accent-color:var(--accent); }
 
 /* ------------------------------------------------------------------ */
 /* 12 · COMMAND PALETTE & SHORTCUTS                                    */
 /* ------------------------------------------------------------------ */
 .palette-overlay{
-  position:fixed; inset:0; z-index:400; background:rgba(21,24,29,.30);
+  position:fixed; inset:0; z-index:400; background:rgba(20,17,13,.38);
   display:none; align-items:flex-start; justify-content:center; padding:12vh var(--sp-5) var(--sp-5);
 }
 .palette-overlay.show{ display:flex; }
 .palette{
   width:580px; max-width:100%; background:var(--s0); border:1px solid var(--line-2);
-  border-radius:var(--r-3); overflow:hidden; box-shadow:0 28px 64px rgba(21,24,29,.20);
-  animation:rise .14s var(--ease);
+  border-radius:var(--r-3); overflow:hidden; box-shadow:var(--shadow-dialog);
+  animation:rise .14s var(--ease-emphasized);
 }
 .palette-input{
   width:100%; border:none; background:transparent; padding:var(--sp-4) var(--sp-5);
   color:var(--ink); font-family:inherit; font-size:var(--t-lg); border-bottom:1px solid var(--line);
 }
 .palette-input:focus{ outline:none; }
-.palette-input::placeholder{ color:var(--ink-4); }
+.palette-input::placeholder{ color:var(--ink-3); }
 .palette-list{ max-height:52vh; overflow-y:auto; padding:var(--sp-1); }
 .palette-group{
-  font-size:var(--t-xs); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-4);
+  font-size:var(--t-xs); letter-spacing:var(--tracking-label); text-transform:uppercase; color:var(--ink-3);
   font-weight:600; padding:var(--sp-3) var(--sp-3) 6px;
 }
 .palette-item{ display:flex; align-items:center; gap:var(--sp-3); padding:9px var(--sp-3); border-radius:var(--r-1); cursor:pointer; }
-.palette-item.active{ background:var(--s2); }
+.palette-item.active{ background:var(--accent-soft); }
 .pi-main{ flex:1; min-width:0; }
 .pi-title{ font-size:var(--t-md); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pi-sub{ font-size:var(--t-sm); color:var(--ink-3); margin-top:2px; }
-.pi-kind{ font-size:var(--t-xs); color:var(--ink-4); }
+.pi-kind{ font-size:var(--t-xs); color:var(--ink-3); }
 .palette-foot{ display:flex; gap:var(--sp-4); padding:9px var(--sp-4); border-top:1px solid var(--line);
-  font-size:var(--t-xs); color:var(--ink-4); background:var(--s1); }
+  font-size:var(--t-xs); color:var(--ink-3); background:var(--s1); }
 .palette-foot kbd{
   background:var(--s3); border:1px solid var(--line-2); border-radius:3px;
   padding:1px 5px; font-family:var(--mono); font-size:10px; margin-right:4px;
@@ -871,25 +954,25 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 }
 .login-screen.hidden{ display:none; }
 .login-card{
-  width:360px; max-width:100%; background:var(--s0);
+  width:368px; max-width:100%; background:var(--s0);
   border:1px solid var(--line); border-radius:var(--r-3); padding:var(--sp-8) var(--sp-6) var(--sp-6);
-  box-shadow:0 20px 48px rgba(21,24,29,.08);
+  box-shadow:var(--shadow-md);
 }
 .login-brand{ display:flex; align-items:center; justify-content:center; margin-bottom:var(--sp-4); }
-.login-brand .brand-mark{ width:36px; height:36px; font-size:var(--t-lg); border-radius:var(--r-2); }
-.login-brand .brand-logo{ width:36px; height:36px; border-radius:var(--r-2); }
-.login-title{ text-align:center; font-size:var(--t-lg); font-weight:600; letter-spacing:-.2px; }
-.login-sub{ text-align:center; font-size:var(--t-sm); color:var(--ink-3); margin:4px 0 var(--sp-6); }
+.login-brand .brand-mark{ width:38px; height:38px; font-size:var(--t-lg); border-radius:var(--r-2); }
+.login-brand .brand-logo{ width:38px; height:38px; border-radius:var(--r-2); }
+.login-title{ text-align:center; font-size:var(--t-lg); font-weight:600; letter-spacing:var(--tracking-tight); margin:0; }
+.login-sub{ text-align:center; font-size:var(--t-sm); color:var(--ink-3); margin:5px 0 var(--sp-6); }
 .login-error{
-  display:none; background:var(--danger-soft); border:1px solid rgba(180,68,31,.28);
+  display:none; background:var(--danger-soft); border:1px solid rgba(138,58,44,.28);
   color:var(--danger); border-radius:var(--r-1); padding:9px 12px;
   font-size:var(--t-md); margin-bottom:var(--sp-3); text-align:center;
 }
 .login-error.show{ display:block; }
-.login-card .btn{ width:100%; margin-top:var(--sp-2); height:38px; }
+.login-card .btn{ width:100%; margin-top:var(--sp-2); height:40px; }
 .setup-steps{ display:flex; gap:var(--sp-2); justify-content:center; margin-bottom:var(--sp-5); }
 .setup-dot{ width:26px; height:2px; border-radius:1px; background:var(--line-2); }
-.setup-dot.active{ background:var(--ink); }
+.setup-dot.active{ background:var(--accent); }
 
 /* ------------------------------------------------------------------ */
 /* 14 · TOASTS, EMPTY & SETTINGS                                       */
@@ -897,16 +980,16 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .toast-stack{ position:fixed; right:var(--sp-5); bottom:var(--sp-5); z-index:600; display:flex; flex-direction:column; gap:var(--sp-2); }
 .toast{
   min-width:250px; max-width:380px; display:flex; align-items:flex-start; gap:var(--sp-3);
-  background:var(--s0); border:1px solid var(--line-2); border-left:3px solid var(--ink);
+  background:var(--s0); border:1px solid var(--line-2); border-left:3px solid var(--accent);
   border-radius:var(--r-1); padding:12px var(--sp-4);
-  box-shadow:0 14px 36px rgba(21,24,29,.14); animation:slideIn .2s var(--ease);
+  box-shadow:var(--shadow-md); animation:slideIn .2s var(--ease-emphasized);
 }
 .toast.success{ border-left-color:var(--ok); }
 .toast.error{ border-left-color:var(--danger); }
 .toast.warning{ border-left-color:var(--warn); }
 .t-title{ font-size:var(--t-md); font-weight:600; }
 .t-msg{ font-size:var(--t-sm); color:var(--ink-3); margin-top:3px; line-height:1.5; }
-.t-close{ margin-left:auto; background:none; border:none; color:var(--ink-4); cursor:pointer; font-size:13px; }
+.t-close{ margin-left:auto; background:none; border:none; color:var(--ink-3); cursor:pointer; font-size:13px; padding:2px; }
 .toast.leaving{ animation:slideOut .16s var(--ease) forwards; }
 @keyframes slideIn{ from{ opacity:0; transform:translateX(14px); } to{ opacity:1; transform:none; } }
 @keyframes slideOut{ to{ opacity:0; transform:translateX(14px); } }
@@ -921,8 +1004,8 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 .settings-plain{ max-width:840px; }
 .settings-section{ margin-bottom:var(--sp-8); }
 .settings-section-title{
-  font-size:var(--t-xs); font-weight:600; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--ink-4); padding-bottom:var(--sp-2); border-bottom:1px solid var(--line-2);
+  font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase;
+  color:var(--ink-3); margin:0; padding-bottom:var(--sp-2); border-bottom:1px solid var(--line-2);
 }
 .setting-row{
   display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4);
@@ -936,14 +1019,15 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-1);
   padding:7px 10px; color:var(--ink); font-family:inherit; font-size:var(--t-md); min-width:140px;
 }
-.switch{ position:relative; width:40px; height:22px; flex-shrink:0; cursor:pointer; display:inline-block; }
+.switch{ position:relative; width:40px; height:24px; flex-shrink:0; cursor:pointer; display:inline-block; }
 .switch input{ opacity:0; width:0; height:0; }
 .track{ position:absolute; inset:0; background:var(--s3); border:1px solid var(--line-2);
   border-radius:20px; transition:.18s var(--ease); }
-.knob{ position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%;
-  background:var(--ink-4); transition:.18s var(--ease); }
-.switch input:checked + .track{ background:var(--ink); border-color:var(--ink); }
-.switch input:checked + .track .knob{ transform:translateX(18px); background:var(--s0); }
+.knob{ position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%;
+  background:var(--ink-3); transition:.18s var(--ease); }
+.switch input:checked + .track{ background:var(--accent); border-color:var(--accent); }
+.switch input:checked + .track .knob{ transform:translateX(16px); background:var(--accent-ink); }
+.switch input:focus-visible + .track{ outline:2px solid var(--accent); outline-offset:2px; }
 
 .perm-grid{ margin-top:var(--sp-2); }
 .perm-row{
@@ -951,15 +1035,15 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
   padding:9px 0; border-bottom:1px solid var(--line);
 }
 .perm-row:last-child{ border-bottom:none; }
-.perm-head{ font-size:var(--t-xs); letter-spacing:.06em; text-transform:uppercase;
-  color:var(--ink-4); font-weight:600; text-align:center; }
+.perm-head{ font-size:var(--t-xs); letter-spacing:var(--tracking-label); text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; text-align:center; }
 .perm-name{ font-size:var(--t-md); }
 .perm-cell{ display:flex; justify-content:center; }
 
-.role-pill{ font-size:var(--t-xs); font-weight:600; letter-spacing:.05em; color:var(--ink-3);
+.role-pill{ font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label); color:var(--ink-3);
   border-bottom:1px solid var(--line-2); padding-bottom:1px; }
-.role-pill.admin{ color:var(--ink); border-bottom-color:var(--ink-3); }
-.role-pill.manager{ color:var(--ok); border-bottom-color:rgba(15,123,82,.3); }
+.role-pill.admin{ color:var(--accent); border-bottom-color:var(--accent-line); }
+.role-pill.manager{ color:var(--ok); border-bottom-color:rgba(61,107,73,.35); }
 .audit-action{ font-family:var(--mono); font-size:var(--t-sm); color:var(--ink-2); }
 
 .skeleton{ background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 37%,var(--s2) 63%);
@@ -971,24 +1055,27 @@ tbody tr:hover .row-actions, tbody tr.row-cursor .row-actions{ opacity:1; }
 /* 15 · DARK VARIANT, DENSITY, RESPONSIVE                              */
 /* ------------------------------------------------------------------ */
 body.theme-dark{
-  --s0:#1c1c20; --s1:#17171a; --s2:#222227; --s3:#2a2a30; --s4:#33333b;
-  --line:#26262c; --line-2:#33333b; --line-3:#454550;
-  --ink:#eceae6; --ink-2:#a09c95; --ink-3:#726e68; --ink-4:#585450;
-  --accent:#c8c4be; --accent-soft:#2a2a30; --accent-line:#4a4a54;
-  --ok:#7d9a6a; --ok-soft:rgba(125,154,106,.12);
-  --warn:#c2a03f; --warn-soft:rgba(194,160,63,.12);
-  --cold:#726e68; --cold-soft:rgba(114,110,104,.12);
-  --danger:#c2705f; --danger-soft:rgba(194,112,95,.12);
+  --s0:#1a1918; --s1:#141312; --s2:#201f1c; --s3:#2a2925; --s4:#38362f;
+  --line:#2c2a26; --line-2:#3a3833; --line-3:#4d4a42;
+  --ink:#f2efe9; --ink-2:#bdb7a8; --ink-3:#8b8578; --ink-4:#5c584e;
+  /* the accent lightens rather than darkens against the dark surface,
+     and switches to dark text-on-accent — the same pairing rule as
+     the light theme's white-on-oxblood, inverted */
+  --accent:#c1848a; --accent-hover:#cd9599; --accent-ink:#1a1514;
+  --accent-soft:#2c211f; --accent-line:#5a3d3c;
+  --ok:#7fa287; --ok-soft:rgba(127,162,135,.14);
+  --warn:#c9a869; --warn-soft:rgba(201,168,105,.14);
+  --cold:#8b8578; --cold-soft:rgba(139,133,120,.13);
+  --danger:#c98b78; --danger-soft:rgba(201,139,120,.13);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 10px 28px rgba(0,0,0,.45);
+  --shadow-dialog:0 26px 60px rgba(0,0,0,.55);
 }
 body.theme-dark{ background:var(--s1); }
-body.theme-dark .btn-gold, body.theme-dark .btn-azure{ background:#e8e6e2; border-color:#e8e6e2; color:#1c1c20; }
-body.theme-dark .btn-gold:hover, body.theme-dark .btn-azure:hover{ background:#fff; border-color:#fff; }
-body.theme-dark .brand-mark{ background:var(--s4); color:var(--ink); }
-body.theme-dark .modal, body.theme-dark .palette{ box-shadow:0 24px 60px rgba(0,0,0,.5); }
-body.theme-dark .toast{ box-shadow:0 14px 36px rgba(0,0,0,.45); }
-body.theme-dark ::-webkit-scrollbar-thumb{ background:#3a3a43; border-color:var(--s1); }
-body.theme-dark .switch input:checked + .track{ background:#e8e6e2; border-color:#e8e6e2; }
-body.theme-dark .switch input:checked + .track .knob{ background:#1c1c20; }
+body.theme-dark .brand-mark{ background:var(--accent); color:var(--accent-ink); }
+body.theme-dark ::-webkit-scrollbar-thumb{ background:#3a3833; border-color:var(--s1); }
+body.theme-dark .switch input:checked + .track{ background:var(--accent); border-color:var(--accent); }
+body.theme-dark .switch input:checked + .track .knob{ background:var(--accent-ink); }
 
 body.density-compact{ --row-h:36px; }
 body.density-compact tbody td{ font-size:var(--t-sm); }
@@ -1004,7 +1091,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   .pd-stat:nth-child(n+3){ border-top:1px solid var(--line); }
 }
 @media (max-width:1180px){
-  .dash-grid{ grid-template-columns:1fr; }
+  .dash-grid, .dash-grid.has-rank{ grid-template-columns:1fr; }
   .dash-col{ grid-template-rows:auto; }
   .customer-layout{ flex-direction:column; }
   .detail-panel{ width:100%; position:static; max-height:none; }
@@ -1012,6 +1099,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 }
 @media (max-width:760px){
   :root{ --pad-x:16px; }
+  /* below this width the table can't fit its columns at readable size —
+     make the table body horizontally scrollable rather than truncating
+     every column into illegibility */
+  .table-scroll{ overflow-x:auto; }
+  table{ min-width:640px; }
   .stat-band{ grid-template-columns:repeat(2,1fr); }
   .stat-cell:nth-child(odd){ border-left:none; }
   .stat-cell:nth-child(n+3){ border-top:1px solid var(--line); }
@@ -1022,6 +1114,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   .page-head{ flex-wrap:wrap; }
   .search{ flex:1 1 100%; }
   .pd-body, .pd-hero{ padding-left:var(--sp-4); padding-right:var(--sp-4); }
+}
+@media (max-width:480px){
+  .brand-text small{ display:none; }
+  .btn-home span{ display:none; }
+  .btn-home{ width:30px; padding:0; }
 }
 
 </style>
@@ -1034,15 +1131,15 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="login-brand">
       <div class="brand-mark" id="loginFallback">M</div>
     </div>
-    <div class="login-title">MERIT MARKETING HUB</div>
+    <h1 class="login-title">MERIT MARKETING HUB</h1>
     <div class="login-sub">Casino CRM</div>
-    <div class="login-error" id="loginError"></div>
+    <div class="login-error" id="loginError" role="alert"></div>
     <div class="field">
-      <label>Username</label>
+      <label for="loginUser">Username</label>
       <input type="text" id="loginUser" autocomplete="username" onkeydown="loginKey(event)">
     </div>
     <div class="field">
-      <label>Password</label>
+      <label for="loginPass">Password</label>
       <input type="password" id="loginPass" autocomplete="current-password" onkeydown="loginKey(event)">
     </div>
     <button class="btn btn-gold" id="loginBtn" onclick="doLogin()">SIGN IN</button>
@@ -1050,24 +1147,24 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 
   <div class="login-card" id="setupCard" style="display:none;">
     <div class="login-brand"><div class="brand-mark">M</div></div>
-    <div class="login-title">Welcome</div>
+    <h1 class="login-title">Welcome</h1>
     <div class="login-sub">Create the administrator account</div>
     <div class="setup-steps"><div class="setup-dot active"></div><div class="setup-dot active"></div></div>
-    <div class="login-error" id="setupError"></div>
+    <div class="login-error" id="setupError" role="alert"></div>
     <div class="field">
-      <label>Full Name</label>
+      <label for="setupName">Full Name</label>
       <input type="text" id="setupName" onkeydown="setupKey(event)">
     </div>
     <div class="field">
-      <label>Username</label>
+      <label for="setupUser">Username</label>
       <input type="text" id="setupUser" onkeydown="setupKey(event)">
     </div>
     <div class="field">
-      <label>Password</label>
+      <label for="setupPass">Password</label>
       <input type="password" id="setupPass" onkeydown="setupKey(event)">
     </div>
     <div class="field">
-      <label>Confirm Password</label>
+      <label for="setupPass2">Confirm Password</label>
       <input type="password" id="setupPass2" onkeydown="setupKey(event)">
     </div>
     <button class="btn btn-gold" id="setupBtn" onclick="doSetup()">CREATE ACCOUNT</button>
@@ -1076,102 +1173,127 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 
 <canvas id="starfield"></canvas>
 
-<button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Menu">
+<a class="skip-link" href="#mainContent">Skip to content</a>
+
+<button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
   <span></span><span></span><span></span>
 </button>
 
-<div class="topbar">
+<header class="topbar">
   <div class="topbar-brand">
-    <div class="brand-mark" id="brandFallback">M</div>
-    <div class="brand-text">MERIT MARKETING HUB<small>CASINO CRM</small></div>
+    <div class="brand-mark" id="brandFallback" aria-hidden="true">M</div>
+    <div class="brand-text">MERIT MARKETING HUB<small>Casino CRM</small></div>
   </div>
   <div class="topbar-actions">
-    <button class="btn-home" id="homeBtn" onclick="switchTab('dashboard')">
+    <button class="btn-home" id="homeBtn" onclick="switchTab('dashboard')" aria-label="Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
-      DASHBOARD
+      <span>DASHBOARD</span>
     </button>
   </div>
-</div>
+</header>
 
 <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
 
-<div class="sidebar" id="sidebar">
+<nav class="sidebar" id="sidebar" aria-label="Main">
   <div class="sidebar-top-row">
     <div class="sidebar-label">Menu</div>
-    <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close">✕</button>
+    <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close menu">✕</button>
   </div>
   <div class="session-chip">
-    <div class="sc-av" id="sessionAvatar"></div>
+    <div class="sc-av" id="sessionAvatar" aria-hidden="true"></div>
     <div class="sc-info">
       <div class="sc-name" id="sessionName"></div>
       <div class="sc-role" id="sessionRole"></div>
     </div>
-    <button class="logout-btn" onclick="doLogout()" title="Sign out">
+    <button class="logout-btn" onclick="doLogout()" title="Sign out" aria-label="Sign out">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
     </button>
   </div>
-  <div class="nav">
-    <div class="nav-item active" data-page="dashboard" onclick="switchTab('dashboard')"><span class="dot"></span>DASHBOARD</div>
-    <div class="nav-item" data-page="reservations" onclick="switchTab('reservations')"><span class="dot"></span>RESERVATION HISTORY</div>
-    <div class="nav-item" data-page="profiles" onclick="switchTab('profiles')"><span class="dot"></span>PROFILES</div>
-    <div class="nav-item" data-page="customers" onclick="switchTab('customers')"><span class="dot"></span>CRM PANEL</div>
-    <div class="nav-item" data-page="customerlist" onclick="switchTab('customerlist')"><span class="dot"></span>CUSTOMER LIST</div>
-    <div class="nav-item" data-page="norecord" onclick="switchTab('norecord')"><span class="dot"></span>NO RECORD<span class="nav-badge" id="norecBadge">0</span></div>
-    <div class="nav-item" data-page="reports" onclick="switchTab('reports')"><span class="dot"></span>REPORTS</div>
-    <div class="nav-item" data-page="users" onclick="switchTab('users')"><span class="dot"></span>USERS</div>
-    <div class="nav-item" data-page="audit" onclick="switchTab('audit')"><span class="dot"></span>AUDIT LOG</div>
-    <div class="nav-item" data-page="settings" onclick="switchTab('settings')"><span class="dot"></span>SETTINGS</div>
-  </div>
-  <div class="sidebar-footer">MERIT MARKETING HUB · <b>Casino CRM</b></div>
-</div>
 
-<div class="main">
+  <div class="nav-group">
+    <div class="nav-item active" data-page="dashboard" onclick="switchTab('dashboard')" role="button" tabindex="0" data-activatable aria-current="page"><span class="dot"></span>DASHBOARD</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label" id="navGroupGuests">Guests</div>
+    <div class="nav" role="group" aria-labelledby="navGroupGuests">
+      <div class="nav-item" data-page="reservations" onclick="switchTab('reservations')" role="button" tabindex="0" data-activatable><span class="dot"></span>RESERVATION HISTORY</div>
+      <div class="nav-item" data-page="profiles" onclick="switchTab('profiles')" role="button" tabindex="0" data-activatable><span class="dot"></span>PROFILES</div>
+      <div class="nav-item" data-page="customers" onclick="switchTab('customers')" role="button" tabindex="0" data-activatable><span class="dot"></span>CRM PANEL</div>
+      <div class="nav-item" data-page="customerlist" onclick="switchTab('customerlist')" role="button" tabindex="0" data-activatable><span class="dot"></span>CUSTOMER LIST</div>
+      <div class="nav-item" data-page="norecord" onclick="switchTab('norecord')" role="button" tabindex="0" data-activatable><span class="dot"></span>NO RECORD<span class="nav-badge" id="norecBadge">0</span></div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label" id="navGroupInsight">Insight</div>
+    <div class="nav" role="group" aria-labelledby="navGroupInsight">
+      <div class="nav-item" data-page="reports" onclick="switchTab('reports')" role="button" tabindex="0" data-activatable><span class="dot"></span>REPORTS</div>
+      <div class="nav-item" data-page="audit" onclick="switchTab('audit')" role="button" tabindex="0" data-activatable><span class="dot"></span>AUDIT LOG</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label" id="navGroupAdmin">Administration</div>
+    <div class="nav" role="group" aria-labelledby="navGroupAdmin">
+      <div class="nav-item" data-page="users" onclick="switchTab('users')" role="button" tabindex="0" data-activatable><span class="dot"></span>USERS</div>
+      <div class="nav-item" data-page="settings" onclick="switchTab('settings')" role="button" tabindex="0" data-activatable><span class="dot"></span>SETTINGS</div>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">MERIT MARKETING HUB · <b>Casino CRM</b></div>
+</nav>
+
+<main class="main" id="mainContent">
 
   <!-- ---------- DASHBOARD ---------- -->
   <div class="page active" id="page-dashboard">
     <div class="page-head">
-      <div class="page-title">Dashboard</div>
+      <h1 class="page-title" tabindex="-1">Dashboard</h1>
     </div>
 
-    <div class="stat-band" id="statBand"></div>
+    <div class="stat-band" id="statBand" role="group" aria-label="Key metrics"></div>
 
     <div class="dash-grid">
       <div class="dash-col">
+        <div class="dash-section-label">Needs You</div>
         <div class="panel">
           <div class="panel-head">
-            <div class="panel-title">Pending Reservations<span class="count-pill" id="pendingCount">0</span></div>
+            <h2 class="panel-title">Requires Attention</h2>
+            <button class="btn-link" onclick="switchTab('customers')">CRM Panel</button>
+          </div>
+          <div class="panel-body" id="attentionList" style="max-height:250px"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Pending Reservations<span class="count-pill" id="pendingCount">0</span></h2>
             <button class="btn-link" onclick="goReservationsUpcoming()">View All</button>
           </div>
           <div class="panel-body" id="pendingList"></div>
         </div>
-        <div class="panel">
-          <div class="panel-head">
-            <div class="panel-title">Recent Reservations</div>
-            <button class="btn-link" onclick="switchTab('reservations')">View All</button>
-          </div>
-          <div class="panel-body" id="recentResList" style="max-height:250px"></div>
-        </div>
       </div>
       <div class="dash-col">
+        <div class="dash-section-label">Activity</div>
         <div class="panel">
           <div class="panel-head">
-            <div class="panel-title">Notifications<span class="count-pill" id="notifBadge">0</span></div>
+            <h2 class="panel-title">Notifications<span class="count-pill" id="notifBadge">0</span></h2>
             <button class="btn-link" onclick="markAllNotificationsRead()">Mark All Read</button>
           </div>
           <div class="panel-body" id="notifList" style="max-height:290px"></div>
         </div>
         <div class="panel">
           <div class="panel-head">
-            <div class="panel-title">Requires Attention</div>
-            <button class="btn-link" onclick="switchTab('customers')">CRM Panel</button>
+            <h2 class="panel-title">Recent Reservations</h2>
+            <button class="btn-link" onclick="switchTab('reservations')">View All</button>
           </div>
-          <div class="panel-body" id="attentionList" style="max-height:250px"></div>
+          <div class="panel-body" id="recentResList" style="max-height:250px"></div>
         </div>
       </div>
       <div class="dash-col" id="rankCol" style="display:none;">
+        <div class="dash-section-label">Team</div>
         <div class="panel">
           <div class="panel-head">
-            <div class="panel-title" id="rankPanelTitle">Marketing — Last 30 Days</div>
+            <h2 class="panel-title" id="rankPanelTitle">Marketing — Last 30 Days</h2>
             <button class="btn-link" onclick="switchTab('reports')">Reports</button>
           </div>
           <div class="panel-body" id="rankPanel"></div>
@@ -1183,12 +1305,13 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <!-- ---------- RESERVATION HISTORY ---------- -->
   <div class="page" id="page-reservations">
     <div class="page-head">
-      <div class="page-title">Reservation History</div>
+      <h1 class="page-title" tabindex="-1">Reservation History</h1>
       <div class="head-actions">
         <button class="btn btn-gold btn-sm" onclick="openReservationModal()">NEW RESERVATION</button>
       </div>
     </div>
     <div class="toolbar">
+      <label class="visually-hidden" for="resSearch">Search reservations</label>
       <input class="search" id="resSearch" placeholder="Search" oninput="onResSearch()">
       <div class="filter-wrap">
         <button class="filter-btn" id="resFilterBtn" onclick="toggleFilterMenu('resFilterMenu', event)" title="Filter">
@@ -1222,18 +1345,20 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     </div>
     <div class="customer-layout">
       <div class="table-wrap">
+        <div class="table-scroll">
         <table>
           <thead>
             <tr>
-              <th>ID</th>
-              <th class="sortable" onclick="sortReservations('customer')">NAME SURNAME<span class="sort-arrow"></span></th>
-              <th class="sortable sorted" onclick="sortReservations('check_in')">CHECK IN<span class="sort-arrow">↓</span></th>
-              <th class="sortable" onclick="sortReservations('check_out')">CHECK OUT<span class="sort-arrow"></span></th>
-              <th>INVITED BY</th><th>NOTES</th><th>STATUS</th>
+              <th scope="col">ID</th>
+              <th scope="col" class="sortable" onclick="sortReservations('customer')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+              <th scope="col" class="sortable sorted" onclick="sortReservations('check_in')" aria-sort="descending">CHECK IN<span class="sort-arrow">↓</span></th>
+              <th scope="col" class="sortable" onclick="sortReservations('check_out')" aria-sort="none">CHECK OUT<span class="sort-arrow"></span></th>
+              <th scope="col">INVITED BY</th><th scope="col">NOTES</th><th scope="col">STATUS</th>
             </tr>
           </thead>
           <tbody id="resTableBody"></tbody>
         </table>
+        </div>
         <div class="pager" id="resPager"></div>
       </div>
       <div class="detail-panel empty" id="resDetailPanel">No guest selected</div>
@@ -1243,7 +1368,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <!-- ---------- PROFILES ---------- -->
   <div class="page" id="page-profiles">
     <div class="page-head">
-      <div class="page-title">Profiles</div>
+      <h1 class="page-title" tabindex="-1">Profiles</h1>
       <div class="head-actions">
         <button class="btn btn-gold btn-sm" onclick="openProfileModal()">NEW PROFILE</button>
       </div>
@@ -1254,24 +1379,25 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <!-- ---------- CRM PANEL ---------- -->
   <div class="page" id="page-customers">
     <div class="page-head">
-      <div class="page-title">CRM Panel</div>
+      <h1 class="page-title" tabindex="-1">CRM Panel</h1>
       <div class="head-actions">
         <button class="btn btn-outline btn-sm" onclick="openRecordModal()">NEW RECORD</button>
         <button class="btn btn-gold btn-sm" onclick="openCustomerModal()">NEW CUSTOMER</button>
       </div>
     </div>
     <div class="toolbar">
+      <label class="visually-hidden" for="custSearch">Search guests</label>
       <input class="search" id="custSearch" placeholder="Search" oninput="onCustSearch()">
       <div class="filter-wrap">
-        <button class="filter-btn" id="custFilterBtn" onclick="toggleFilterMenu('custFilterMenu', event)">
+        <button class="filter-btn" id="custFilterBtn" onclick="toggleFilterMenu('custFilterMenu', event)" aria-label="Filter" aria-haspopup="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
         </button>
-        <div class="filter-menu" id="custFilterMenu">
-          <div class="filter-opt active" data-val="" onclick="setCustFilter('', this)">ALL</div>
-          <div class="filter-opt" data-val="NEW" onclick="setCustFilter('NEW', this)"><span class="fo-dot" style="color:var(--hot)"></span>NEW</div>
-          <div class="filter-opt" data-val="AVAILABLE" onclick="setCustFilter('AVAILABLE', this)"><span class="fo-dot" style="color:var(--warm)"></span>AVAILABLE</div>
-          <div class="filter-opt" data-val="COLD" onclick="setCustFilter('COLD', this)"><span class="fo-dot" style="color:var(--cold)"></span>COLD</div>
-          <div class="filter-opt" data-val="NO_RECORD" onclick="setCustFilter('NO_RECORD', this)"><span class="fo-dot" style="color:var(--text-faint)"></span>NO RECORD</div>
+        <div class="filter-menu" id="custFilterMenu" role="menu">
+          <div class="filter-opt active" data-val="" onclick="setCustFilter('', this)" tabindex="0" role="menuitemradio" aria-checked="true" data-activatable>ALL</div>
+          <div class="filter-opt" data-val="NEW" onclick="setCustFilter('NEW', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ok)"></span>NEW</div>
+          <div class="filter-opt" data-val="AVAILABLE" onclick="setCustFilter('AVAILABLE', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--warn)"></span>AVAILABLE</div>
+          <div class="filter-opt" data-val="COLD" onclick="setCustFilter('COLD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--cold)"></span>COLD</div>
+          <div class="filter-opt" data-val="NO_RECORD" onclick="setCustFilter('NO_RECORD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ink-4)"></span>NO RECORD</div>
           <div class="fm-sep"></div>
           <div class="fm-title">Marketing</div>
           <select class="fm-input" id="custFMarketing" onchange="applyCustFilters()" onclick="event.stopPropagation()"></select>
@@ -1284,16 +1410,18 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </button>
     </div>
     <div class="customer-layout">
-      <div class="table-wrap allow-overflow">
+      <div class="table-wrap">
+        <div class="table-scroll">
         <table>
           <thead>
-            <tr><th>ID</th>
-                <th class="sortable" onclick="sortCustomers('name')">NAME SURNAME<span class="sort-arrow"></span></th>
-                <th>PHONE</th><th>MARKETING</th><th>CRM NOTE</th><th>STATUS</th>
-                <th class="sortable sorted" onclick="sortCustomers('updated')">LAST MODIFIED<span class="sort-arrow">↓</span></th></tr>
+            <tr><th scope="col">ID</th>
+                <th scope="col" class="sortable" onclick="sortCustomers('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+                <th scope="col">PHONE</th><th scope="col">MARKETING</th><th scope="col">CRM NOTE</th><th scope="col">STATUS</th>
+                <th scope="col" class="sortable sorted" onclick="sortCustomers('updated')" aria-sort="descending">LAST MODIFIED<span class="sort-arrow">↓</span></th></tr>
           </thead>
           <tbody id="custTableBody"></tbody>
         </table>
+        </div>
         <div class="pager" id="custPager"></div>
       </div>
       <div class="detail-panel empty" id="detailPanel">No guest selected</div>
@@ -1303,12 +1431,13 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <!-- ---------- CUSTOMER LIST (registered guests only) ---------- -->
   <div class="page" id="page-customerlist">
     <div class="page-head">
-      <div class="page-title">Customer List</div>
+      <h1 class="page-title" tabindex="-1">Customer List</h1>
       <div class="head-actions">
         <button class="btn btn-gold btn-sm" onclick="openCustomerModal()">NEW CUSTOMER</button>
       </div>
     </div>
     <div class="toolbar">
+      <label class="visually-hidden" for="listSearch">Search customer list</label>
       <input class="search" id="listSearch" placeholder="Search" oninput="onListSearch()">
       <button class="btn btn-outline btn-sm" onclick="exportCurrentView('customerlist')" title="Export what is on screen">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -1316,15 +1445,17 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </button>
     </div>
     <div class="table-wrap">
+      <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>ID</th>
-          <th class="sortable" onclick="sortList('name')">NAME SURNAME<span class="sort-arrow"></span></th>
-          <th>PASSPORT NO</th><th>PHONE</th>
-          <th class="sortable sorted" onclick="sortList('created')">REGISTERED<span class="sort-arrow">↓</span></th></tr>
+          <tr><th scope="col">ID</th>
+          <th scope="col" class="sortable" onclick="sortList('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+          <th scope="col">PASSPORT NO</th><th scope="col">PHONE</th>
+          <th scope="col" class="sortable sorted" onclick="sortList('created')" aria-sort="descending">REGISTERED<span class="sort-arrow">↓</span></th></tr>
         </thead>
         <tbody id="listTableBody"></tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -1333,7 +1464,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <div class="page" id="page-norecord">
     <div class="page-head">
       <div>
-        <div class="page-title">No Record</div>
+        <h1 class="page-title" tabindex="-1">No Record</h1>
         <div class="setting-hint">Registered guests with no reservation and no CRM note</div>
       </div>
       <div class="head-actions">
@@ -1341,13 +1472,16 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </div>
     </div>
     <div class="toolbar">
+      <label class="visually-hidden" for="norecSearch">Search no-record guests</label>
       <input class="search" id="norecSearch" placeholder="Search" oninput="onNorecSearch()">
     </div>
-    <div class="table-wrap allow-overflow">
+    <div class="table-wrap">
+      <div class="table-scroll">
       <table>
-        <thead><tr><th>ID</th><th>NAME SURNAME</th><th>PHONE</th><th>PASSPORT NO</th><th>REGISTERED</th><th>MARKETING</th></tr></thead>
+        <thead><tr><th scope="col">ID</th><th scope="col">NAME SURNAME</th><th scope="col">PHONE</th><th scope="col">PASSPORT NO</th><th scope="col">REGISTERED</th><th scope="col">MARKETING</th></tr></thead>
         <tbody id="norecTableBody"></tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -1355,7 +1489,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <div class="page" id="page-reports">
     <div class="page-head">
       <div>
-        <div class="page-title">Reports</div>
+        <h1 class="page-title" tabindex="-1">Reports</h1>
         <div class="setting-hint" id="reportScope"></div>
       </div>
       <div class="head-actions">
@@ -1366,19 +1500,19 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="stat-band" id="reportBand"></div>
     <div class="report-grid" style="margin-top:16px;">
       <div class="panel">
-        <div class="panel-head"><div class="panel-title">Top Marketing Profiles</div></div>
+        <div class="panel-head"><h2 class="panel-title">Top Marketing Profiles</h2></div>
         <div class="panel-body" id="reportTopProfiles"></div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div class="panel-title">Cold Guests</div></div>
+        <div class="panel-head"><h2 class="panel-title">Cold Guests</h2></div>
         <div class="panel-body" id="reportCold"></div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div class="panel-title">Upcoming Arrivals</div></div>
+        <div class="panel-head"><h2 class="panel-title">Upcoming Arrivals</h2></div>
         <div class="panel-body" id="reportArrivals"></div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div class="panel-title">No Records</div></div>
+        <div class="panel-head"><h2 class="panel-title">No Records</h2></div>
         <div class="panel-body" id="reportNoRecords"></div>
       </div>
     </div>
@@ -1387,32 +1521,36 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <!-- ---------- USERS ---------- -->
   <div class="page" id="page-users">
     <div class="page-head">
-      <div class="page-title">Users</div>
+      <h1 class="page-title" tabindex="-1">Users</h1>
       <div class="head-actions">
         <button class="btn btn-gold btn-sm" onclick="openUserModal()">NEW USER</button>
       </div>
     </div>
     <div class="table-wrap">
+      <div class="table-scroll">
       <table>
-        <thead><tr><th>USERNAME</th><th>NAME</th><th>ROLE</th><th>STATUS</th><th>LAST LOGIN</th></tr></thead>
+        <thead><tr><th scope="col">USERNAME</th><th scope="col">NAME</th><th scope="col">ROLE</th><th scope="col">STATUS</th><th scope="col">LAST LOGIN</th></tr></thead>
         <tbody id="usersTableBody"></tbody>
       </table>
+      </div>
     </div>
   </div>
 
   <!-- ---------- AUDIT LOG ---------- -->
   <div class="page" id="page-audit">
     <div class="page-head">
-      <div class="page-title">Audit Log</div>
+      <h1 class="page-title" tabindex="-1">Audit Log</h1>
       <div class="head-actions">
         <button class="btn btn-outline btn-sm" onclick="exportEntity('audit_logs')">EXPORT</button>
       </div>
     </div>
     <div class="table-wrap">
+      <div class="table-scroll">
       <table>
-        <thead><tr><th>WHEN</th><th>USER</th><th>ACTION</th><th>ENTITY</th><th>DETAIL</th></tr></thead>
+        <thead><tr><th scope="col">WHEN</th><th scope="col">USER</th><th scope="col">ACTION</th><th scope="col">ENTITY</th><th scope="col">DETAIL</th></tr></thead>
         <tbody id="auditTableBody"></tbody>
       </table>
+      </div>
       <div class="pager" id="auditPager"></div>
     </div>
   </div>
@@ -1420,12 +1558,12 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <!-- ---------- SETTINGS ---------- -->
   <div class="page" id="page-settings">
     <div class="page-head">
-      <div class="page-title">Settings</div>
+      <h1 class="page-title" tabindex="-1">Settings</h1>
     </div>
     <div class="settings-plain">
 
       <div class="settings-section">
-        <div class="settings-section-title">Appearance</div>
+        <h2 class="settings-section-title">Appearance</h2>
         <div class="setting-row">
           <div><div class="setting-label">Theme</div></div>
           <div class="setting-control">
@@ -1447,7 +1585,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </div>
 
       <div class="settings-section">
-        <div class="settings-section-title">Security</div>
+        <h2 class="settings-section-title">Security</h2>
         <div class="setting-row">
           <div><div class="setting-label">Password</div>
                <div class="setting-hint" id="settingsWhoAmI"></div></div>
@@ -1458,12 +1596,12 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </div>
 
       <div class="settings-section" id="permissionsSection" style="display:none;">
-        <div class="settings-section-title">Permissions</div>
+        <h2 class="settings-section-title">Permissions</h2>
         <div class="perm-grid" id="permGrid"></div>
       </div>
 
       <div class="settings-section" id="backupSection" style="display:none;">
-        <div class="settings-section-title">Database</div>
+        <h2 class="settings-section-title">Database</h2>
         <div class="setting-row">
           <div><div class="setting-label">Automatic backup</div>
                <div class="setting-hint">Taken when the application starts</div></div>
@@ -1518,14 +1656,14 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     </div>
   </div>
 
-</div>
+</main>
 
 <!-- ================= MODAL: RESERVATION ================= -->
-<div class="overlay" id="modalReservation">
+<div class="overlay" id="modalReservation" role="dialog" aria-modal="true" aria-labelledby="resModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title" id="resModalTitle">New Reservation</div>
-      <button class="modal-close" onclick="closeModal('modalReservation')">✕</button>
+      <h2 class="modal-title" id="resModalTitle">New Reservation</h2>
+      <button class="modal-close" onclick="closeModal('modalReservation')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -1543,11 +1681,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         </div>
         <div class="field-row" id="resNewCustomerField" style="display:none;">
           <div class="field">
-            <label>New Guest ID</label>
+            <label for="resNewCustomerId">New Guest ID</label>
             <input type="text" id="resNewCustomerId">
           </div>
           <div class="field">
-            <label>Name Surname</label>
+            <label for="resNewCustomerName">Name Surname</label>
             <input type="text" id="resNewCustomerName">
           </div>
         </div>
@@ -1556,16 +1694,16 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       <div class="form-group">
         <div class="form-group-title">Reservation</div>
         <div class="field-row">
-          <div class="field"><label>Check In</label><input type="date" id="resCheckIn"></div>
-          <div class="field"><label>Check Out</label><input type="date" id="resCheckOut"></div>
+          <div class="field"><label for="resCheckIn">Check In</label><input type="date" id="resCheckIn"></div>
+          <div class="field"><label for="resCheckOut">Check Out</label><input type="date" id="resCheckOut"></div>
         </div>
         <div class="field">
-          <label>Invited By</label>
+          <label for="resInvitedBy">Invited By</label>
           <input type="text" id="resInvitedBy" list="profileNames">
           <datalist id="profileNames"></datalist>
         </div>
         <div class="field">
-          <label>Reservation Note</label>
+          <label for="resNotes">Reservation Note</label>
           <textarea id="resNotes"></textarea>
         </div>
       </div>
@@ -1583,20 +1721,20 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: PROFILE ================= -->
-<div class="overlay" id="modalProfile">
+<div class="overlay" id="modalProfile" role="dialog" aria-modal="true" aria-labelledby="profModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title" id="profModalTitle">New Profile</div>
-      <button class="modal-close" onclick="closeModal('modalProfile')">✕</button>
+      <h2 class="modal-title" id="profModalTitle">New Profile</h2>
+      <button class="modal-close" onclick="closeModal('modalProfile')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
         <div class="form-group-title">Identity</div>
-        <div class="form-hero tone-violet">
+        <div class="form-hero">
           <div class="photo-drop" id="profPhotoDrop" onclick="pickProfilePhoto()">PHOTO</div>
           <div class="form-hero-fields">
-            <div class="field"><label>Name Surname</label><input type="text" id="profName"></div>
-            <div class="field"><label>Nationality</label><input type="text" id="profNationality"></div>
+            <div class="field"><label for="profName">Name Surname</label><input type="text" id="profName"></div>
+            <div class="field"><label for="profNationality">Nationality</label><input type="text" id="profNationality"></div>
           </div>
         </div>
       </div>
@@ -1604,8 +1742,8 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       <div class="form-group">
         <div class="form-group-title">Contact</div>
         <div class="field-row">
-          <div class="field"><label>Passport No</label><input type="text" id="profPassport"></div>
-          <div class="field"><label>Phone</label><input type="text" id="profPhone"></div>
+          <div class="field"><label for="profPassport">Passport No</label><input type="text" id="profPassport"></div>
+          <div class="field"><label for="profPhone">Phone</label><input type="text" id="profPhone"></div>
         </div>
       </div>
 
@@ -1630,11 +1768,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: PROFILE DETAIL ================= -->
-<div class="overlay overlay-full" id="modalProfileDetail">
+<div class="overlay overlay-full" id="modalProfileDetail" role="dialog" aria-modal="true" aria-labelledby="profileDetailTitle">
   <div class="modal modal-full">
     <div class="modal-head">
-      <div class="modal-title">Profile</div>
-      <button class="modal-close" onclick="closeModal('modalProfileDetail')">✕</button>
+      <h2 class="modal-title" id="profileDetailTitle">Profile</h2>
+      <button class="modal-close" onclick="closeModal('modalProfileDetail')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="pd-hero">
@@ -1670,11 +1808,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: CUSTOMER ================= -->
-<div class="overlay" id="modalCustomer">
+<div class="overlay" id="modalCustomer" role="dialog" aria-modal="true" aria-labelledby="custModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title" id="custModalTitle">New Customer</div>
-      <button class="modal-close" onclick="closeModal('modalCustomer')">✕</button>
+      <h2 class="modal-title" id="custModalTitle">New Customer</h2>
+      <button class="modal-close" onclick="closeModal('modalCustomer')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -1682,16 +1820,16 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         <div class="form-hero">
           <div class="photo-drop" id="custPhotoDrop" onclick="pickCustomerPhoto()">PHOTO</div>
           <div class="form-hero-fields">
-            <div class="field"><label>ID</label><input type="text" id="custId"></div>
-            <div class="field"><label>Name Surname</label><input type="text" id="custName"></div>
+            <div class="field"><label for="custId">ID</label><input type="text" id="custId"></div>
+            <div class="field"><label for="custName">Name Surname</label><input type="text" id="custName"></div>
           </div>
         </div>
       </div>
       <div class="form-group">
         <div class="form-group-title">Contact</div>
         <div class="field-row">
-          <div class="field"><label>Passport No</label><input type="text" id="custPassport"></div>
-          <div class="field"><label>Phone</label><input type="text" id="custPhone"></div>
+          <div class="field"><label for="custPassport">Passport No</label><input type="text" id="custPassport"></div>
+          <div class="field"><label for="custPhone">Phone</label><input type="text" id="custPhone"></div>
         </div>
       </div>
     </div>
@@ -1708,11 +1846,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: RECORD ================= -->
-<div class="overlay" id="modalRecord">
+<div class="overlay" id="modalRecord" role="dialog" aria-modal="true" aria-labelledby="recordModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">New Record</div>
-      <button class="modal-close" onclick="closeModal('modalRecord')">✕</button>
+      <h2 class="modal-title" id="recordModalTitle">New Record</h2>
+      <button class="modal-close" onclick="closeModal('modalRecord')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -1720,7 +1858,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         <div class="field">
           <select id="recCustomerSelect" onchange="onRecordCustomerChange()"><option value=""></option></select>
         </div>
-        <div class="entity-preview tone-teal" id="recPreview">
+        <div class="entity-preview" id="recPreview">
           <div class="avatar lg" id="recPreviewAvatar" style="margin:0;"></div>
           <div class="ep-info">
             <div class="ep-name" id="recPreviewName"></div>
@@ -1732,10 +1870,10 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       <div class="form-group">
         <div class="form-group-title">Record</div>
         <div class="field-row">
-          <div class="field"><label>Record Date</label><input type="date" id="recDate"></div>
-          <div class="field"><label>Marketing</label><select id="recMarketing"></select></div>
+          <div class="field"><label for="recDate">Record Date</label><input type="date" id="recDate"></div>
+          <div class="field"><label for="recMarketing">Marketing</label><select id="recMarketing"></select></div>
         </div>
-        <div class="field"><label>CRM Note</label><textarea id="recNote"></textarea></div>
+        <div class="field"><label for="recNote">CRM Note</label><textarea id="recNote"></textarea></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -1748,15 +1886,15 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: CRM NOTE ================= -->
-<div class="overlay" id="modalCrmNote">
+<div class="overlay" id="modalCrmNote" role="dialog" aria-modal="true" aria-labelledby="crmNoteModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">New CRM Note</div>
-      <button class="modal-close" onclick="closeModal('modalCrmNote')">✕</button>
+      <h2 class="modal-title" id="crmNoteModalTitle">New CRM Note</h2>
+      <button class="modal-close" onclick="closeModal('modalCrmNote')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="field"><label>Date</label><input type="date" id="crmNoteDate"></div>
-      <div class="field"><label>Note</label><textarea id="crmNoteText"></textarea></div>
+      <div class="field"><label for="crmNoteDate">Date</label><input type="date" id="crmNoteDate"></div>
+      <div class="field"><label for="crmNoteText">Note</label><textarea id="crmNoteText"></textarea></div>
     </div>
     <div class="modal-foot">
       <div class="foot-right">
@@ -1768,14 +1906,14 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: ASSIGN ================= -->
-<div class="overlay" id="modalAssign">
+<div class="overlay" id="modalAssign" role="dialog" aria-modal="true" aria-labelledby="assignModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">Assign Guest</div>
-      <button class="modal-close" onclick="closeModal('modalAssign')">✕</button>
+      <h2 class="modal-title" id="assignModalTitle">Assign Guest</h2>
+      <button class="modal-close" onclick="closeModal('modalAssign')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="entity-preview tone-teal show" id="assignPreview">
+      <div class="entity-preview show" id="assignPreview">
         <div class="avatar lg" id="assignAvatar" style="margin:0;"></div>
         <div class="ep-info">
           <div class="ep-name" id="assignName"></div>
@@ -1798,30 +1936,30 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: USER ================= -->
-<div class="overlay" id="modalUser">
+<div class="overlay" id="modalUser" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title" id="userModalTitle">New User</div>
-      <button class="modal-close" onclick="closeModal('modalUser')">✕</button>
+      <h2 class="modal-title" id="userModalTitle">New User</h2>
+      <button class="modal-close" onclick="closeModal('modalUser')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group first">
         <div class="form-group-title">Account</div>
         <div class="field-row">
-          <div class="field"><label>Username</label><input type="text" id="userUsername">
-            <div class="field-error" id="err-userUsername"></div></div>
-          <div class="field"><label>Password</label><input type="password" id="userPassword">
-            <div class="field-error" id="err-userPassword"></div></div>
+          <div class="field"><label for="userUsername">Username</label><input type="text" id="userUsername">
+            <div class="field-error" id="err-userUsername" role="alert"></div></div>
+          <div class="field"><label for="userPassword">Password</label><input type="password" id="userPassword">
+            <div class="field-error" id="err-userPassword" role="alert"></div></div>
         </div>
-        <div class="field"><label>Role</label>
+        <div class="field"><label for="userRole">Role</label>
           <select id="userRole">
             <option value="MARKETING">Marketing — only their own guests</option>
             <option value="MANAGER">Manager — all records, no role changes</option>
             <option value="ADMIN">Administrator — full access</option>
           </select>
         </div>
-        <div class="field"><label>Linked Profile</label><select id="userProfile"></select>
-          <div class="field-error" id="err-userProfile"></div></div>
+        <div class="field"><label for="userProfile">Linked Profile</label><select id="userProfile"></select>
+          <div class="field-error" id="err-userProfile" role="alert"></div></div>
         <label class="check-row"><input type="checkbox" id="userActive" checked>
           <div class="cr-text">Account active</div></label>
       </div>
@@ -1839,19 +1977,19 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: CHANGE PASSWORD ================= -->
-<div class="overlay" id="modalPassword">
+<div class="overlay" id="modalPassword" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">Change Password</div>
-      <button class="modal-close" onclick="closeModal('modalPassword')">✕</button>
+      <h2 class="modal-title" id="passwordModalTitle">Change Password</h2>
+      <button class="modal-close" onclick="closeModal('modalPassword')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="field"><label>Current Password</label><input type="password" id="pwCurrent">
-        <div class="field-error" id="err-pwCurrent"></div></div>
-      <div class="field"><label>New Password</label><input type="password" id="pwNew">
-        <div class="field-error" id="err-pwNew"></div></div>
-      <div class="field"><label>Confirm New Password</label><input type="password" id="pwConfirm">
-        <div class="field-error" id="err-pwConfirm"></div></div>
+      <div class="field"><label for="pwCurrent">Current Password</label><input type="password" id="pwCurrent">
+        <div class="field-error" id="err-pwCurrent" role="alert"></div></div>
+      <div class="field"><label for="pwNew">New Password</label><input type="password" id="pwNew">
+        <div class="field-error" id="err-pwNew" role="alert"></div></div>
+      <div class="field"><label for="pwConfirm">Confirm New Password</label><input type="password" id="pwConfirm">
+        <div class="field-error" id="err-pwConfirm" role="alert"></div></div>
     </div>
     <div class="modal-foot">
       <div class="foot-right">
@@ -1863,11 +2001,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: PHOTO CROP ================= -->
-<div class="overlay" id="modalCrop">
+<div class="overlay" id="modalCrop" role="dialog" aria-modal="true" aria-labelledby="cropModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">Adjust Photo</div>
-      <button class="modal-close" onclick="closeModal('modalCrop')">✕</button>
+      <h2 class="modal-title" id="cropModalTitle">Adjust Photo</h2>
+      <button class="modal-close" onclick="closeModal('modalCrop')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="crop-stage" id="cropStage">
@@ -1875,7 +2013,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         <div class="crop-ring"></div>
       </div>
       <div class="crop-controls">
-        <label>Zoom</label>
+        <label for="cropZoom">Zoom</label>
         <input type="range" id="cropZoom" min="100" max="300" value="100" oninput="drawCrop()">
       </div>
       <div class="setting-hint" style="text-align:center;">Drag the picture to choose what shows</div>
@@ -1891,7 +2029,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 
 <!-- ================= COMMAND PALETTE ================= -->
 <div class="palette-overlay" id="palette">
-  <div class="palette" role="dialog" aria-label="Search">
+  <div class="palette" role="dialog" aria-modal="true" aria-label="Search">
     <input class="palette-input" id="paletteInput" placeholder="Search guests, reservations, people — or type a command"
            autocomplete="off" spellcheck="false" oninput="onPaletteInput()" onkeydown="onPaletteKey(event)">
     <div class="palette-list" id="paletteList"></div>
@@ -1904,11 +2042,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= SHORTCUTS ================= -->
-<div class="overlay" id="modalShortcuts">
+<div class="overlay" id="modalShortcuts" role="dialog" aria-modal="true" aria-labelledby="shortcutsModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">Keyboard Shortcuts</div>
-      <button class="modal-close" onclick="closeModal('modalShortcuts')">✕</button>
+      <h2 class="modal-title" id="shortcutsModalTitle">Keyboard Shortcuts</h2>
+      <button class="modal-close" onclick="closeModal('modalShortcuts')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
       <div class="shortcut-grid">
@@ -1926,7 +2064,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   </div>
 </div>
 
-<div class="toast-stack" id="toastStack"></div>
+<div class="toast-stack" id="toastStack" role="status" aria-live="polite" aria-atomic="false"></div>
 
 <script>
 'use strict';
@@ -3018,11 +3156,13 @@ function toggleSidebar(){
   const open = el('sidebar').classList.toggle('open');
   el('sidebarBackdrop').classList.toggle('show', open);
   el('menuToggle').classList.toggle('open', open);
+  el('menuToggle').setAttribute('aria-expanded', String(open));
 }
 function closeSidebar(){
   el('sidebar').classList.remove('open');
   el('sidebarBackdrop').classList.remove('show');
   el('menuToggle').classList.remove('open');
+  el('menuToggle').setAttribute('aria-expanded', 'false');
 }
 
 const PAGE_LOADERS = {
@@ -3043,13 +3183,16 @@ async function switchTab(page){
   if (!state.session) return;
   if (!mayOpen(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   el('page-' + page).classList.add('active');
-  document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+  const activeNav = document.querySelector(`.nav-item[data-page="${page}"]`);
+  activeNav?.classList.add('active');
+  activeNav?.setAttribute('aria-current', 'page');
   el('homeBtn').classList.toggle('show', page !== 'dashboard');
   closeSidebar(); closeAllFilterMenus(); closeAllRowMenus(); resetRowCursor();
   window.scrollTo(0,0);
   try { await PAGE_LOADERS[page]?.(); } catch (_) {}
+  el('page-' + page).querySelector('h1')?.focus();
 }
 
 /* ---------- popovers ---------- */
@@ -3065,25 +3208,58 @@ function toggleRowMenu(id, ev){
   ev?.stopPropagation();
   const node = el(id); const was = node.classList.contains('open');
   closeAllRowMenus(); closeAllFilterMenus();
-  if (!was) node.classList.add('open');
+  if (!was){
+    node.classList.add('open');
+    const trigger = ev?.currentTarget || ev?.target;
+    if (trigger){
+      const r = trigger.getBoundingClientRect();
+      const menuWidth = Math.max(node.offsetWidth, 130);
+      const left = Math.min(r.right - menuWidth, window.innerWidth - menuWidth - 8);
+      node.style.top = (r.bottom + 4) + 'px';
+      node.style.left = Math.max(8, left) + 'px';
+    }
+  }
 }
+/* fixed-position menus don't move with the table's own scroll, so close
+   them rather than let them drift away from the row that opened them */
+document.addEventListener('scroll', () => closeAllRowMenus(), true);
 function markFilterActive(menuId, node){
-  document.querySelectorAll('#' + menuId + ' .filter-opt').forEach(o => o.classList.remove('active'));
+  document.querySelectorAll('#' + menuId + ' .filter-opt').forEach(o => {
+    o.classList.remove('active');
+    if (o.hasAttribute('aria-checked')) o.setAttribute('aria-checked', 'false');
+  });
   node.classList.add('active');
+  if (node.hasAttribute('aria-checked')) node.setAttribute('aria-checked', 'true');
 }
 
 /* ---------- modals ---------- */
 let lastFocused = null;
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+function trapFocus(e){
+  const modal = document.querySelector('.overlay.show .modal');
+  if (!modal || e.key !== 'Tab') return;
+  const nodes = [...modal.querySelectorAll(FOCUSABLE)].filter(n => n.offsetParent !== null);
+  if (!nodes.length) return;
+  const first = nodes[0], last = nodes[nodes.length - 1];
+  if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+}
 function openModal(id){
   lastFocused = document.activeElement;
   const node = el(id);
   node.classList.add('show');
   document.body.style.overflow = 'hidden';
-  setTimeout(() => node.querySelector('input:not([type=hidden]), select, textarea, button')?.focus(), 40);
+  setTimeout(() => {
+    node.querySelector('input:not([type=hidden]), select, textarea, button')?.focus();
+    document.querySelectorAll('.main, .sidebar, .topbar').forEach(n => n.setAttribute('aria-hidden', 'true'));
+  }, 40);
 }
 function closeModal(id){
   el(id).classList.remove('show');
-  if (!document.querySelector('.overlay.show')) document.body.style.overflow = '';
+  if (!document.querySelector('.overlay.show')){
+    document.body.style.overflow = '';
+    document.querySelectorAll('[aria-hidden="true"]').forEach(n => n.removeAttribute('aria-hidden'));
+  }
   clearFieldErrors(el(id));
   lastFocused?.focus?.();
 }
@@ -3094,7 +3270,18 @@ el('palette')?.addEventListener('click', (e) => { if (e.target.id === 'palette')
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target === ov) closeModal(ov.id); });
 });
+/* Enter/Space activates any element marked as a button role but built
+   from a div/tr (table rows, cards, list rows) — keeps native semantics
+   for the many rows that must stay <tr>, while making them operable. */
 document.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-activatable]')){
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    e.target.click();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  trapFocus(e);
   if (e.key === 'Escape'){
     if (palette.open){ closePalette(); return; }
     const open = [...document.querySelectorAll('.overlay.show')].pop();
@@ -3141,7 +3328,7 @@ const ES_ICONS = {
 };
 function emptyState({ icon = 'search', title, text = '', actions = [] }){
   return `<div class="empty-state">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ES_ICONS[icon] || ES_ICONS.search}</svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ES_ICONS[icon] || ES_ICONS.search}</svg>
     <div class="es-title">${escapeHtml(title)}</div>
     ${text ? `<div class="es-text">${escapeHtml(text)}</div>` : ''}
     ${actions.length ? `<div class="es-actions">${actions.map(a =>
@@ -3158,15 +3345,21 @@ const palette = { open:false, items:[], cursor:0, timer:null };
 
 function openPalette(){
   palette.open = true;
+  lastFocused = document.activeElement;
   el('palette').classList.add('show');
   const input = el('paletteInput');
   input.value = '';
   renderPalette(defaultCommands());
-  setTimeout(() => input.focus(), 30);
+  setTimeout(() => {
+    input.focus();
+    document.querySelectorAll('.main, .sidebar, .topbar').forEach(n => n.setAttribute('aria-hidden', 'true'));
+  }, 30);
 }
 function closePalette(){
   palette.open = false;
   el('palette').classList.remove('show');
+  document.querySelectorAll('[aria-hidden="true"]').forEach(n => n.removeAttribute('aria-hidden'));
+  lastFocused?.focus?.();
 }
 function defaultCommands(){
   const cmds = [
@@ -3411,11 +3604,13 @@ async function renderRolePanel(){
   if (role === 'MARKETING'){
     if (head) head.textContent = 'Needs A Call';
     if (col) col.style.display = 'none';
+    col?.closest('.dash-grid')?.classList.remove('has-rank');
     return;
   }
   if (head) head.textContent = 'Requires Attention';
   if (!rank || !col) return;
   col.style.display = '';
+  col.closest('.dash-grid')?.classList.add('has-rank');
 
   const rows = (await call(window.api.reservations.list, { pageSize:1000 }, { silent:true }).catch(() => null))?.rows || [];
   const cutoff = Date.now() - 30 * 86400000;
@@ -3510,7 +3705,7 @@ async function renderReservations(){
 
   const tbody = el('resTableBody');
   tbody.innerHTML = data.rows.length ? data.rows.map(r => `
-    <tr class="clickable" onclick="showCustomerDetail(${r.customer_id},'resDetailPanel')" ondblclick="openReservationModal(${r.id})">
+    <tr class="clickable" tabindex="0" data-activatable onclick="showCustomerDetail(${r.customer_id},'resDetailPanel')" ondblclick="openReservationModal(${r.id})" aria-label="${escapeHtml(r.customer_name)}, ${fmtDate(r.check_in)} to ${fmtDate(r.check_out)}">
       <td class="muted">#${escapeHtml(r.customer_code)}</td>
       <td>${escapeHtml(r.customer_name)}</td>
       <td>${fmtDate(r.check_in)}</td>
@@ -3520,10 +3715,10 @@ async function renderReservations(){
       <td>
         <div class="status-cell">
           <span class="row-menu-wrap">
-            <span onclick="toggleRowMenu('resStatus_${r.id}', event)" class="clickable-tag">${statusTagHTML(r.status)}</span>
-            <div class="row-menu" id="resStatus_${r.id}">
+            <span onclick="toggleRowMenu('resStatus_${r.id}', event)" class="clickable-tag" tabindex="0" role="button" data-activatable aria-haspopup="true" aria-label="Change status, currently ${statusMeta(r.status).label}">${statusTagHTML(r.status)}</span>
+            <div class="row-menu" id="resStatus_${r.id}" role="menu">
               ${['UPCOMING','CHECKED_IN','CANCELLED'].map(st =>
-                `<div class="row-menu-item" onclick="setReservationStatus(${r.id},'${st}', event)">${statusMeta(st).label}</div>`).join('')}
+                `<div class="row-menu-item" role="menuitem" tabindex="0" data-activatable onclick="setReservationStatus(${r.id},'${st}', event)">${statusMeta(st).label}</div>`).join('')}
             </div>
           </span>
           <div class="row-actions">
@@ -3599,7 +3794,7 @@ async function renderCustomers(){
 
   const tbody = el('custTableBody');
   tbody.innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" onclick="showCustomerDetail(${c.id},'detailPanel')" ondblclick="openCustomerModal(${c.id})">
+    <tr class="clickable" tabindex="0" data-activatable onclick="showCustomerDetail(${c.id},'detailPanel')" ondblclick="openCustomerModal(${c.id})" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
@@ -3610,10 +3805,10 @@ async function renderCustomers(){
           ${statusTagHTML(c.status)}
           ${canAssign() ? `
             <span class="row-menu-wrap">
-              <button class="row-dots" onclick="toggleRowMenu('rowMenu_${c.id}', event)">⋯</button>
-              <div class="row-menu" id="rowMenu_${c.id}">
-                <div class="row-menu-item" onclick="openAssignModal(${c.id}, event)">ASSIGN</div>
-                <div class="row-menu-item" onclick="openCustomerModal(${c.id}); event.stopPropagation();">EDIT</div>
+              <button class="row-dots" onclick="toggleRowMenu('rowMenu_${c.id}', event)" aria-label="More actions for ${escapeHtml(c.full_name)}" aria-haspopup="true">⋯</button>
+              <div class="row-menu" id="rowMenu_${c.id}" role="menu">
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable onclick="openAssignModal(${c.id}, event)">ASSIGN</div>
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable onclick="openCustomerModal(${c.id}); event.stopPropagation();">EDIT</div>
               </div>
             </span>` : ''}
         </div>
@@ -3653,7 +3848,7 @@ async function renderCustomerList(){
     { search:q, registeredOnly:true, sort:s.sort, dir:s.dir, pageSize:500 });
   if (!data) return;
   el('listTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" ondblclick="openCustomerModal(${c.id})">
+    <tr class="clickable" tabindex="0" ondblclick="openCustomerModal(${c.id})" onkeydown="if(event.key==='Enter'){openCustomerModal(${c.id})}" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${c.passport_no ? escapeHtml(c.passport_no) : '—'}</td>
@@ -3688,7 +3883,7 @@ async function renderNoRecord(){
   const canAssignHere = ['ADMIN','MANAGER'].includes(state.session?.role);
 
   el('norecTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" ondblclick="openCustomerModal(${c.id})">
+    <tr class="clickable" tabindex="0" ondblclick="openCustomerModal(${c.id})" onkeydown="if(event.key==='Enter'){openCustomerModal(${c.id})}" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
@@ -3699,10 +3894,10 @@ async function renderNoRecord(){
           ${c.marketing_name ? invitedByHTML(c.marketing_name, c.marketing_status) : '<span class="muted">unassigned</span>'}
           ${canAssignHere ? `
             <span class="row-menu-wrap">
-              <button class="row-dots" onclick="toggleRowMenu('norecMenu_${c.id}', event)">⋯</button>
-              <div class="row-menu" id="norecMenu_${c.id}">
-                <div class="row-menu-item" onclick="openAssignModal(${c.id}, event)">ASSIGN</div>
-                <div class="row-menu-item" onclick="openCustomerModal(${c.id}); event.stopPropagation();">EDIT</div>
+              <button class="row-dots" onclick="toggleRowMenu('norecMenu_${c.id}', event)" aria-label="More actions for ${escapeHtml(c.full_name)}" aria-haspopup="true">⋯</button>
+              <div class="row-menu" id="norecMenu_${c.id}" role="menu">
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable onclick="openAssignModal(${c.id}, event)">ASSIGN</div>
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable onclick="openCustomerModal(${c.id}); event.stopPropagation();">EDIT</div>
               </div>
             </span>` : ''}
         </div>
@@ -3910,7 +4105,7 @@ async function openProfileDetail(id){
   if (p.passport_no) chips.push(`<span class="pd-chip">${icon('<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 17h7"/>')}${escapeHtml(p.passport_no)}</span>`);
   if (p.phone) chips.push(`<span class="pd-chip">${icon('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z')}${escapeHtml(p.phone)}</span>`);
   chips.push(inactive
-    ? `<span class="pd-chip" style="color:var(--text-faint)">${icon('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>')}No longer with the company</span>`
+    ? `<span class="pd-chip" style="color:var(--ink-3)">${icon('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>')}No longer with the company</span>`
     : `<span class="pd-chip" style="color:var(--teal)">${icon('<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>')}Active</span>`);
   el('pdChips').innerHTML = chips.join('');
 
@@ -3938,9 +4133,9 @@ async function openProfileDetail(id){
 
   const weeks = Math.max(1, daysBetween(p.created_at, new Date().toISOString()) / 7);
   el('pdStats').innerHTML = `
-    <div class="pd-stat t-azure"><div class="n">${guests.length}</div><div class="l">Assigned Guests</div></div>
-    <div class="pd-stat t-violet"><div class="n">${invited.length}</div><div class="l">Reservations Invited</div></div>
-    <div class="pd-stat t-teal"><div class="n">${(invited.length/weeks).toFixed(1)}</div><div class="l">Avg Res / Week</div></div>
+    <div class="pd-stat"><div class="n">${guests.length}</div><div class="l">Assigned Guests</div></div>
+    <div class="pd-stat"><div class="n">${invited.length}</div><div class="l">Reservations Invited</div></div>
+    <div class="pd-stat"><div class="n">${(invited.length/weeks).toFixed(1)}</div><div class="l">Avg Res / Week</div></div>
     <div class="pd-stat"><div class="n">${(guests.length/weeks).toFixed(1)}</div><div class="l">Avg Guests / Week</div></div>`;
 
   openModal('modalProfileDetail');
@@ -4064,7 +4259,7 @@ async function renderReports(){
 async function renderUsers(){
   const users = await call(window.api.users.list, {});
   el('usersTableBody').innerHTML = (users || []).length ? users.map(u => `
-    <tr class="clickable" ondblclick="openUserModal(${u.id})">
+    <tr class="clickable" tabindex="0" ondblclick="openUserModal(${u.id})" onkeydown="if(event.key==='Enter'){openUserModal(${u.id})}" aria-label="${escapeHtml(u.username)}. Press Enter to open.">
       <td>${escapeHtml(u.username)}</td>
       <td>${u.full_name ? escapeHtml(u.full_name) : '<span class="muted">—</span>'}</td>
       <td><span class="role-pill ${u.role.toLowerCase()}">${u.role}</span></td>
