@@ -873,12 +873,8 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .rank-val{ width:24px; text-align:right; font-size:var(--t-sm); color:var(--ink-3); font-variant-numeric:tabular-nums; }
 
 /* reports */
-.report-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:var(--sp-4); margin-top:var(--sp-4); }
-.bar-row{ display:flex; align-items:center; gap:var(--sp-3); padding:8px 0; }
-.bar-label{ font-size:var(--t-md); width:38%; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bar-track{ flex:1; height:4px; background:var(--s3); border-radius:2px; overflow:hidden; }
-.bar-fill{ height:100%; background:var(--accent); opacity:.8; border-radius:2px; }
-.bar-value{ font-size:var(--t-sm); color:var(--ink-3); width:32px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
+.report-filter-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:var(--sp-4); }
+.report-filter-actions{ display:flex; justify-content:flex-end; padding:var(--sp-4) var(--sp-5); border-top:1px solid var(--line); }
 
 /* notifications */
 .notif-list{ background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden; }
@@ -1705,30 +1701,32 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         <h1 class="page-title" tabindex="-1">Reports</h1>
         <div class="setting-hint" id="reportScope"></div>
       </div>
-      <div class="head-actions">
-        <button class="btn btn-outline btn-sm" onclick="exportEntity('reservations')">EXPORT RESERVATIONS</button>
-        <button class="btn btn-outline btn-sm" onclick="exportEntity('customers')">EXPORT CUSTOMERS</button>
+    </div>
+    <div class="view-switch" role="tablist" aria-label="Report type" id="reportTypeTabs">
+      <button class="view-switch-tab active" role="tab" aria-selected="true" onclick="setReportType('reservations', this)">Reservations</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('guests', this)">Guest Activity</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('marketing', this)">Marketing Performance</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('cold', this)">Cold Guests</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('norecord', this)">No Record</button>
+    </div>
+    <div class="panel" style="margin-bottom:var(--sp-5)">
+      <div class="panel-body" id="reportFilters" style="padding:var(--sp-5)"></div>
+      <div class="report-filter-actions">
+        <button class="btn btn-gold btn-sm" id="reportGenerateBtn" onclick="runReport()">GENERATE REPORT</button>
       </div>
     </div>
-    <div class="stat-band" id="reportBand"></div>
-    <div class="report-grid" style="margin-top:16px;">
-      <div class="panel">
-        <div class="panel-head"><h2 class="panel-title">Top Marketing Profiles</h2></div>
-        <div class="panel-body" id="reportTopProfiles"></div>
+    <div id="reportResultsWrap" style="display:none;">
+      <div class="pane-head">
+        <div class="pane-title" id="reportResultCount"></div>
+        <button class="btn btn-outline btn-sm" onclick="exportReportResults()">EXPORT</button>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2 class="panel-title">Cold Guests</h2></div>
-        <div class="panel-body" id="reportCold"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h2 class="panel-title">Upcoming Arrivals</h2></div>
-        <div class="panel-body" id="reportArrivals"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h2 class="panel-title">No Records</h2></div>
-        <div class="panel-body" id="reportNoRecords"></div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table><thead id="reportResultsHead"></thead><tbody id="reportResultsBody"></tbody></table>
+        </div>
       </div>
     </div>
+    <div id="reportEmptyWrap"></div>
   </div>
 
   <!-- ---------- USERS ---------- -->
@@ -3186,34 +3184,7 @@ const api = {
   },
 
   reports: {
-    summary: () => { try { guard('reports.read'); } catch (e) { return fail(e.code, e.message); }
-      const scope = scopeProfileId();
-      const rs = db.reservations.map(decorateReservation)
-        .filter(r => scope === null || r.invited_by_profile_id === scope);
-      const nights = rs.map(r => Math.round((Date.parse(r.check_out) - Date.parse(r.check_in))/86400000));
-      const byProfile = {};
-      rs.forEach(r => { if (!r.invited_by_name) return;
-        byProfile[r.invited_by_name] = byProfile[r.invited_by_name] || { full_name:r.invited_by_name, reservations:0, guests:new Set() };
-        byProfile[r.invited_by_name].reservations++; byProfile[r.invited_by_name].guests.add(r.customer_id); });
-      const byGuest = {};
-      rs.forEach(r => { byGuest[r.customer_name] = (byGuest[r.customer_name] || 0) + 1; });
-      return ok({
-        totals: { total:rs.length,
-          cancelled: rs.filter(r => r.status === 'CANCELLED').length,
-          completed: rs.filter(r => r.status === 'CHECKED_IN').length,
-          avg_nights: nights.length ? (nights.reduce((a,b) => a+b,0)/nights.length).toFixed(1) : 0 },
-        topProfiles: Object.values(byProfile).map(p => ({ full_name:p.full_name, reservations:p.reservations, guests:p.guests.size }))
-          .sort((a,b) => b.reservations - a.reservations).slice(0,10),
-        coldGuests: filteredCustomers({ pageSize:5000 }).filter(c => c.status === 'COLD')
-          .map(c => ({ full_name:c.full_name, last_visit:c.last_visit, days: daysSince(c.last_visit) }))
-          .sort((a,b) => b.days - a.days).slice(0,12),
-        noRecords: filteredCustomers({ pageSize:5000 })
-          .filter(c => c.reservation_count === 0 && c.note_count === 0)
-          .map(c => ({ full_name:c.full_name, code:c.code, created_at:c.created_at })).slice(0,12),
-        arrivals: rs.filter(r => r.check_in >= today() && daysSince(r.check_in) >= -14 && r.status !== 'CANCELLED')
-          .sort((a,b) => a.check_in.localeCompare(b.check_in)).map(r => ({ check_in:r.check_in, full_name:r.customer_name })),
-        departures: []
-      }); }
+    access: () => { try { guard('reports.read'); } catch (e) { return fail(e.code, e.message); } return ok({ ok:true }); }
   },
 
   audit: {
@@ -3319,6 +3290,14 @@ const api = {
         rows = profileRelatedCustomers(Number(q.profileId))
           .map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '', Relationship:c.relationship,
             Status:c.status, Reservations:c.reservation_count, Notes:c.note_count, Created:c.created_at }));
+      } else if (p.entity === 'report_marketing'){
+        const periodRows = filteredReservations({ pageSize:5000, from:q.from || '' });
+        rows = decoratedProfiles().map(x => {
+          const periodReservations = periodRows.filter(r => r.invited_by_profile_id === x.id).length;
+          return { Profile:x.full_name, Status:x.employment_status,
+            [`Reservations (${q.periodLabel || 'All Time'})`]: periodReservations,
+            'Guests Assigned':x.customer_count, 'Total Reservations Invited':x.reservation_count };
+        });
       } else {
         rows = filteredCustomers({ ...q, registeredOnly: (p.entity === 'customerlist' || p.entity === 'norecord') ? true : q.registeredOnly })
           .map(c => ({ ID:c.code, Name:c.full_name, Passport:c.passport_no || '', Phone:c.phone || '',
@@ -4912,54 +4891,169 @@ async function refreshNotifBadge(){
   badge.classList.toggle('has', (n || 0) > 0);
 }
 
-/* ---------------- REPORTS ---------------- */
+/* ---------------- REPORTS — a builder, not a fixed dashboard: pick a
+   report type, set contextual filters, generate, then export exactly
+   what was generated ---------------- */
+let reportType = 'reservations';
+let reportPeriod = '30';
+let reportRows = [], reportExportEntity = null, reportExportParams = {};
+
 async function renderReports(){
-  const r = await call(window.api.reports.summary, {});
-  if (!r) return;
+  const access = await call(window.api.reports.access, {}, { silent:true }).catch(() => null);
+  el('reportTypeTabs').style.display = access ? '' : 'none';
+  el('reportFilters').closest('.panel').style.display = access ? '' : 'none';
+  el('reportResultsWrap').style.display = 'none';
+  if (!access){
+    el('reportEmptyWrap').innerHTML = emptyState({ icon:'guests', title:'Reports are restricted',
+      text:'Your role does not have access to reports. Ask an administrator to grant it in Settings.' });
+    return;
+  }
+  el('reportEmptyWrap').innerHTML = '';
   const scopeNote = el('reportScope');
   if (scopeNote) scopeNote.textContent = state.session?.role === 'MARKETING'
     ? 'Your own figures' : 'All marketing profiles';
-  const t = r.totals || {};
-  const cells = [
-    { l:'Total Reservations', n:t.total || 0 },
-    { l:'Checked In', n:t.completed || 0 },
-    { l:'Cancelled', n:t.cancelled || 0 },
-    { l:'Average Nights', n:t.avg_nights ?? '—' },
-    { l:'Cold Guests', n:(r.coldGuests || []).length }
-  ];
-  const band = el('reportBand');
-  band.style.gridTemplateColumns = `repeat(${cells.length},1fr)`;
-  band.innerHTML = cells.map(c => `<div class="stat-cell"><div class="sc-l">${c.l}</div><div class="sc-n">${c.n}</div></div>`).join('');
-
-  const max = Math.max(1, ...(r.topProfiles || []).map(p => p.reservations));
-  el('reportTopProfiles').innerHTML = (r.topProfiles || []).length ? `<div style="padding:10px 18px">` +
-    r.topProfiles.map(p => `
-      <div class="bar-row">
-        <div class="bar-label">${escapeHtml(p.full_name)}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(p.reservations / max * 100).toFixed(0)}%"></div></div>
-        <div class="bar-value">${p.reservations}</div>
-      </div>`).join('') + '</div>' : '<div class="panel-empty">No data yet</div>';
-
-  el('reportCold').innerHTML = (r.coldGuests || []).length ? r.coldGuests.map(c => `
-    <div class="list-row"><div class="lr-main">
-        <div class="lr-name">${escapeHtml(c.full_name)}</div>
-        <div class="lr-sub">Last visit ${fmtDate(c.last_visit)}</div>
-      </div>
-      <div class="lr-right"><span class="due-pill">${c.days}d</span></div></div>`).join('')
-    : '<div class="panel-empty">No cold guests</div>';
-
-  el('reportArrivals').innerHTML = (r.arrivals || []).length ? r.arrivals.map(a => `
-    <div class="list-row"><div class="lr-main"><div class="lr-name">${escapeHtml(a.full_name)}</div></div>
-      <div class="lr-right">${fmtDate(a.check_in)}</div></div>`).join('')
-    : '<div class="panel-empty">No arrivals in the next 14 days</div>';
-
-  el('reportNoRecords').innerHTML = (r.noRecords || []).length ? r.noRecords.map(a => `
-    <div class="list-row" onclick="switchTab('norecord')" style="cursor:pointer">
-      <div class="lr-main">
-        <div class="lr-name">${escapeHtml(a.full_name)}</div>
-        <div class="lr-sub">#${escapeHtml(a.code)} · registered ${fmtDate(a.created_at)}</div>
-      </div></div>`).join('')
-    : '<div class="panel-empty">Every guest has activity</div>';
+  renderReportFilters();
+}
+function setReportType(type, btn){
+  reportType = type;
+  document.querySelectorAll('#reportTypeTabs .view-switch-tab').forEach(b => {
+    b.classList.remove('active'); b.setAttribute('aria-selected','false');
+  });
+  if (btn){ btn.classList.add('active'); btn.setAttribute('aria-selected','true'); }
+  renderReportFilters();
+  el('reportResultsWrap').style.display = 'none';
+  el('reportEmptyWrap').innerHTML = '';
+}
+function fillProfileSelect(id){
+  const sel = el(id); if (!sel) return;
+  sel.innerHTML = '<option value="">All</option>' +
+    state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('');
+}
+function setReportPeriod(period){
+  reportPeriod = period;
+  el('rptMarketingPeriod')?.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('active', b.getAttribute('onclick') === `setReportPeriod('${period}')`));
+}
+function renderReportFilters(){
+  const wrap = el('reportFilters');
+  if (reportType === 'reservations'){
+    wrap.innerHTML = `
+      <div class="report-filter-grid">
+        <div class="field"><label for="rptResStatus">Status</label>
+          <select class="fm-input" id="rptResStatus"><option value="">All statuses</option>
+            <option value="UPCOMING">Upcoming</option><option value="CHECKED_IN">Checked in</option>
+            <option value="COMPLETED">Completed</option></select></div>
+        <div class="field"><label for="rptResInvited">Invited By</label><select class="fm-input" id="rptResInvited"></select></div>
+        <div class="field"><label for="rptResFrom">Check-in From</label><input class="fm-input" type="date" id="rptResFrom"></div>
+        <div class="field"><label for="rptResTo">Check-in To</label><input class="fm-input" type="date" id="rptResTo"></div>
+      </div>`;
+    fillProfileSelect('rptResInvited');
+  } else if (reportType === 'guests'){
+    wrap.innerHTML = `
+      <div class="report-filter-grid">
+        <div class="field"><label for="rptGStatus">Status</label>
+          <select class="fm-input" id="rptGStatus"><option value="">All statuses</option>
+            <option value="NEW">New</option><option value="COLD">Cold</option><option value="NO_RECORD">No Record</option></select></div>
+        <div class="field"><label for="rptGCreatedBy">Created By</label><select class="fm-input" id="rptGCreatedBy"></select></div>
+        <div class="field"><label for="rptGAssignedTo">Assigned To</label><select class="fm-input" id="rptGAssignedTo"></select></div>
+        <div class="field"><label for="rptGFrom">Registered From</label><input class="fm-input" type="date" id="rptGFrom"></div>
+        <div class="field"><label for="rptGTo">Registered To</label><input class="fm-input" type="date" id="rptGTo"></div>
+      </div>`;
+    fillProfileSelect('rptGCreatedBy'); fillProfileSelect('rptGAssignedTo');
+  } else if (reportType === 'marketing'){
+    wrap.innerHTML = `
+      <div class="field"><label>Period</label>
+        <div class="split-filter" id="rptMarketingPeriod">
+          <button onclick="setReportPeriod('7')">7D</button>
+          <button class="active" onclick="setReportPeriod('30')">30D</button>
+          <button onclick="setReportPeriod('90')">3M</button>
+          <button onclick="setReportPeriod('180')">6M</button>
+          <button onclick="setReportPeriod('all')">ALL</button>
+        </div>
+      </div>`;
+    reportPeriod = '30';
+  } else if (reportType === 'cold'){
+    wrap.innerHTML = `
+      <div class="report-filter-grid">
+        <div class="field"><label for="rptColdAssignedTo">Assigned To</label><select class="fm-input" id="rptColdAssignedTo"></select></div>
+      </div>`;
+    fillProfileSelect('rptColdAssignedTo');
+  } else if (reportType === 'norecord'){
+    wrap.innerHTML = `
+      <div class="report-filter-grid">
+        <div class="field"><label for="rptNRFrom">Registered From</label><input class="fm-input" type="date" id="rptNRFrom"></div>
+        <div class="field"><label for="rptNRTo">Registered To</label><input class="fm-input" type="date" id="rptNRTo"></div>
+      </div>`;
+  }
+}
+async function runReport(){
+  await withBusy(el('reportGenerateBtn'), 'GENERATING…', async () => {
+    if (reportType === 'reservations'){
+      const params = { status: el('rptResStatus').value, invitedBy: el('rptResInvited').value,
+        from: el('rptResFrom').value, to: el('rptResTo').value, pageSize:1000, sort:'check_in', dir:'desc' };
+      const data = await call(window.api.reservations.list, params, { silent:true });
+      reportRows = (data?.rows || []).map(r => ({ Guest:r.customer_name, 'Check In':fmtDate(r.check_in),
+        'Check Out':fmtDate(r.check_out), Status:r.status, 'Invited By':r.invited_by_name || '—',
+        Note:r.reservation_note || '—' }));
+      reportExportEntity = 'reservations';
+      reportExportParams = { status:params.status, invitedBy:params.invitedBy, from:params.from, to:params.to };
+    } else if (reportType === 'guests'){
+      const params = { status: el('rptGStatus').value, createdBy: el('rptGCreatedBy').value,
+        assignedTo: el('rptGAssignedTo').value, createdFrom: el('rptGFrom').value, createdTo: el('rptGTo').value,
+        registeredOnly:true, pageSize:1000 };
+      const data = await call(window.api.customers.list, params, { silent:true });
+      reportRows = (data?.rows || []).map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '—',
+        Status:c.status, 'Created By':c.created_by_label, 'Assigned To':c.marketing_name || '—',
+        Reservations:c.reservation_count, Registered:fmtDate(c.created_at) }));
+      reportExportEntity = 'customerlist'; reportExportParams = params;
+    } else if (reportType === 'marketing'){
+      const from = reportPeriod === 'all' ? '' : new Date(Date.now() - Number(reportPeriod) * 86400000).toISOString().slice(0,10);
+      const periodLabel = DASH_PERIOD_LABEL[reportPeriod] || '30 Days';
+      const data = await call(window.api.reservations.list, { from, pageSize:1000 }, { silent:true });
+      const tally = {};
+      (data?.rows || []).forEach(r => { if (r.invited_by_profile_id) tally[r.invited_by_profile_id] = (tally[r.invited_by_profile_id] || 0) + 1; });
+      const col = `Reservations (${periodLabel})`;
+      reportRows = state.profiles.map(p => ({ Profile:p.full_name, Status:p.employment_status,
+        [col]: tally[p.id] || 0, 'Guests Assigned':p.customer_count, 'Total Reservations Invited':p.reservation_count }))
+        .sort((a,b) => b[col] - a[col]);
+      reportExportEntity = 'report_marketing'; reportExportParams = { from, periodLabel };
+    } else if (reportType === 'cold'){
+      const params = { status:'COLD', assignedTo: el('rptColdAssignedTo').value, registeredOnly:true, pageSize:1000 };
+      const data = await call(window.api.customers.list, params, { silent:true });
+      reportRows = (data?.rows || []).map(c => ({ Name:c.full_name, Phone:c.phone || '—',
+        'Assigned To':c.marketing_name || '—', 'Last Visit':c.last_visit ? fmtDate(c.last_visit) : '—',
+        'Days Since Visit':c.last_visit ? daysBetween(c.last_visit, todayYMD()) : '—' }));
+      reportExportEntity = 'customerlist'; reportExportParams = params;
+    } else if (reportType === 'norecord'){
+      const params = { noRecord:true, registeredOnly:true, createdFrom: el('rptNRFrom').value, createdTo: el('rptNRTo').value, pageSize:1000 };
+      const data = await call(window.api.customers.list, params, { silent:true });
+      reportRows = (data?.rows || []).map(c => ({ ID:c.code, Name:c.full_name,
+        'Created By':c.created_by_label, Registered:fmtDate(c.created_at) }));
+      reportExportEntity = 'norecord'; reportExportParams = params;
+    }
+    renderReportTable();
+  });
+}
+function renderReportTable(){
+  const wrap = el('reportResultsWrap');
+  if (!reportRows.length){
+    wrap.style.display = 'none';
+    el('reportEmptyWrap').innerHTML = emptyState({ icon:'search', title:'No results',
+      text:'Nothing matched those filters — try widening the range.' });
+    return;
+  }
+  el('reportEmptyWrap').innerHTML = '';
+  wrap.style.display = '';
+  const cols = Object.keys(reportRows[0]);
+  el('reportResultsHead').innerHTML = `<tr>${cols.map(c => `<th scope="col">${escapeHtml(c.toUpperCase())}</th>`).join('')}</tr>`;
+  el('reportResultsBody').innerHTML = reportRows.map(r =>
+    `<tr>${cols.map(c => `<td>${escapeHtml(String(r[c]))}</td>`).join('')}</tr>`).join('');
+  el('reportResultCount').textContent = `${reportRows.length} result${reportRows.length === 1 ? '' : 's'}`;
+}
+async function exportReportResults(){
+  if (!reportExportEntity) return;
+  const r = await call(window.api.export.filtered, { entity:reportExportEntity, params:reportExportParams });
+  if (r) toast('success', 'Export complete', `${r.rows} rows → ${r.name}`);
 }
 
 /* ---------------- USERS ---------------- */
