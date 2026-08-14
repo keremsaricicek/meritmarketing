@@ -4307,10 +4307,15 @@ async function renderReservations(){
   const s = state.res;
   s.search = el('resSearch')?.value.trim() || '';
   fillFilterProfileSelects();
+  /* the tab badges must always agree with what the list actually shows —
+     they share the same search/invitedBy/date filters as the visible
+     view (status only ever applies within Reservations, never Cancelled),
+     otherwise a badge can promise a row the filtered list won't render */
+  const shared = { search:s.search, invitedBy:s.invitedBy || '', from:s.from || '', to:s.to || '' };
   const [data, activeCount, cancelledCount] = await Promise.all([
     call(window.api.reservations.list, { ...resFilterParams(), page:s.page, pageSize:s.pageSize }),
-    call(window.api.reservations.list, { view:'active', pageSize:1 }, { silent:true }),
-    call(window.api.reservations.list, { view:'cancelled', pageSize:1 }, { silent:true })
+    call(window.api.reservations.list, { ...shared, status:s.status || '', view:'active', pageSize:1 }, { silent:true }),
+    call(window.api.reservations.list, { ...shared, view:'cancelled', pageSize:1 }, { silent:true })
   ]);
   if (!data) return;
   s.total = data.total; s.rows = data.rows;
@@ -4359,7 +4364,7 @@ async function renderReservations(){
 let cancellingReservationId = null;
 async function openCancelReservationModal(id){
   cancellingReservationId = id;
-  const r = state.res.rows.find(x => x.id === id) || (await call(window.api.reservations.get, { id }, { silent:true }))?.data;
+  const r = state.res.rows.find(x => x.id === id) || (await call(window.api.reservations.get, { id }, { silent:true }));
   if (!r) return;
   el('cancelResSummary').textContent = `${r.customer_name} · ${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}`;
   el('cancelResReason').value = '';
