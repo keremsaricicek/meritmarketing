@@ -194,14 +194,17 @@ button{ font-family:inherit; }
   opacity:0; pointer-events:none; transition:opacity .18s var(--ease);
 }
 .sidebar-backdrop.show{ opacity:1; pointer-events:auto; }
+/* the sidebar is a fixed panel of the shell, not a drawer that happens to
+   stay open — it shares the topbar's surface tone and hairline language so
+   the two read as one continuous frame around the working area */
 .sidebar{
-  position:fixed; top:0; left:0; bottom:0; width:244px; max-width:82vw; z-index:75;
+  position:fixed; top:0; left:0; bottom:0; width:250px; max-width:82vw; z-index:75;
   background:var(--s0); border-right:1px solid var(--line);
-  display:flex; flex-direction:column; padding:var(--sp-4) var(--sp-3) var(--sp-3);
+  display:flex; flex-direction:column;
   transform:translateX(-100%); transition:transform .2s var(--ease);
 }
 .sidebar.open{ transform:none; }
-.sidebar-top-row{ display:flex; align-items:center; justify-content:space-between; padding:2px 6px var(--sp-3); }
+.sidebar-top-row{ display:flex; align-items:center; justify-content:space-between; padding:var(--sp-3) var(--sp-3) 2px; }
 .sidebar-label{ font-size:var(--t-sm); font-weight:600; color:var(--ink-3); }
 .sidebar-close-btn{
   width:26px; height:26px; border-radius:var(--r-1); background:transparent; border:none;
@@ -211,12 +214,12 @@ button{ font-family:inherit; }
 .sidebar-close-btn:hover{ background:var(--s3); color:var(--ink); }
 
 .session-chip{
-  display:flex; align-items:center; gap:10px;
-  padding:6px 8px; margin-bottom:var(--sp-5);
-  border-bottom:1px solid var(--line); padding-bottom:var(--sp-4);
+  display:flex; align-items:center; gap:11px;
+  padding:var(--sp-4) var(--sp-4); flex-shrink:0;
+  border-bottom:1px solid var(--line);
 }
 .sc-av{
-  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
   background:var(--s3); border:1px solid var(--line-2);
   display:grid; place-items:center; font-size:var(--t-sm); font-weight:600; color:var(--ink-3);
   background-size:cover; background-position:center;
@@ -225,7 +228,7 @@ button{ font-family:inherit; }
 .sc-name{ font-size:var(--t-md); font-weight:600; letter-spacing:-.1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sc-role{
   font-size:9.5px; font-weight:600; letter-spacing:var(--tracking-wide); text-transform:uppercase;
-  color:var(--ink-3); margin-top:3px;
+  color:var(--ink-3); margin-top:4px;
 }
 .logout-btn{
   background:transparent; border:none; color:var(--ink-3); width:28px; height:28px;
@@ -236,31 +239,31 @@ button{ font-family:inherit; }
 .logout-btn svg{ width:14px; height:14px; }
 
 /* navigation is grouped by task, not listed flat — ten destinations
-   read faster as three small clusters than one long column */
-.nav-group{ display:flex; flex-direction:column; gap:2px; }
-.nav-group + .nav-group{ margin-top:var(--sp-5); }
+   read faster as three small clusters than one long column. The scroll
+   region is separate from the fixed header/footer so a long list never
+   pushes the session card or sign-out off screen. */
+.sidebar-scroll{ flex:1; min-height:0; overflow-y:auto; padding:var(--sp-4) var(--sp-3) var(--sp-3); }
+.nav-group{ display:flex; flex-direction:column; gap:1px; }
+.nav-group + .nav-group{ margin-top:var(--sp-6); padding-top:var(--sp-5); border-top:1px solid var(--line); }
 .nav-group-label{
   font-size:9.5px; font-weight:700; letter-spacing:var(--tracking-wide); text-transform:uppercase;
-  color:var(--ink-4); padding:0 11px; margin-bottom:7px;
+  color:var(--ink-4); padding:0 12px; margin-bottom:8px;
 }
-.nav{ display:flex; flex-direction:column; gap:2px; }
+.nav{ display:flex; flex-direction:column; gap:1px; }
 .nav-item{
-  position:relative; display:flex; align-items:center; gap:10px;
-  padding:8px 11px 8px 14px; border-radius:var(--r-1); cursor:pointer;
-  color:var(--ink-2); font-size:var(--t-md); font-weight:500; letter-spacing:-.05px; user-select:none;
+  position:relative; display:flex; align-items:center; gap:11px;
+  padding:8px 12px; border-radius:var(--r-2); cursor:pointer;
+  color:var(--ink-3); font-size:var(--t-md); font-weight:500; letter-spacing:-.05px; user-select:none;
   transition:background .12s var(--ease), color .12s var(--ease);
 }
-.nav-item .dot{ width:4px; height:4px; border-radius:50%; background:var(--ink-4); flex-shrink:0; transition:background .12s var(--ease); }
+.nav-item svg{ width:15px; height:15px; flex-shrink:0; opacity:.85; transition:opacity .12s var(--ease); }
 .nav-item:hover{ background:var(--s2); color:var(--ink); }
+.nav-item:hover svg{ opacity:1; }
 .nav-item:focus-visible{ outline-offset:-2px; }
-/* active state is a precise 2px accent rule, not a gray highlight fill —
-   it reads as "you are here", not "this is selected in a list" */
-.nav-item.active{ background:var(--accent-soft); color:var(--ink); font-weight:600; }
-.nav-item.active::before{
-  content:""; position:absolute; left:0; top:7px; bottom:7px; width:2px;
-  border-radius:1px; background:var(--accent);
-}
-.nav-item.active .dot{ background:var(--accent); }
+/* active state is a confident, quiet fill — the tab itself is the
+   indicator, not an extra bar bolted to the edge */
+.nav-item.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.nav-item.active svg{ opacity:1; }
 .nav-badge{
   margin-left:auto; background:var(--s3); color:var(--ink-2); border:1px solid var(--line-2);
   font-size:var(--t-xs); font-weight:600; min-width:18px; height:18px; padding:0 5px;
@@ -269,7 +272,7 @@ button{ font-family:inherit; }
 .nav-badge.show{ display:flex; }
 .nav-badge.has{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
 .sidebar-footer{
-  margin-top:auto; padding:var(--sp-4) 11px 2px; border-top:1px solid var(--line);
+  flex-shrink:0; padding:var(--sp-3) var(--sp-4); border-top:1px solid var(--line);
   font-size:10.5px; color:var(--ink-4); letter-spacing:.1px;
 }
 .sidebar-footer b{ color:var(--ink-3); font-weight:600; }
@@ -377,6 +380,8 @@ button{ font-family:inherit; }
 .page-title:focus{ outline:none; }
 .page-title:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:2px; }
 .head-actions{ display:flex; gap:var(--sp-2); align-items:center; }
+/* swaps the page-head action per active CRM Panel tab without an extra box */
+.crm-action{ display:contents; }
 
 /* two views of one dataset (e.g. Reservations / Cancelled) — a precise
    underline switch, not a segmented-control widget, consistent with the
@@ -821,8 +826,10 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .pd-stat .n{ font-size:24px; font-weight:500; letter-spacing:-.6px; color:var(--ink); }
 .pd-stat .l{ font-size:var(--t-xs); color:var(--ink-3); margin-top:5px; }
 
-.pd-pane{ display:none; }
-.pd-pane.active{ display:block; animation:rise .16s var(--ease); }
+/* generic pane-switcher used by every module-level tab strip
+   (Profile Detail, CRM Panel, ...) */
+.tab-pane{ display:none; }
+.tab-pane.active{ display:block; animation:rise .16s var(--ease); }
 .split-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-8); }
 .split-grid.cols-3{ grid-template-columns:repeat(3,1fr); }
 .split-col{ min-width:0; }
@@ -1349,36 +1356,63 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     </button>
   </div>
 
+  <div class="sidebar-scroll">
   <div class="nav-group">
-    <div class="nav-item active" data-page="dashboard" onclick="switchTab('dashboard')" role="button" tabindex="0" data-activatable aria-current="page"><span class="dot"></span>DASHBOARD</div>
+    <div class="nav-item active" data-page="dashboard" onclick="switchTab('dashboard')" role="button" tabindex="0" data-activatable aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></svg>
+      DASHBOARD
+    </div>
   </div>
 
   <div class="nav-group">
     <div class="nav-group-label" id="navGroupGuests">Guests</div>
     <div class="nav" role="group" aria-labelledby="navGroupGuests">
-      <div class="nav-item" data-page="reservations" onclick="switchTab('reservations')" role="button" tabindex="0" data-activatable><span class="dot"></span>RESERVATION HISTORY</div>
-      <div class="nav-item" data-page="calendar" onclick="switchTab('calendar')" role="button" tabindex="0" data-activatable><span class="dot"></span>ACTION CALENDAR</div>
-      <div class="nav-item" data-page="profiles" onclick="switchTab('profiles')" role="button" tabindex="0" data-activatable><span class="dot"></span>PROFILES</div>
-      <div class="nav-item" data-page="customers" onclick="switchTab('customers')" role="button" tabindex="0" data-activatable><span class="dot"></span>CRM PANEL</div>
-      <div class="nav-item" data-page="customerlist" onclick="switchTab('customerlist')" role="button" tabindex="0" data-activatable><span class="dot"></span>CUSTOMER LIST</div>
-      <div class="nav-item" data-page="norecord" onclick="switchTab('norecord')" role="button" tabindex="0" data-activatable><span class="dot"></span>NO RECORD<span class="nav-badge" id="norecBadge">0</span></div>
+      <div class="nav-item" data-page="reservations" onclick="switchTab('reservations')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+        RESERVATION HISTORY
+      </div>
+      <div class="nav-item" data-page="calendar" onclick="switchTab('calendar')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+        ACTION CALENDAR
+      </div>
+      <div class="nav-item" data-page="profiles" onclick="switchTab('profiles')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.3"/><path d="M5.3 20c1-4.2 4-6.3 6.7-6.3s5.7 2.1 6.7 6.3"/></svg>
+        PROFILES
+      </div>
+      <div class="nav-item" data-page="customers" onclick="switchTab('customers')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v4h4"/><path d="M9 13h6M9 17h6"/></svg>
+        CRM PANEL<span class="nav-badge" id="norecBadge">0</span>
+      </div>
     </div>
   </div>
 
   <div class="nav-group">
     <div class="nav-group-label" id="navGroupInsight">Insight</div>
     <div class="nav" role="group" aria-labelledby="navGroupInsight">
-      <div class="nav-item" data-page="reports" onclick="switchTab('reports')" role="button" tabindex="0" data-activatable><span class="dot"></span>REPORTS</div>
-      <div class="nav-item" data-page="audit" onclick="switchTab('audit')" role="button" tabindex="0" data-activatable><span class="dot"></span>AUDIT LOG</div>
+      <div class="nav-item" data-page="reports" onclick="switchTab('reports')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>
+        REPORTS
+      </div>
+      <div class="nav-item" data-page="audit" onclick="switchTab('audit')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6h9M9.5 12h9M9.5 18h9"/><path d="M4 6.3l1 1L7.3 5M4 12.3l1 1 2.3-2.3M4 18.3l1 1 2.3-2.3"/></svg>
+        AUDIT LOG
+      </div>
     </div>
   </div>
 
   <div class="nav-group">
     <div class="nav-group-label" id="navGroupAdmin">Administration</div>
     <div class="nav" role="group" aria-labelledby="navGroupAdmin">
-      <div class="nav-item" data-page="users" onclick="switchTab('users')" role="button" tabindex="0" data-activatable><span class="dot"></span>USERS</div>
-      <div class="nav-item" data-page="settings" onclick="switchTab('settings')" role="button" tabindex="0" data-activatable><span class="dot"></span>SETTINGS</div>
+      <div class="nav-item" data-page="users" onclick="switchTab('users')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="3"/><circle cx="16.3" cy="9.8" r="2.4"/><path d="M3 19.5c.8-3.4 3-5.2 5.5-5.2s4.8 1.8 5.6 5.2"/><path d="M14.8 15c1.9.5 3.4 2.1 3.9 4.5"/></svg>
+        USERS
+      </div>
+      <div class="nav-item" data-page="settings" onclick="switchTab('settings')" role="button" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.4a7.6 7.6 0 0 0 0-2.8l1.9-1.5-2-3.4-2.2.9a7.6 7.6 0 0 0-2.4-1.4L14.3 3H9.7l-.4 2.2a7.6 7.6 0 0 0-2.4 1.4l-2.2-.9-2 3.4L4.6 10.6a7.6 7.6 0 0 0 0 2.8l-1.9 1.5 2 3.4 2.2-.9c.7.6 1.5 1.1 2.4 1.4l.4 2.2h4.6l.4-2.2c.9-.3 1.7-.8 2.4-1.4l2.2.9 2-3.4Z"/></svg>
+        SETTINGS
+      </div>
     </div>
+  </div>
   </div>
 
   <div class="sidebar-footer">MERIT MARKETING HUB · <b>Casino CRM</b></div>
@@ -1562,150 +1596,150 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="page-head">
       <h1 class="page-title" tabindex="-1">CRM Panel</h1>
       <div class="head-actions">
-        <button class="btn btn-gold btn-sm" onclick="openRecordModal()">NEW RECORD</button>
-      </div>
-    </div>
-    <div class="toolbar">
-      <label class="visually-hidden" for="custSearch">Search guests</label>
-      <input class="search" id="custSearch" placeholder="Search" oninput="onCustSearch()">
-      <div class="filter-wrap">
-        <button class="filter-btn" id="custFilterBtn" onclick="toggleFilterMenu('custFilterMenu', event)" aria-label="Filter" aria-haspopup="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
-        </button>
-        <div class="filter-menu" id="custFilterMenu" role="menu">
-          <div class="filter-opt active" data-val="" onclick="setCustFilter('', this)" tabindex="0" role="menuitemradio" aria-checked="true" data-activatable>ALL</div>
-          <div class="filter-opt" data-val="NEW" onclick="setCustFilter('NEW', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ok)"></span>NEW</div>
-          <div class="filter-opt" data-val="AVAILABLE" onclick="setCustFilter('AVAILABLE', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--warn)"></span>AVAILABLE</div>
-          <div class="filter-opt" data-val="COLD" onclick="setCustFilter('COLD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--cold)"></span>COLD</div>
-          <div class="filter-opt" data-val="NO_RECORD" onclick="setCustFilter('NO_RECORD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ink-4)"></span>NO RECORD</div>
-          <div class="fm-sep"></div>
-          <div class="fm-title">Marketing</div>
-          <select class="fm-input" id="custFMarketing" onchange="applyCustFilters()" onclick="event.stopPropagation()"></select>
-          <div class="fm-actions"><button class="pager-btn" onclick="clearCustFilters()">Clear</button></div>
+        <div class="crm-action" id="crmAction_overview">
+          <button class="btn btn-gold btn-sm" onclick="openRecordModal()">NEW RECORD</button>
+        </div>
+        <div class="crm-action hidden" id="crmAction_customerlist">
+          <button class="btn btn-gold btn-sm" onclick="openCustomerModal()">NEW CUSTOMER</button>
+        </div>
+        <div class="crm-action hidden" id="crmAction_norecord">
+          <button class="btn btn-outline btn-sm" onclick="exportCurrentView('norecord')">EXPORT</button>
         </div>
       </div>
-      <button class="btn btn-outline btn-sm" onclick="exportCurrentView('customers')" title="Export what is on screen">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-        EXPORT
-      </button>
     </div>
-    <div class="customer-layout">
+
+    <div class="view-switch" role="tablist" aria-label="CRM Panel view" id="crmViewTabs">
+      <button class="view-switch-tab active" role="tab" aria-selected="true" onclick="setCrmView('overview', this)">Overview</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="crmTabCustomerList" onclick="setCrmView('customerlist', this)">Customer List</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="crmTabNoRecord" onclick="setCrmView('norecord', this)">No Record<span class="count-pill" id="norecTabBadge">0</span></button>
+    </div>
+
+    <div class="tab-pane active" id="crmPane_overview">
+      <div class="toolbar">
+        <label class="visually-hidden" for="custSearch">Search guests</label>
+        <input class="search" id="custSearch" placeholder="Search" oninput="onCustSearch()">
+        <div class="filter-wrap">
+          <button class="filter-btn" id="custFilterBtn" onclick="toggleFilterMenu('custFilterMenu', event)" aria-label="Filter" aria-haspopup="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+          </button>
+          <div class="filter-menu" id="custFilterMenu" role="menu">
+            <div class="filter-opt active" data-val="" onclick="setCustFilter('', this)" tabindex="0" role="menuitemradio" aria-checked="true" data-activatable>ALL</div>
+            <div class="filter-opt" data-val="NEW" onclick="setCustFilter('NEW', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ok)"></span>NEW</div>
+            <div class="filter-opt" data-val="AVAILABLE" onclick="setCustFilter('AVAILABLE', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--warn)"></span>AVAILABLE</div>
+            <div class="filter-opt" data-val="COLD" onclick="setCustFilter('COLD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--cold)"></span>COLD</div>
+            <div class="filter-opt" data-val="NO_RECORD" onclick="setCustFilter('NO_RECORD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ink-4)"></span>NO RECORD</div>
+            <div class="fm-sep"></div>
+            <div class="fm-title">Marketing</div>
+            <select class="fm-input" id="custFMarketing" onchange="applyCustFilters()" onclick="event.stopPropagation()"></select>
+            <div class="fm-actions"><button class="pager-btn" onclick="clearCustFilters()">Clear</button></div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportCurrentView('customers')" title="Export what is on screen">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+          EXPORT
+        </button>
+      </div>
+      <div class="customer-layout">
+        <div class="table-wrap">
+          <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">ID</th>
+                  <th scope="col" class="sortable" onclick="sortCustomers('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+                  <th scope="col">PHONE</th><th scope="col">MARKETING</th><th scope="col">CRM NOTE</th><th scope="col">STATUS</th>
+                  <th scope="col" class="sortable sorted" onclick="sortCustomers('updated')" aria-sort="descending">LAST MODIFIED<span class="sort-arrow">↓</span></th></tr>
+            </thead>
+            <tbody id="custTableBody"></tbody>
+          </table>
+          </div>
+          <div class="pager" id="custPager"></div>
+        </div>
+        <div class="detail-panel empty" id="detailPanel">No guest selected</div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="crmPane_customerlist">
+      <div class="toolbar">
+        <label class="visually-hidden" for="listSearch">Search customer list</label>
+        <input class="search" id="listSearch" placeholder="Search" oninput="onListSearch()">
+        <div class="filter-wrap">
+          <button class="filter-btn" id="listFilterBtn" onclick="toggleFilterMenu('listFilterMenu', event)" aria-label="Filter" aria-haspopup="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+          </button>
+          <div class="filter-menu wide" id="listFilterMenu" onclick="event.stopPropagation()">
+            <div class="fm-title">Status</div>
+            <select class="fm-input" id="listFStatus" onchange="applyListFilters()">
+              <option value="">All statuses</option>
+              <option value="NEW">New</option>
+              <option value="AVAILABLE">Available</option>
+              <option value="COLD">Cold</option>
+              <option value="NO_RECORD">No record</option>
+            </select>
+            <div class="fm-title">Created By</div>
+            <select class="fm-input" id="listFCreatedBy" onchange="applyListFilters()"></select>
+            <div class="fm-title">Assigned To</div>
+            <select class="fm-input" id="listFAssignedTo" onchange="applyListFilters()"></select>
+            <div class="fm-title">Nationality</div>
+            <input class="fm-input" type="text" id="listFNationality" placeholder="e.g. Türkiye" onchange="applyListFilters()">
+            <div class="fm-title">Reservations</div>
+            <select class="fm-input" id="listFHasRes" onchange="applyListFilters()">
+              <option value="">Any</option>
+              <option value="yes">Has reservation</option>
+              <option value="no">No reservation</option>
+            </select>
+            <div class="fm-title">CRM Activity</div>
+            <select class="fm-input" id="listFHasCrm" onchange="applyListFilters()">
+              <option value="">Any</option>
+              <option value="yes">Has CRM activity</option>
+              <option value="no">No CRM activity</option>
+            </select>
+            <div class="fm-title">Created Between</div>
+            <div class="fm-row">
+              <input class="fm-input" type="date" id="listFCreatedFrom" onchange="applyListFilters()">
+              <input class="fm-input" type="date" id="listFCreatedTo" onchange="applyListFilters()">
+            </div>
+            <div class="fm-actions">
+              <button class="pager-btn" onclick="clearListFilters()">Clear</button>
+              <button class="pager-btn" onclick="closeAllFilterMenus()">Done</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportCurrentView('customerlist')" title="Export what is on screen">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+          EXPORT
+        </button>
+      </div>
       <div class="table-wrap">
         <div class="table-scroll">
         <table>
           <thead>
             <tr><th scope="col">ID</th>
-                <th scope="col" class="sortable" onclick="sortCustomers('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
-                <th scope="col">PHONE</th><th scope="col">MARKETING</th><th scope="col">CRM NOTE</th><th scope="col">STATUS</th>
-                <th scope="col" class="sortable sorted" onclick="sortCustomers('updated')" aria-sort="descending">LAST MODIFIED<span class="sort-arrow">↓</span></th></tr>
+            <th scope="col" class="sortable" onclick="sortList('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+            <th scope="col">PHONE</th>
+            <th scope="col">CREATED BY</th>
+            <th scope="col">ASSIGNED TO</th>
+            <th scope="col">STATUS</th>
+            <th scope="col" class="sortable sorted" onclick="sortList('created')" aria-sort="descending">REGISTERED<span class="sort-arrow">↓</span></th></tr>
           </thead>
-          <tbody id="custTableBody"></tbody>
+          <tbody id="listTableBody"></tbody>
         </table>
         </div>
-        <div class="pager" id="custPager"></div>
       </div>
-      <div class="detail-panel empty" id="detailPanel">No guest selected</div>
     </div>
-  </div>
 
-  <!-- ---------- CUSTOMER LIST (registered guests only) ---------- -->
-  <div class="page" id="page-customerlist">
-    <div class="page-head">
-      <h1 class="page-title" tabindex="-1">Customer List</h1>
-      <div class="head-actions">
-        <button class="btn btn-gold btn-sm" onclick="openCustomerModal()">NEW CUSTOMER</button>
+    <div class="tab-pane" id="crmPane_norecord">
+      <div class="setting-hint" style="margin-bottom:var(--sp-3)">Registered guests with no reservation and no CRM note.</div>
+      <div class="toolbar">
+        <label class="visually-hidden" for="norecSearch">Search no-record guests</label>
+        <input class="search" id="norecSearch" placeholder="Search" oninput="onNorecSearch()">
       </div>
-    </div>
-    <div class="toolbar">
-      <label class="visually-hidden" for="listSearch">Search customer list</label>
-      <input class="search" id="listSearch" placeholder="Search" oninput="onListSearch()">
-      <div class="filter-wrap">
-        <button class="filter-btn" id="listFilterBtn" onclick="toggleFilterMenu('listFilterMenu', event)" aria-label="Filter" aria-haspopup="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
-        </button>
-        <div class="filter-menu wide" id="listFilterMenu" onclick="event.stopPropagation()">
-          <div class="fm-title">Status</div>
-          <select class="fm-input" id="listFStatus" onchange="applyListFilters()">
-            <option value="">All statuses</option>
-            <option value="NEW">New</option>
-            <option value="AVAILABLE">Available</option>
-            <option value="COLD">Cold</option>
-            <option value="NO_RECORD">No record</option>
-          </select>
-          <div class="fm-title">Created By</div>
-          <select class="fm-input" id="listFCreatedBy" onchange="applyListFilters()"></select>
-          <div class="fm-title">Assigned To</div>
-          <select class="fm-input" id="listFAssignedTo" onchange="applyListFilters()"></select>
-          <div class="fm-title">Nationality</div>
-          <input class="fm-input" type="text" id="listFNationality" placeholder="e.g. Türkiye" onchange="applyListFilters()">
-          <div class="fm-title">Reservations</div>
-          <select class="fm-input" id="listFHasRes" onchange="applyListFilters()">
-            <option value="">Any</option>
-            <option value="yes">Has reservation</option>
-            <option value="no">No reservation</option>
-          </select>
-          <div class="fm-title">CRM Activity</div>
-          <select class="fm-input" id="listFHasCrm" onchange="applyListFilters()">
-            <option value="">Any</option>
-            <option value="yes">Has CRM activity</option>
-            <option value="no">No CRM activity</option>
-          </select>
-          <div class="fm-title">Created Between</div>
-          <div class="fm-row">
-            <input class="fm-input" type="date" id="listFCreatedFrom" onchange="applyListFilters()">
-            <input class="fm-input" type="date" id="listFCreatedTo" onchange="applyListFilters()">
-          </div>
-          <div class="fm-actions">
-            <button class="pager-btn" onclick="clearListFilters()">Clear</button>
-            <button class="pager-btn" onclick="closeAllFilterMenus()">Done</button>
-          </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th scope="col">ID</th><th scope="col">NAME SURNAME</th><th scope="col">PHONE</th><th scope="col">PASSPORT NO</th><th scope="col">REGISTERED</th><th scope="col">MARKETING</th></tr></thead>
+          <tbody id="norecTableBody"></tbody>
+        </table>
         </div>
-      </div>
-      <button class="btn btn-outline btn-sm" onclick="exportCurrentView('customerlist')" title="Export what is on screen">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-        EXPORT
-      </button>
-    </div>
-    <div class="table-wrap">
-      <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th scope="col">ID</th>
-          <th scope="col" class="sortable" onclick="sortList('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
-          <th scope="col">PHONE</th>
-          <th scope="col">CREATED BY</th>
-          <th scope="col">ASSIGNED TO</th>
-          <th scope="col">STATUS</th>
-          <th scope="col" class="sortable sorted" onclick="sortList('created')" aria-sort="descending">REGISTERED<span class="sort-arrow">↓</span></th></tr>
-        </thead>
-        <tbody id="listTableBody"></tbody>
-      </table>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- ---------- NO RECORD ---------- -->
-  <div class="page" id="page-norecord">
-    <div class="page-head">
-      <div>
-        <h1 class="page-title" tabindex="-1">No Record</h1>
-        <div class="setting-hint">Registered guests with no reservation and no CRM note</div>
-      </div>
-      <div class="head-actions">
-        <button class="btn btn-outline btn-sm" onclick="exportCurrentView('norecord')">EXPORT</button>
-      </div>
-    </div>
-    <div class="toolbar">
-      <label class="visually-hidden" for="norecSearch">Search no-record guests</label>
-      <input class="search" id="norecSearch" placeholder="Search" oninput="onNorecSearch()">
-    </div>
-    <div class="table-wrap">
-      <div class="table-scroll">
-      <table>
-        <thead><tr><th scope="col">ID</th><th scope="col">NAME SURNAME</th><th scope="col">PHONE</th><th scope="col">PASSPORT NO</th><th scope="col">REGISTERED</th><th scope="col">MARKETING</th></tr></thead>
-        <tbody id="norecTableBody"></tbody>
-      </table>
       </div>
     </div>
   </div>
@@ -2080,11 +2114,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setPdView('customers', this)">Customer List<span class="count-pill" id="pdCustCount">0</span></button>
         </div>
 
-        <div class="pd-pane active" id="pdPane_overview">
+        <div class="tab-pane active" id="pdPane_overview">
           <div class="pd-stats" id="pdStats"></div>
         </div>
 
-        <div class="pd-pane" id="pdPane_invited">
+        <div class="tab-pane" id="pdPane_invited">
           <div class="split-col-head">
             <div class="split-col-title">Reservations Invited</div>
             <button class="btn-link" onclick="exportProfileSection('invited')">Export</button>
@@ -2098,7 +2132,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <div class="split-list" id="pdInvitedList"></div>
         </div>
 
-        <div class="pd-pane" id="pdPane_guests">
+        <div class="tab-pane" id="pdPane_guests">
           <div class="split-col-head">
             <div class="split-col-title">Assigned Guests</div>
             <button class="btn-link" onclick="exportProfileSection('guests')">Export</button>
@@ -2107,7 +2141,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <div class="split-list" id="pdGuestList"></div>
         </div>
 
-        <div class="pd-pane" id="pdPane_customers">
+        <div class="tab-pane" id="pdPane_customers">
           <div class="split-col-head">
             <div class="split-col-title">Customer List</div>
             <button class="btn-link" onclick="exportProfileSection('customers')">Export</button>
@@ -3395,7 +3429,8 @@ const state = {
   list: { sort:'created', dir:'desc' },
   audit:{ page:1, pageSize:50, total:0 },
   selectedCustomerId: null,
-  dashPeriod: '30'
+  dashPeriod: '30',
+  crmView: 'overview'
 };
 const isAdmin = () => state.session?.role === 'ADMIN';
 const canAssign = () => ['ADMIN','MANAGER'].includes(state.session?.role);
@@ -3606,6 +3641,10 @@ async function applyRoleToChrome(){
   document.querySelectorAll('.nav-item').forEach(node => {
     node.classList.toggle('hidden', !mayOpen(node.dataset.page));
   });
+  /* Customer List / No Record are CRM Panel tabs now, not sidebar pages —
+     the same role gate just moves from the nav item to the tab button */
+  el('crmTabCustomerList')?.classList.toggle('hidden', !mayOpen('customerlist'));
+  el('crmTabNoRecord')?.classList.toggle('hidden', !mayOpen('norecord'));
   const av = el('sessionAvatar');
   await resolvePhotos([state.session?.photo_path]).catch(() => {});
   const url = photoUrl(state.session?.photo_path);
@@ -3643,9 +3682,7 @@ const PAGE_LOADERS = {
   reservations: () => renderReservations(),
   calendar: () => renderCalendar(),
   profiles: () => renderProfiles(),
-  customers: () => renderCustomers(),
-  customerlist: () => renderCustomerList(),
-  norecord: () => renderNoRecord(),
+  customers: () => setCrmView('overview'),
   notifications: () => renderNotifications(),
   reports: () => renderReports(),
   users: () => renderUsers(),
@@ -3653,6 +3690,27 @@ const PAGE_LOADERS = {
   settings: () => renderSettings()
 };
 
+/* CRM Panel's three tabs are one module, one dataset of guests viewed
+   three ways — Overview (working view + inspector), Customer List
+   (registered guests, create here), No Record (needs a first touch). */
+async function setCrmView(view, btn){
+  state.crmView = view;
+  ['overview','customerlist','norecord'].forEach(v => {
+    el(`crmPane_${v}`)?.classList.toggle('active', v === view);
+    el(`crmAction_${v}`)?.classList.toggle('hidden', v !== view);
+  });
+  const tabs = [...el('crmViewTabs').children];
+  tabs.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+  const activeBtn = btn || tabs.find(b => b.getAttribute('onclick')?.includes(`'${view}'`));
+  if (activeBtn){ activeBtn.classList.add('active'); activeBtn.setAttribute('aria-selected','true'); }
+  if (view === 'overview') await renderCustomers();
+  else if (view === 'customerlist') await renderCustomerList();
+  else if (view === 'norecord') await renderNoRecord();
+}
+async function goCrmView(view){
+  await switchTab('customers');
+  await setCrmView(view);
+}
 async function switchTab(page){
   if (!state.session) return;
   if (!mayOpen(page)) page = 'dashboard';
@@ -3768,16 +3826,22 @@ document.addEventListener('keydown', (e) => {
 });
 function focusSearch(){
   const page = document.querySelector('.page.active')?.id || '';
-  ({ 'page-reservations':'resSearch', 'page-customers':'custSearch', 'page-customerlist':'listSearch' }[page])
-    && el({ 'page-reservations':'resSearch', 'page-customers':'custSearch', 'page-customerlist':'listSearch' }[page]).focus();
+  if (page === 'page-customers'){
+    const id = { overview:'custSearch', customerlist:'listSearch', norecord:'norecSearch' }[state.crmView] || 'custSearch';
+    el(id)?.focus();
+    return;
+  }
+  const id = { 'page-reservations':'resSearch' }[page];
+  if (id) el(id)?.focus();
 }
 function contextualNew(){
   const page = document.querySelector('.page.active')?.id || '';
   if (page === 'page-profiles') return openProfileModal();
-  /* Customer List is the one screen that creates guests (spec §13/§14) —
-     CRM Panel's contextual action is a CRM record on an existing guest */
-  if (page === 'page-customers') return openRecordModal();
-  if (page === 'page-customerlist') return openCustomerModal();
+  if (page === 'page-customers'){
+    /* Customer List is the one tab that creates guests (spec §13/§14) —
+       every other CRM Panel tab's contextual action is a CRM record on an existing guest */
+    return state.crmView === 'customerlist' ? openCustomerModal() : openRecordModal();
+  }
   if (page === 'page-users' && isAdmin()) return openUserModal();
   openReservationModal();
 }
@@ -3849,8 +3913,8 @@ function defaultCommands(){
   ];
   if (mayOpen('profiles')) cmds.push({ kind:'Go', title:'Profiles', run:"switchTab('profiles')" },
                                      { kind:'New', title:'New Profile', run:'openProfileModal()' });
-  if (mayOpen('customerlist')) cmds.push({ kind:'Go', title:'Customer List', run:"switchTab('customerlist')" });
-  if (mayOpen('norecord')) cmds.push({ kind:'Go', title:'No Record', run:"switchTab('norecord')" });
+  if (mayOpen('customerlist')) cmds.push({ kind:'Go', title:'Customer List', run:"goCrmView('customerlist')" });
+  if (mayOpen('norecord')) cmds.push({ kind:'Go', title:'No Record', run:"goCrmView('norecord')" });
   if (mayOpen('users')) cmds.push({ kind:'Go', title:'Users', run:"switchTab('users')" });
   if (mayOpen('audit')) cmds.push({ kind:'Go', title:'Audit Log', run:"switchTab('audit')" });
   return cmds;
@@ -3934,9 +3998,11 @@ const rowNav = { index: -1 };
 
 function activeTableBody(){
   const page = document.querySelector('.page.active')?.id || '';
-  const map = { 'page-reservations':'resTableBody', 'page-customers':'custTableBody',
-                'page-customerlist':'listTableBody', 'page-norecord':'norecTableBody',
-                'page-users':'usersTableBody', 'page-audit':'auditTableBody' };
+  if (page === 'page-customers'){
+    const id = { overview:'custTableBody', customerlist:'listTableBody', norecord:'norecTableBody' }[state.crmView] || 'custTableBody';
+    return el(id) || null;
+  }
+  const map = { 'page-reservations':'resTableBody', 'page-users':'usersTableBody', 'page-audit':'auditTableBody' };
   return el(map[page] || '') || null;
 }
 function navRows(){
@@ -4022,7 +4088,7 @@ async function renderDashboard(){
 
   const cells = [
     { l:'Total Guests',     n:s.totalGuests, sub:'ALL TIME',
-      go: ['ADMIN','MANAGER'].includes(state.session?.role) ? "switchTab('customerlist')" : "switchTab('customers')" },
+      go: ['ADMIN','MANAGER'].includes(state.session?.role) ? "goCrmView('customerlist')" : "switchTab('customers')" },
     ...(isAdmin() ? [{ l:'Active Marketing', n:s.activeMarketing, sub:'CURRENT', go:"switchTab('profiles')" }] : []),
     { l:'Reservations',     n:s.reservations, sub:periodLabel.toUpperCase(), go:"switchTab('reservations')" },
     { l:'Upcoming Check-ins',  n:s.upcomingIn, sub:'NEXT 7 DAYS', go:"goReservationsUpcoming()" },
@@ -4300,10 +4366,10 @@ function sortCustomers(col){
   const s = state.cust;
   s.dir = (s.sort === col && s.dir === 'desc') ? 'asc' : 'desc';
   s.sort = col; s.page = 1;
-  document.querySelectorAll('#page-customers th.sortable').forEach(th => {
+  document.querySelectorAll('#crmPane_overview th.sortable').forEach(th => {
     th.classList.remove('sorted'); const a = th.querySelector('.sort-arrow'); if (a) a.textContent = '';
   });
-  const th = [...document.querySelectorAll('#page-customers th.sortable')]
+  const th = [...document.querySelectorAll('#crmPane_overview th.sortable')]
     .find(t => t.getAttribute('onclick')?.includes(`'${col}'`));
   if (th){ th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = s.dir === 'desc' ? '↓' : '↑'; }
   renderCustomers();
@@ -4379,10 +4445,10 @@ function sortList(col){
   const s = state.list;
   s.dir = (s.sort === col && s.dir === 'desc') ? 'asc' : 'desc';
   s.sort = col;
-  document.querySelectorAll('#page-customerlist th.sortable').forEach(th => {
+  document.querySelectorAll('#crmPane_customerlist th.sortable').forEach(th => {
     th.classList.remove('sorted'); const a = th.querySelector('.sort-arrow'); if (a) a.textContent = '';
   });
-  const th = [...document.querySelectorAll('#page-customerlist th.sortable')]
+  const th = [...document.querySelectorAll('#crmPane_customerlist th.sortable')]
     .find(t => t.getAttribute('onclick')?.includes(`'${col}'`));
   if (th){ th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = s.dir === 'desc' ? '↓' : '↑'; }
   renderCustomerList();
@@ -4481,10 +4547,12 @@ async function renderNoRecord(){
             actions:[{ label:'Clear search', onclick:"el('norecSearch').value='';onNorecSearch()" }] })
         : emptyState({ icon:'check', title:'Every guest has activity',
             text:'Nobody is sitting untouched right now.',
-            actions:[{ label:'Open CRM Panel', onclick:"switchTab('customers')" }] }));
+            actions:[{ label:'Open Overview', onclick:"setCrmView('overview')" }] }));
 
   const badge = el('norecBadge');
   if (badge){ badge.textContent = data.total; badge.classList.toggle('has', data.total > 0); badge.classList.toggle('show', data.total > 0); }
+  const tabBadge = el('norecTabBadge');
+  if (tabBadge){ tabBadge.textContent = data.total; }
 }
 
 /* ---------------- GUEST CARD ---------------- */
