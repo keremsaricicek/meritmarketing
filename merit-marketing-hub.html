@@ -718,12 +718,19 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .gf-l{ font-size:var(--t-xs); color:var(--ink-3); letter-spacing:var(--tracking-label); text-transform:uppercase; }
 .gf-v{ font-size:var(--t-md); margin-top:2px; overflow-wrap:anywhere; }
 /* plain text actions, not buttons — a rule-separated row consistent with
-   the stat-divider pattern used elsewhere (.pd-stat + .pd-stat) */
-.gi-quick-actions{ display:flex; flex-wrap:wrap; align-items:center; margin-bottom:var(--sp-4); }
+   the stat-divider pattern used elsewhere (.pd-stat + .pd-stat). Kept to
+   one line always: tight enough spacing that up to four actions fit the
+   inspector at its normal width, with scroll as a safety net rather than
+   ever wrapping onto a second line. */
+.gi-quick-actions{
+  display:flex; flex-wrap:nowrap; align-items:center; margin-bottom:var(--sp-4);
+  overflow-x:auto; scrollbar-width:none;
+}
+.gi-quick-actions::-webkit-scrollbar{ display:none; }
 .gi-action{
-  background:none; border:none; padding:0 var(--sp-3); margin:1px 0; cursor:pointer;
-  font-family:inherit; font-size:var(--t-sm); font-weight:600; color:var(--ink-2);
-  letter-spacing:.05px; line-height:1.4; transition:color .14s var(--ease);
+  background:none; border:none; padding:0 7px; margin:1px 0; cursor:pointer; flex-shrink:0;
+  font-family:inherit; font-size:11.5px; font-weight:600; color:var(--ink-2);
+  letter-spacing:-.05px; white-space:nowrap; line-height:1.4; transition:color .14s var(--ease);
 }
 .gi-action:first-child{ padding-left:0; }
 .gi-action + .gi-action{ border-left:1px solid var(--line); }
