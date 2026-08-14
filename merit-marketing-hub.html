@@ -161,6 +161,22 @@ button{ font-family:inherit; }
   text-transform:uppercase;
 }
 .topbar-actions{ margin-left:auto; display:flex; align-items:center; gap:var(--sp-4); }
+/* the one discoverable entry point to the command palette — a visible
+   affordance for guests who never learn the Ctrl K shortcut */
+.topbar-search{
+  display:flex; align-items:center; gap:8px; height:32px; padding:0 10px 0 11px;
+  border-radius:var(--r-1); background:var(--s1); border:1px solid var(--line);
+  color:var(--ink-3); font-family:inherit; font-size:var(--t-sm); cursor:pointer;
+  transition:.14s var(--ease); min-width:150px;
+}
+.topbar-search:hover{ background:var(--s2); border-color:var(--line-3); color:var(--ink-2); }
+.topbar-search svg{ width:14px; height:14px; flex-shrink:0; }
+.topbar-search span{ flex:1; text-align:left; }
+.topbar-search kbd{
+  font-family:inherit; font-size:9.5px; font-weight:600; color:var(--ink-3);
+  background:var(--s0); border:1px solid var(--line-2); border-radius:3px; padding:2px 5px;
+}
+@media (max-width:600px){ .topbar-search span, .topbar-search kbd{ display:none; } .topbar-search{ min-width:0; padding:0 8px; } }
 
 .menu-toggle{
   position:fixed; top:14px; left:var(--sp-5); z-index:80;
@@ -329,6 +345,17 @@ button{ font-family:inherit; }
 /* 05 · LAYOUT & TOOLBAR                                               */
 /* ------------------------------------------------------------------ */
 .main{ padding:calc(var(--topbar-h) + var(--sp-7)) var(--pad-x) var(--sp-10); max-width:1520px; margin:0 auto; }
+
+/* desktop keeps the sidebar in place as part of the shell — the drawer
+   pattern (hamburger + overlay) is a narrow-viewport concession only */
+@media (min-width:1024px){
+  .menu-toggle{ display:none; }
+  .sidebar-backdrop{ display:none; }
+  .sidebar{ transform:none; top:var(--topbar-h); }
+  .sidebar-top-row{ display:none; }
+  .topbar{ padding-left:var(--pad-x); }
+  .main{ margin-left:244px; margin-right:0; max-width:none; }
+}
 .page{ display:none; }
 .page.active{ display:block; animation:rise .16s var(--ease); }
 @keyframes rise{ from{ opacity:0; transform:translateY(3px); } to{ opacity:1; transform:none; } }
@@ -607,6 +634,12 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .gc-field{ background:var(--s0); padding:9px 11px; min-width:0; }
 .gf-l{ font-size:var(--t-xs); color:var(--ink-3); letter-spacing:var(--tracking-label); text-transform:uppercase; }
 .gf-v{ font-size:var(--t-md); margin-top:2px; overflow-wrap:anywhere; }
+.gi-quick-actions{ display:flex; flex-wrap:wrap; gap:var(--sp-2); margin-bottom:var(--sp-4); }
+.gi-facts{
+  display:grid; grid-template-columns:1fr 1fr; gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:var(--r-1);
+  overflow:hidden; text-align:left;
+}
 
 .card-tabs{ display:flex; gap:var(--sp-5); padding:0 var(--sp-5); border-top:1px solid var(--line);
   border-bottom:1px solid var(--line); flex-shrink:0; }
@@ -664,27 +697,35 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 /* ------------------------------------------------------------------ */
 /* 09 · PROFILES                                                       */
 /* ------------------------------------------------------------------ */
-.profile-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(238px,1fr)); gap:var(--sp-4); }
+.profile-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(206px,1fr)); gap:var(--sp-4); }
 .profile-card{
   position:relative; background:var(--s0); border:1px solid var(--line);
   border-radius:var(--r-2); overflow:hidden; cursor:pointer;
   transition:border-color .14s var(--ease), background .14s var(--ease);
 }
-.profile-card:hover{ border-color:var(--line-3); background:var(--s1); }
-.pc-strip{ position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--ink-2); z-index:2; }
-.profile-card.inactive .pc-strip{ background:var(--ink-4); }
-.pc-scrim, .pc-content > .pc-bg{ display:none; }
-.pc-content{ position:relative; z-index:1; }
-.pc-top{ display:flex; gap:var(--sp-3); align-items:center; padding:var(--sp-5) var(--sp-5) var(--sp-4); }
-.pc-ident{ min-width:0; flex:1; }
-.pc-name{ font-size:var(--t-lg); font-weight:600; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.profile-card:hover{ border-color:var(--line-3); }
+.pc-strip{ display:none; }
+/* portrait photography leads the card; identity and metrics read below it */
+.pc-photo{ position:relative; width:100%; aspect-ratio:3/4; background:var(--s2); overflow:hidden; border-bottom:1px solid var(--line); }
+.pc-photo-img{ position:absolute; inset:0; background-size:cover; background-position:center top; }
+.pc-photo.no-photo{ display:grid; place-items:center; }
+.pc-photo .pc-initials{ font-size:38px; font-weight:600; color:var(--ink-3); letter-spacing:-.5px; }
+.profile-card.inactive .pc-photo{ filter:grayscale(1); opacity:.72; }
+.pc-inactive-tag{
+  position:absolute; top:var(--sp-3); left:var(--sp-3); background:var(--s0); border:1px solid var(--line-2);
+  padding:3px 8px; border-radius:var(--r-1); font-size:9.5px; font-weight:600;
+  letter-spacing:var(--tracking-wide); text-transform:uppercase; color:var(--ink-3);
+}
+.pc-content{ position:relative; z-index:1; padding:var(--sp-4) var(--sp-4) 0; }
+.pc-ident{ min-width:0; }
+.pc-name{ font-size:var(--t-md); font-weight:600; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pc-sub{ font-size:var(--t-sm); color:var(--ink-3); margin-top:3px; }
-.pc-metrics{ display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); }
-.pc-metric{ padding:11px var(--sp-3); text-align:center; }
+.pc-metrics{ display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); margin-top:var(--sp-3); }
+.pc-metric{ padding:10px 6px; text-align:center; }
 .pc-metric + .pc-metric{ border-left:1px solid var(--line); }
-.pc-metric .n{ font-size:var(--t-lg); font-weight:500; }
-.pc-metric .l{ font-size:var(--t-xs); color:var(--ink-3); margin-top:3px; }
-.pc-spark{ display:flex; align-items:flex-end; gap:3px; height:32px; padding:10px var(--sp-5) 12px; border-top:1px solid var(--line); }
+.pc-metric .n{ font-size:var(--t-md); font-weight:500; }
+.pc-metric .l{ font-size:9.5px; color:var(--ink-3); margin-top:3px; letter-spacing:.2px; }
+.pc-spark{ display:flex; align-items:flex-end; gap:3px; height:28px; padding:9px var(--sp-4) 11px; border-top:1px solid var(--line); }
 .spark-bar{ flex:1; background:var(--s3); border-radius:1px 1px 0 0; min-height:2px; }
 .spark-bar.on{ background:var(--ink-3); opacity:.85; }
 
@@ -701,9 +742,13 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 /* profile detail — an editorial header, then the record */
 .modal.modal-full .modal-body{ padding:0; }
 .pd-hero{ position:relative; padding:var(--sp-8) var(--sp-8) var(--sp-6); border-bottom:1px solid var(--line); background:var(--s1); }
-.pd-hero-bg, .pd-hero-scrim{ display:none; }
 .pd-hero-inner{ position:relative; z-index:1; display:flex; align-items:center; gap:var(--sp-5); flex-wrap:wrap; }
-.pd-hero .avatar{ width:88px; height:88px; font-size:26px; }
+.pd-photo{
+  width:104px; aspect-ratio:3/4; flex-shrink:0; border-radius:var(--r-1); overflow:hidden;
+  border:1px solid var(--line-2); background:var(--s2); background-size:cover; background-position:center top;
+  display:grid; place-items:center; font-size:28px; font-weight:600; color:var(--ink-3);
+}
+.pd-photo.inactive-photo{ filter:grayscale(1); opacity:.75; }
 .pd-hero-info{ flex:1; min-width:200px; }
 .pd-kicker{ font-size:var(--t-xs); letter-spacing:var(--tracking-wide); text-transform:uppercase; color:var(--accent); font-weight:600; }
 .pd-hero-name{ font-size:var(--t-hero); font-weight:600; letter-spacing:-.7px; margin-top:6px; }
@@ -720,8 +765,17 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .pd-stat .l{ font-size:var(--t-xs); color:var(--ink-3); margin-top:5px; }
 
 .split-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-8); }
+.split-grid.cols-3{ grid-template-columns:repeat(3,1fr); }
 .split-col{ min-width:0; }
 .split-col + .split-col{ border-left:1px solid var(--line); padding-left:var(--sp-8); }
+.split-col-head{ display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2); margin-bottom:var(--sp-3); }
+.split-filter{ display:flex; gap:2px; background:var(--s1); border:1px solid var(--line); border-radius:var(--r-1); padding:2px; }
+.split-filter button{
+  border:none; background:transparent; font-family:inherit; cursor:pointer; padding:4px 8px;
+  font-size:10.5px; font-weight:600; letter-spacing:.2px; color:var(--ink-3); border-radius:3px; transition:.14s var(--ease);
+}
+.split-filter button.active{ background:var(--s0); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.06); }
+.split-filter button:hover:not(.active){ color:var(--ink-2); }
 .split-col-title{
   font-size:var(--t-sm); font-weight:600; color:var(--ink-3);
   padding-bottom:var(--sp-2); margin-bottom:var(--sp-3); border-bottom:1px solid var(--line-2);
@@ -750,6 +804,7 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .stat-cell:focus-visible{ outline-offset:-2px; }
 .sc-l{ font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sc-n{ font-size:22px; font-weight:600; letter-spacing:-.5px; margin-top:5px; line-height:1.15; color:var(--ink); }
+.sc-sub{ font-size:9px; font-weight:600; letter-spacing:.3px; color:var(--ink-4); margin-top:4px; text-transform:uppercase; }
 .sc-flag{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--warn); margin-left:8px; vertical-align:middle; }
 .kpi-arrow{ display:none; }
 
@@ -1118,6 +1173,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   .dash-col{ grid-template-rows:auto; }
   .customer-layout{ flex-direction:column; }
   .detail-panel{ width:100%; position:static; max-height:none; }
+  .split-grid, .split-grid.cols-3{ grid-template-columns:1fr; }
   .split-col + .split-col{ border-left:none; padding-left:0; padding-top:var(--sp-4); border-top:1px solid var(--line); }
 }
 @media (max-width:760px){
@@ -1132,7 +1188,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   .stat-cell:nth-child(n+3){ border-top:1px solid var(--line); }
   .pd-stats{ grid-template-columns:1fr; }
   .pd-stat + .pd-stat{ border-left:none; padding-left:0; border-top:1px solid var(--line); }
-  .gc-fields, .field-row, .shortcut-grid{ grid-template-columns:1fr; flex-direction:column; gap:0; }
+  .gc-fields, .gi-facts, .field-row, .shortcut-grid{ grid-template-columns:1fr; flex-direction:column; gap:0; }
   .form-hero{ flex-direction:column; align-items:center; }
   .page-head{ flex-wrap:wrap; }
   .search{ flex:1 1 100%; }
@@ -1208,6 +1264,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="brand-text">MERIT MARKETING HUB<small>Casino CRM</small></div>
   </div>
   <div class="topbar-actions">
+    <button class="topbar-search" id="topbarSearchBtn" onclick="openPalette()" aria-label="Search everything">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <span>Search…</span>
+      <kbd>Ctrl K</kbd>
+    </button>
     <button class="btn-home" id="homeBtn" onclick="switchTab('dashboard')" aria-label="Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
       <span>DASHBOARD</span>
@@ -1273,6 +1334,15 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <div class="page active" id="page-dashboard">
     <div class="page-head">
       <h1 class="page-title" tabindex="-1">Dashboard</h1>
+      <div class="head-actions">
+        <div class="split-filter" id="dashPeriodFilter" role="tablist" aria-label="Dashboard period">
+          <button onclick="setDashboardPeriod('7')">7D</button>
+          <button class="active" onclick="setDashboardPeriod('30')">30D</button>
+          <button onclick="setDashboardPeriod('90')">3M</button>
+          <button onclick="setDashboardPeriod('180')">6M</button>
+          <button onclick="setDashboardPeriod('all')">ALL</button>
+        </div>
+      </div>
     </div>
 
     <div class="stat-band" id="statBand" role="group" aria-label="Key metrics"></div>
@@ -1465,6 +1535,48 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="toolbar">
       <label class="visually-hidden" for="listSearch">Search customer list</label>
       <input class="search" id="listSearch" placeholder="Search" oninput="onListSearch()">
+      <div class="filter-wrap">
+        <button class="filter-btn" id="listFilterBtn" onclick="toggleFilterMenu('listFilterMenu', event)" aria-label="Filter" aria-haspopup="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+        </button>
+        <div class="filter-menu wide" id="listFilterMenu" onclick="event.stopPropagation()">
+          <div class="fm-title">Status</div>
+          <select class="fm-input" id="listFStatus" onchange="applyListFilters()">
+            <option value="">All statuses</option>
+            <option value="NEW">New</option>
+            <option value="AVAILABLE">Available</option>
+            <option value="COLD">Cold</option>
+            <option value="NO_RECORD">No record</option>
+          </select>
+          <div class="fm-title">Created By</div>
+          <select class="fm-input" id="listFCreatedBy" onchange="applyListFilters()"></select>
+          <div class="fm-title">Assigned To</div>
+          <select class="fm-input" id="listFAssignedTo" onchange="applyListFilters()"></select>
+          <div class="fm-title">Nationality</div>
+          <input class="fm-input" type="text" id="listFNationality" placeholder="e.g. Türkiye" onchange="applyListFilters()">
+          <div class="fm-title">Reservations</div>
+          <select class="fm-input" id="listFHasRes" onchange="applyListFilters()">
+            <option value="">Any</option>
+            <option value="yes">Has reservation</option>
+            <option value="no">No reservation</option>
+          </select>
+          <div class="fm-title">CRM Activity</div>
+          <select class="fm-input" id="listFHasCrm" onchange="applyListFilters()">
+            <option value="">Any</option>
+            <option value="yes">Has CRM activity</option>
+            <option value="no">No CRM activity</option>
+          </select>
+          <div class="fm-title">Created Between</div>
+          <div class="fm-row">
+            <input class="fm-input" type="date" id="listFCreatedFrom" onchange="applyListFilters()">
+            <input class="fm-input" type="date" id="listFCreatedTo" onchange="applyListFilters()">
+          </div>
+          <div class="fm-actions">
+            <button class="pager-btn" onclick="clearListFilters()">Clear</button>
+            <button class="pager-btn" onclick="closeAllFilterMenus()">Done</button>
+          </div>
+        </div>
+      </div>
       <button class="btn btn-outline btn-sm" onclick="exportCurrentView('customerlist')" title="Export what is on screen">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
         EXPORT
@@ -1836,10 +1948,8 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     </div>
     <div class="modal-body">
       <div class="pd-hero">
-        <div class="pd-hero-bg" id="pdHeroBg"></div>
-        <div class="pd-hero-scrim"></div>
         <div class="pd-hero-inner">
-          <div class="avatar" id="pdAvatar"></div>
+          <div class="pd-photo" id="pdAvatar"></div>
           <div class="pd-hero-info">
             <div class="pd-kicker">Marketing Profile</div>
             <div class="pd-hero-name" id="pdName"></div>
@@ -1852,14 +1962,35 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </div>
       <div class="pd-body">
         <div class="pd-stats" id="pdStats"></div>
-        <div class="split-grid">
+        <div class="split-grid cols-3">
           <div class="split-col">
-            <div class="split-col-title">Reservations Invited <span class="count-pill" id="pdInvitedCount">0</span></div>
+            <div class="split-col-head">
+              <div class="split-col-title">Reservations Invited <span class="count-pill" id="pdInvitedCount">0</span></div>
+              <button class="btn-link" onclick="exportProfileSection('invited')">Export</button>
+            </div>
+            <div class="split-filter" id="pdInvitedFilter" role="tablist" aria-label="Period">
+              <button class="active" onclick="setPdInvitedPeriod('30')">30D</button>
+              <button onclick="setPdInvitedPeriod('90')">3M</button>
+              <button onclick="setPdInvitedPeriod('180')">6M</button>
+              <button onclick="setPdInvitedPeriod('all')">ALL</button>
+            </div>
             <div class="split-list" id="pdInvitedList"></div>
           </div>
           <div class="split-col">
-            <div class="split-col-title">Assigned Guests <span class="count-pill" id="pdGuestCount">0</span></div>
+            <div class="split-col-head">
+              <div class="split-col-title">Assigned Guests <span class="count-pill" id="pdGuestCount">0</span></div>
+              <button class="btn-link" onclick="exportProfileSection('guests')">Export</button>
+            </div>
+            <div class="setting-hint" style="margin-bottom:var(--sp-3)">Guests currently assigned to this profile.</div>
             <div class="split-list" id="pdGuestList"></div>
+          </div>
+          <div class="split-col">
+            <div class="split-col-head">
+              <div class="split-col-title">Customer List <span class="count-pill" id="pdCustCount">0</span></div>
+              <button class="btn-link" onclick="exportProfileSection('customers')">Export</button>
+            </div>
+            <div class="setting-hint" style="margin-bottom:var(--sp-3)">Every guest this profile has created, invited, or is assigned to.</div>
+            <div class="split-list" id="pdCustList"></div>
           </div>
         </div>
       </div>
@@ -2457,6 +2588,17 @@ function filteredCustomers(opts = {}){
   if (opts.noRecord) rows = rows.filter(c => c.reservation_count === 0 && c.note_count === 0);
   if (opts.marketing) rows = rows.filter(c => String(c.marketing_profile_id) === String(opts.marketing));
   if (opts.status) rows = rows.filter(c => c.status === opts.status);
+  if (opts.createdBy) rows = rows.filter(c => String(c.created_by_profile_id) === String(opts.createdBy));
+  if (opts.assignedTo) rows = rows.filter(c => String(c.marketing_profile_id) === String(opts.assignedTo));
+  if (opts.nationality) rows = rows.filter(c => c.nationality === opts.nationality);
+  if (opts.hasReservation === 'yes') rows = rows.filter(c => c.reservation_count > 0);
+  if (opts.hasReservation === 'no') rows = rows.filter(c => c.reservation_count === 0);
+  if (opts.hasCrm === 'yes') rows = rows.filter(c => c.note_count > 0);
+  if (opts.hasCrm === 'no') rows = rows.filter(c => c.note_count === 0);
+  if (opts.createdFrom) rows = rows.filter(c => c.created_at >= opts.createdFrom);
+  if (opts.createdTo) rows = rows.filter(c => c.created_at <= opts.createdTo + 'T23:59:59.999Z');
+  if (opts.activityFrom) rows = rows.filter(c => c.updated_at >= opts.activityFrom);
+  if (opts.activityTo) rows = rows.filter(c => c.updated_at <= opts.activityTo + 'T23:59:59.999Z');
   if (opts.search){
     const q = opts.search.toLowerCase();
     rows = rows.filter(c => `${c.code} ${c.full_name} ${c.phone||''} ${c.passport_no||''} ${c.email||''}`.toLowerCase().includes(q));
@@ -2508,6 +2650,28 @@ function decoratedProfiles(includeStaff){
     customer_count: db.customers.filter(c => !c.deleted_at && c.marketing_profile_id === p.id).length
   })).sort((a,b) => (a.employment_status === 'inactive') - (b.employment_status === 'inactive')
                  || a.full_name.localeCompare(b.full_name,'tr'));
+}
+
+/* Every guest this profile has ever touched — created, currently assigned,
+   or ever invited to a stay — deduplicated into one relationship list
+   (spec: Profile Customer List). A guest can carry more than one role. */
+function profileRelatedCustomers(profileId){
+  const roles = new Map();
+  const addRole = (custId, role) => {
+    if (!roles.has(custId)) roles.set(custId, new Set());
+    roles.get(custId).add(role);
+  };
+  db.customers.forEach(c => {
+    if (c.deleted_at) return;
+    if (c.created_by_profile_id === profileId) addRole(c.id, 'Created');
+    if (c.marketing_profile_id === profileId) addRole(c.id, 'Assigned');
+  });
+  db.reservations.forEach(r => { if (r.invited_by_profile_id === profileId) addRole(r.customer_id, 'Invited'); });
+  return [...roles.entries()]
+    .map(([custId, roleSet]) => { const c = db.customers.find(x => x.id === custId && !x.deleted_at);
+      return c ? { ...decorateCustomer(c), relationship: [...roleSet].join(' / ') } : null; })
+    .filter(Boolean)
+    .sort((a,b) => a.full_name.localeCompare(b.full_name, 'tr'));
 }
 
 /* ---------- the API surface ---------- */
@@ -2799,7 +2963,9 @@ const api = {
       db.users.filter(u => u.profile_id === prof.id && u.role === 'MARKETING').forEach(u => { u.active = 0; });
       db.users.filter(u => u.profile_id === prof.id && u.role !== 'MARKETING').forEach(u => { u.profile_id = null; });
       audit('PROFILE_DELETE','profile',prof.id,`Archived profile ${prof.full_name}`); save();
-      return ok({ ok:true }); }
+      return ok({ ok:true }); },
+    relatedCustomers: (p) => { try { guard('profiles.read'); } catch (e) { return fail(e.code, e.message); }
+      return ok(profileRelatedCustomers(Number(p.id))); }
   },
 
   crmNotes: {
@@ -2848,13 +3014,19 @@ const api = {
       syncReservationStatuses();
       const cs = filteredCustomers({ pageSize:5000 });
       const rs = filteredReservations({ pageSize:5000 });
+      /* the period filter scopes activity metrics only — stock counts (Total
+         Guests, Active Marketing, Cold, No Record) describe the present and
+         stay period-independent, and Upcoming stays forward-looking */
+      const periodDays = p.periodDays && p.periodDays !== 'all' ? Number(p.periodDays) : null;
+      const periodFrom = periodDays ? new Date(Date.now() - periodDays * 86400000).toISOString().slice(0,10) : null;
+      const periodRows = periodFrom ? rs.filter(r => r.check_in >= periodFrom) : rs;
       const pendingRows = rs.filter(r => ['UPCOMING','CHECKED_IN'].includes(r.status) && r.check_in >= today())
         .sort((a,b) => a.check_in.localeCompare(b.check_in));
       const withPhoto = (r) => { const c = db.customers.find(x => x.id === r.customer_id); return c?.photo_path || null; };
       return ok({
         stats: {
           totalGuests: cs.filter(c => c.registered).length,   /* mirrors the Customer List exactly */
-          reservations: rs.length,
+          reservations: periodRows.length,
           upcomingIn: rs.filter(r => r.check_in >= today() && daysSince(r.check_in) >= -7).length,
           upcomingOut: rs.filter(r => r.check_out >= today() && daysSince(r.check_out) >= -7).length,
           activeMarketing: db.profiles.filter(p => !p.deleted_at && p.employment_status === 'active').length,
@@ -2873,6 +3045,7 @@ const api = {
         attention: cs.filter(c => c.status === 'NO_RECORD' || c.status === 'COLD' || !c.phone).slice(0,8)
           .map(c => ({ id:c.id, full_name:c.full_name, photo_path:c.photo_path, phone:c.phone,
             marketing_name:c.marketing_name, last_visit:c.last_visit,
+            reasonCode: !c.last_visit ? 'no_record' : (!c.phone ? 'missing_contact' : 'cold'),
             reason: !c.last_visit ? 'Never booked' : (!c.phone ? 'Missing contact details'
                   : `${daysSince(c.last_visit)} days since last visit`) }))
       }); }
@@ -3000,6 +3173,18 @@ const api = {
         rows = db.auditLogs.slice().sort((a,b) => b.created_at.localeCompare(a.created_at))
           .map(a => ({ When:a.created_at, User:a.username || '', Action:a.action,
             Entity:a.entity_type || '', Detail:a.description || '' }));
+      } else if (p.entity === 'profile_invited'){
+        rows = filteredReservations({ invitedBy:q.profileId, from:q.from || '' })
+          .map(r => ({ 'Guest ID':r.customer_code, Name:r.customer_name, Phone:r.customer_phone || '',
+            'Check In':r.check_in, 'Check Out':r.check_out, Status:r.status, Note:r.reservation_note || '', Created:r.created_at }));
+      } else if (p.entity === 'profile_guests'){
+        rows = filteredCustomers({ assignedTo:q.profileId, registeredOnly:true })
+          .map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '', Email:c.email || '',
+            Status:c.status, Reservations:c.reservation_count, 'Last Visit':c.last_visit || '', Created:c.created_at }));
+      } else if (p.entity === 'profile_customers'){
+        rows = profileRelatedCustomers(Number(q.profileId))
+          .map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '', Relationship:c.relationship,
+            Status:c.status, Reservations:c.reservation_count, Notes:c.note_count, Created:c.created_at }));
       } else {
         rows = filteredCustomers({ ...q, registeredOnly: (p.entity === 'customerlist' || p.entity === 'norecord') ? true : q.registeredOnly })
           .map(c => ({ ID:c.code, Name:c.full_name, Passport:c.passport_no || '', Phone:c.phone || '',
@@ -3070,7 +3255,8 @@ const state = {
   res:  { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', sort:'check_in', dir:'desc', total:0, rows:[] },
   list: { sort:'created', dir:'desc' },
   audit:{ page:1, pageSize:50, total:0 },
-  selectedCustomerId: null
+  selectedCustomerId: null,
+  dashPeriod: '30'
 };
 const isAdmin = () => state.session?.role === 'ADMIN';
 const canAssign = () => ['ADMIN','MANAGER'].includes(state.session?.role);
@@ -3224,7 +3410,8 @@ function resetViewState(){
   state.selectedCustomerId = null;
   state.cust = { page:1, pageSize:50, search:'', status:'', marketing:'', sort:'updated', dir:'desc', total:0, rows:[] };
   state.res  = { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', view:'active', sort:'check_in', dir:'desc', total:0, rows:[] };
-  state.list = { sort:'created', dir:'desc' };
+  state.list = { sort:'created', dir:'desc', status:'', createdBy:'', assignedTo:'', nationality:'',
+    hasReservation:'', hasCrm:'', createdFrom:'', createdTo:'' };
   state.audit = { page:1, pageSize:50, total:0 };
   ['resSearch','custSearch','listSearch','norecSearch'].forEach(id => { const n = el(id); if (n) n.value = ''; });
   ['detailPanel','resDetailPanel'].forEach(id => {
@@ -3438,8 +3625,6 @@ document.addEventListener('keydown', (e) => {
   if (!state.session) return;
   const meta = e.ctrlKey || e.metaKey;
   if (meta && e.key.toLowerCase() === 'f'){ e.preventDefault(); focusSearch(); }
-  if (meta && e.key.toLowerCase() === 'k'){ e.preventDefault(); focusSearch(); }
-  if (meta && e.key.toLowerCase() === 'n'){ e.preventDefault(); contextualNew(); }
 });
 function focusSearch(){
   const page = document.querySelector('.page.active')?.id || '';
@@ -3681,19 +3866,27 @@ function pagerHTML(containerId, page, pageSize, total, fnName){
 }
 
 /* ---------------- DASHBOARD ---------------- */
+const DASH_PERIOD_LABEL = { '7':'7 Days', '30':'30 Days', '90':'3 Months', '180':'6 Months', all:'All Time' };
+async function setDashboardPeriod(period){
+  state.dashPeriod = period;
+  el('dashPeriodFilter')?.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('active', b.getAttribute('onclick') === `setDashboardPeriod('${period}')`));
+  await renderDashboard();
+}
 async function renderDashboard(){
-  const d = await call(window.api.dashboard.load, {});
+  const d = await call(window.api.dashboard.load, { periodDays: state.dashPeriod });
   if (!d) return;
   const s = d.stats;
+  const periodLabel = DASH_PERIOD_LABEL[state.dashPeriod] || '30 Days';
 
   const cells = [
-    { l:'Total Guests',     n:s.totalGuests,
+    { l:'Total Guests',     n:s.totalGuests, sub:'ALL TIME',
       go: ['ADMIN','MANAGER'].includes(state.session?.role) ? "switchTab('customerlist')" : "switchTab('customers')" },
-    ...(isAdmin() ? [{ l:'Active Marketing', n:s.activeMarketing, go:"switchTab('profiles')" }] : []),
-    { l:'Reservations',     n:s.reservations,  go:"switchTab('reservations')" },
-    { l:'Upcoming Check-ins',  n:s.upcomingIn,  go:"goReservationsUpcoming()" },
-    { l:'Cold Guests',      n:s.cold, flag:s.cold > 0,        go:"goCustomersFiltered('COLD')" },
-    { l:'No Record',        n:s.noRecord, flag:s.noRecord > 0, go:"goCustomersFiltered('NO_RECORD')" }
+    ...(isAdmin() ? [{ l:'Active Marketing', n:s.activeMarketing, sub:'CURRENT', go:"switchTab('profiles')" }] : []),
+    { l:'Reservations',     n:s.reservations, sub:periodLabel.toUpperCase(), go:"switchTab('reservations')" },
+    { l:'Upcoming Check-ins',  n:s.upcomingIn, sub:'NEXT 7 DAYS', go:"goReservationsUpcoming()" },
+    { l:'Cold Guests',      n:s.cold, sub:'CURRENT', flag:s.cold > 0,        go:"goCustomersFiltered('COLD')" },
+    { l:'No Record',        n:s.noRecord, sub:'CURRENT', flag:s.noRecord > 0, go:"goCustomersFiltered('NO_RECORD')" }
   ];
   const band = el('statBand');
   band.style.gridTemplateColumns = `repeat(${cells.length},1fr)`;
@@ -3702,6 +3895,7 @@ async function renderDashboard(){
       <span class="kpi-arrow" style="display:none"></span>
       <div class="sc-l">${c.l}</div>
       <div class="sc-n">${c.n}${c.flag ? '<span class="sc-flag"></span>' : ''}</div>
+      <div class="sc-sub">${c.sub}</div>
     </div>`).join('');
 
   await resolvePhotos([...d.recent.map(r => r.photo_path), ...d.attention.map(a => a.photo_path)]);
@@ -3741,7 +3935,20 @@ async function renderDashboard(){
         <div class="lr-name">${escapeHtml(a.full_name)}</div>
         <div class="lr-sub">${escapeHtml(a.reason)}${a.marketing_name ? ' · ' + escapeHtml(a.marketing_name) : ''}</div>
       </div>
+      <div class="lr-right">${attentionActionHTML(a)}</div>
     </div>`).join('') : '<div class="panel-empty">Nothing needs attention</div>';
+}
+/* Requires Attention is an action queue, not a feed — every row carries the
+   one action that resolves it, distinct from Notifications' read-only alerts. */
+function attentionActionHTML(a){
+  const stop = 'event.stopPropagation();';
+  if (a.reasonCode === 'no_record' && can1('reservations.create'))
+    return `<button class="btn btn-outline btn-sm" onclick="${stop}openReservationModal(null, ${a.id})">ADD RESERVATION</button>`;
+  if (a.reasonCode === 'missing_contact' && can1('customers.update'))
+    return `<button class="btn btn-outline btn-sm" onclick="${stop}openCustomerModal(${a.id})">EDIT</button>`;
+  if (a.reasonCode === 'cold' && can1('crmNotes.create'))
+    return `<button class="btn btn-outline btn-sm" onclick="${stop}openCrmNoteModal(${a.id})">ADD NOTE</button>`;
+  return '';
 }
 /* The fourth dashboard tile answers a different question for each role:
    a marketer wants a call list, a manager wants to see who is producing. */
@@ -3763,7 +3970,8 @@ async function renderRolePanel(){
   col.closest('.dash-grid')?.classList.add('has-rank');
 
   const rows = (await call(window.api.reservations.list, { pageSize:1000 }, { silent:true }).catch(() => null))?.rows || [];
-  const cutoff = Date.now() - 30 * 86400000;
+  const period = state.dashPeriod;
+  const cutoff = period === 'all' ? 0 : Date.now() - Number(period) * 86400000;
   const tally = {};
   rows.filter(r => Date.parse(r.check_in) >= cutoff && r.invited_by_name)
       .forEach(r => { tally[r.invited_by_name] = (tally[r.invited_by_name] || 0) + 1; });
@@ -3771,7 +3979,7 @@ async function renderRolePanel(){
   const max = Math.max(1, ...ranked.map(r => r[1]));
 
   const title = el('rankPanelTitle');
-  if (title) title.textContent = 'Marketing — Last 30 Days';
+  if (title) title.textContent = `Marketing — ${DASH_PERIOD_LABEL[period] || '30 Days'}`;
   rank.innerHTML = ranked.length ? ranked.map(([name, n], i) => `
     <div class="rank-row">
       <div class="rank-pos">${i + 1}</div>
@@ -3779,7 +3987,7 @@ async function renderRolePanel(){
       <div class="rank-bar"><div class="rank-fill" style="width:${Math.round(n / max * 100)}%"></div></div>
       <div class="rank-val">${n}</div>
     </div>`).join('')
-    : emptyState({ icon:'check', title:'No activity in the last 30 days' });
+    : emptyState({ icon:'check', title:'No activity in this period' });
 }
 
 async function goCustomersFiltered(code){
@@ -4038,11 +4246,43 @@ function sortList(col){
   if (th){ th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = s.dir === 'desc' ? '↓' : '↑'; }
   renderCustomerList();
 }
+function fillListFilterSelects(){
+  const opts = '<option value="">Anyone</option>' +
+    state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}${p.employment_status === 'inactive' ? ' (inactive)' : ''}</option>`).join('');
+  const a = el('listFCreatedBy'); if (a){ const v = a.value; a.innerHTML = opts; a.value = v; }
+  const b = el('listFAssignedTo'); if (b){ const v = b.value; b.innerHTML = opts; b.value = v; }
+}
+function applyListFilters(){
+  const s = state.list;
+  s.status = el('listFStatus').value;
+  s.createdBy = el('listFCreatedBy').value;
+  s.assignedTo = el('listFAssignedTo').value;
+  s.nationality = el('listFNationality').value.trim();
+  s.hasReservation = el('listFHasRes').value;
+  s.hasCrm = el('listFHasCrm').value;
+  s.createdFrom = el('listFCreatedFrom').value;
+  s.createdTo = el('listFCreatedTo').value;
+  const active = !!(s.status || s.createdBy || s.assignedTo || s.nationality || s.hasReservation || s.hasCrm || s.createdFrom || s.createdTo);
+  el('listFilterBtn').classList.toggle('filtered', active);
+  renderCustomerList();
+}
+function clearListFilters(){
+  ['listFStatus','listFCreatedBy','listFAssignedTo','listFNationality','listFHasRes','listFHasCrm','listFCreatedFrom','listFCreatedTo']
+    .forEach(id => el(id).value = '');
+  applyListFilters();
+  closeAllFilterMenus();
+}
+function listFilterParams(){
+  const s = state.list;
+  return { status:s.status, createdBy:s.createdBy, assignedTo:s.assignedTo, nationality:s.nationality,
+    hasReservation:s.hasReservation, hasCrm:s.hasCrm, createdFrom:s.createdFrom, createdTo:s.createdTo };
+}
 async function renderCustomerList(){
   const q = el('listSearch')?.value.trim() || '';
   const s = state.list;
+  fillListFilterSelects();
   const data = await call(window.api.customers.list,
-    { search:q, registeredOnly:true, sort:s.sort, dir:s.dir, pageSize:500 });
+    { search:q, registeredOnly:true, sort:s.sort, dir:s.dir, pageSize:500, ...listFilterParams() });
   if (!data) return;
   el('listTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
     <tr class="clickable" tabindex="0" ondblclick="openCustomerModal(${c.id})" onkeydown="if(event.key==='Enter'){openCustomerModal(${c.id})}" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
@@ -4054,9 +4294,9 @@ async function renderCustomerList(){
       <td>${statusTagHTML(c.status)}</td>
       <td class="muted">${fmtDate(c.created_at)}</td>
     </tr>`).join('')
-    : emptyRow(7, q
-        ? emptyState({ icon:'search', title:'No matching guests',
-            actions:[{ label:'Clear search', onclick:"el('listSearch').value='';onListSearch()" }] })
+    : emptyRow(7, q || s.status || s.createdBy || s.assignedTo
+        ? emptyState({ icon:'search', title:'No guests match the active filters',
+            actions:[{ label:'Clear filters', onclick:'clearListFilters();el(\'listSearch\').value=\'\';onListSearch()' }] })
         : emptyState({ icon:'guests', title:'No guests registered yet',
             text:'Everyone added through New Customer shows up here.',
             actions:[{ label:'New Customer', onclick:'openCustomerModal()', primary:true }] }));
@@ -4161,7 +4401,7 @@ async function showCustomerDetail(customerId, panelId){
       body:`Added to the system as #${c.code}` }
   ].filter(e => e.when).sort((a,b) => String(b.when).localeCompare(String(a.when)));
 
-  const timelineHTML = events.length > 1 ? `<div class="timeline">${events.map(e => `
+  const timelineHTML = events.length ? `<div class="timeline">${events.map(e => `
     <div class="tl-item t-${e.kind}">
       <div class="tl-dot"></div>
       <div class="tl-when">${fmtDate(e.when)}</div>
@@ -4169,6 +4409,36 @@ async function showCustomerDetail(customerId, panelId){
       ${e.body ? `<div class="tl-body">${escapeHtml(e.body)}</div>` : ''}
     </div>`).join('')}</div>`
     : emptyState({ icon:'check', title:'Nothing has happened yet' });
+
+  const lastActivity = events[0]?.when || null;
+  const nextStay = stays.find(r => r.status === 'UPCOMING' || r.status === 'CHECKED_IN');
+
+  /* Overview answers "where do things stand" at a glance — facts and the
+     most recent activity, not a duplicate of the full Reservations/Notes/
+     Activity tabs. Quick actions are gated by the same permissions the
+     server enforces, so nothing here promises an action the API refuses. */
+  const overviewHTML = `
+    <div class="gi-quick-actions">
+      ${can1('reservations.create') ? `<button class="btn btn-outline btn-sm" onclick="openReservationModal(null, ${c.id})">ADD RESERVATION</button>` : ''}
+      ${can1('crmNotes.create') ? `<button class="btn btn-outline btn-sm" onclick="openCrmNoteModal(${c.id})">ADD CRM NOTE</button>` : ''}
+      ${can1('customers.update') ? `<button class="btn btn-outline btn-sm" onclick="openCustomerModal(${c.id})">EDIT GUEST</button>` : ''}
+      ${canAssign() ? `<button class="btn btn-outline btn-sm" onclick="openAssignModal(${c.id})">REASSIGN</button>` : ''}
+    </div>
+    <div class="gi-facts">
+      <div class="gc-field"><div class="gf-l">Phone</div><div class="gf-v">${c.phone ? escapeHtml(c.phone) : '—'}</div></div>
+      <div class="gc-field"><div class="gf-l">Email</div><div class="gf-v">${c.email ? escapeHtml(c.email) : '—'}</div></div>
+      <div class="gc-field"><div class="gf-l">Created By</div><div class="gf-v">${escapeHtml(c.created_by_label)}</div></div>
+      <div class="gc-field"><div class="gf-l">Assigned To</div><div class="gf-v">${invitedByHTML(c.marketing_name, c.marketing_status)}</div></div>
+      <div class="gc-field"><div class="gf-l">Registered</div><div class="gf-v">${fmtDate(c.created_at)}</div></div>
+      <div class="gc-field"><div class="gf-l">Last Activity</div><div class="gf-v">${lastActivity ? fmtDate(lastActivity) : '—'}</div></div>
+    </div>
+    ${nextStay ? `<div class="pane-title" style="margin-top:var(--sp-4)">Next Stay</div>
+      <div class="rz-item"><div class="rz-dates"><span>${fmtDate(nextStay.check_in)} – ${fmtDate(nextStay.check_out)}</span>${statusTagHTML(nextStay.status)}</div></div>` : ''}
+    <div class="pane-title" style="margin-top:var(--sp-4)">Recent Activity</div>
+    ${events.length ? `<div class="timeline">${events.slice(0,3).map(e => `
+      <div class="tl-item t-${e.kind}"><div class="tl-dot"></div><div class="tl-when">${fmtDate(e.when)}</div>
+      <div class="tl-title">${escapeHtml(e.title)}</div></div>`).join('')}</div>`
+      : emptyState({ icon:'check', title:'Nothing has happened yet' })}`;
 
   panel.classList.remove('empty');
   panel.innerHTML = `
@@ -4178,21 +4448,18 @@ async function showCustomerDetail(customerId, panelId){
       </button>
       <div class="avatar xxl"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : initials(c.full_name)}</div>
       <div class="gc-name">${escapeHtml(c.full_name)}</div>
+      <div class="setting-hint">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''}</div>
       <div style="margin-top:9px;">${statusTagHTML(c.status)}</div>
-      <div class="gc-fields">
-        <div class="gc-field"><div class="gf-l">ID</div><div class="gf-v">#${escapeHtml(c.code)}</div></div>
-        <div class="gc-field"><div class="gf-l">Passport No</div><div class="gf-v">${c.passport_no ? escapeHtml(c.passport_no) : '—'}</div></div>
-        <div class="gc-field"><div class="gf-l">Phone</div><div class="gf-v">${c.phone ? escapeHtml(c.phone) : '—'}</div></div>
-        <div class="gc-field"><div class="gf-l">Marketing</div><div class="gf-v">${invitedByHTML(c.marketing_name, c.marketing_status)}</div></div>
-      </div>
     </div>
     <div class="card-tabs" id="${uid}_tabs">
-      <button class="card-tab active" onclick="switchCardTab('${uid}','stays', this)">Stays<span class="ct-count">${stays.length}</span></button>
-      <button class="card-tab" onclick="switchCardTab('${uid}','notes', this)">Notes<span class="ct-count">${noteList.length}</span></button>
-      <button class="card-tab" onclick="switchCardTab('${uid}','timeline', this)">Timeline</button>
+      <button class="card-tab active" onclick="switchCardTab('${uid}','overview', this)">Overview</button>
+      <button class="card-tab" onclick="switchCardTab('${uid}','stays', this)">Reservations<span class="ct-count">${stays.length}</span></button>
+      <button class="card-tab" onclick="switchCardTab('${uid}','notes', this)">CRM Notes<span class="ct-count">${noteList.length}</span></button>
+      <button class="card-tab" onclick="switchCardTab('${uid}','timeline', this)">Activity</button>
     </div>
     <div class="card-body-scroll">
-      <div class="card-pane active" id="${uid}_stays">${staysHTML}</div>
+      <div class="card-pane active" id="${uid}_overview">${overviewHTML}</div>
+      <div class="card-pane" id="${uid}_stays">${staysHTML}</div>
       <div class="card-pane" id="${uid}_notes">
         <div class="pane-head">
           <div class="pane-title">${noteList.length} note${noteList.length === 1 ? '' : 's'}</div>
@@ -4204,11 +4471,21 @@ async function showCustomerDetail(customerId, panelId){
     </div>`;
 }
 function switchCardTab(uid, name, btn){
-  ['stays','notes','timeline'].forEach(n => el(`${uid}_${n}`)?.classList.toggle('active', n === name));
+  ['overview','stays','notes','timeline'].forEach(n => el(`${uid}_${n}`)?.classList.toggle('active', n === name));
   [...el(`${uid}_tabs`).children].forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 function showReservationCustomerDetail(id){ showCustomerDetail(id, 'resDetailPanel'); }
+/* client-side mirror of the server's can() — used only to decide which
+   quick actions to render; the API guard is always the real authority */
+function can1(perm){
+  const role = state.session?.role;
+  if (!role) return false;
+  if (role === 'ADMIN') return true;
+  const grants = { MANAGER:['customers.update','customers.assign','reservations.create','crmNotes.create'],
+                    MARKETING:['customers.update','reservations.create','crmNotes.create'] };
+  return (grants[role] || []).includes(perm);
+}
 
 /* ---------------- PROFILES ---------------- */
 /* Eight weekly buckets of activity, newest on the right. */
@@ -4247,24 +4524,22 @@ async function renderProfiles(){
     const recent = mine.filter(r => Date.parse(r.check_in) >= cutoff).length;
     const last = mine.length ? fmtDate(mine[0].check_in) : '—';
     const inactive = p.employment_status === 'inactive';
+    const url = photoUrl(p.photo_path);
     return `
     <div class="profile-card${inactive ? ' inactive' : ''}" ondblclick="openProfileDetail(${p.id})" title="Double-click for the full profile">
-      <div class="pc-strip"></div>
-      <div class="pc-bg${p.photo_path ? '' : ' no-photo'}"${photoUrl(p.photo_path) ? ` style="background-image:url('${photoUrl(p.photo_path)}')"` : ''}></div>
-      <div class="pc-scrim"></div>
+      <div class="pc-photo${url ? '' : ' no-photo'}">
+        ${url ? `<div class="pc-photo-img" style="background-image:url('${url}')"></div>` : `<div class="pc-initials">${initials(p.full_name)}</div>`}
+        ${inactive ? '<div class="pc-inactive-tag">Inactive</div>' : ''}
+      </div>
       <div class="pc-content">
-        <div class="pc-top">
-          <div class="avatar"${avatarStyle(p.photo_path)}>${photoUrl(p.photo_path) ? '' : initials(p.full_name)}</div>
-          <div class="pc-ident">
-            <div class="pc-name">${escapeHtml(p.full_name)}</div>
-            <div class="pc-sub">${p.nationality ? escapeHtml(p.nationality) : '—'}</div>
-            ${inactive ? '<div class="inactive-badge" style="margin-top:8px;">Inactive</div>' : ''}
-          </div>
+        <div class="pc-ident">
+          <div class="pc-name">${escapeHtml(p.full_name)}</div>
+          <div class="pc-sub">${p.nationality ? escapeHtml(p.nationality) : '—'}</div>
         </div>
         <div class="pc-metrics">
-          <div class="pc-metric"><div class="n">${recent}</div><div class="l">Last 30 days</div></div>
-          <div class="pc-metric"><div class="n">${p.customer_count}</div><div class="l">Guests</div></div>
-          <div class="pc-metric"><div class="n" style="font-size:11.5px">${last}</div><div class="l">Last activity</div></div>
+          <div class="pc-metric"><div class="n">${recent}</div><div class="l">30 DAYS</div></div>
+          <div class="pc-metric"><div class="n">${p.customer_count}</div><div class="l">GUESTS</div></div>
+          <div class="pc-metric"><div class="n" style="font-size:11px">${last}</div><div class="l">LAST SEEN</div></div>
         </div>
         ${sparkHTML(weeklySeries(mine))}
       </div>
@@ -4273,21 +4548,23 @@ async function renderProfiles(){
 }
 
 let currentDetailProfileId = null;
+let pdInvitedPeriod = '30';
+function periodFromDays(period){
+  if (period === 'all') return '';
+  return new Date(Date.now() - Number(period) * 86400000).toISOString().slice(0,10);
+}
 async function openProfileDetail(id){
   const p = state.profiles.find(x => x.id === id);
   if (!p) return;
   currentDetailProfileId = id;
+  pdInvitedPeriod = '30';
   const inactive = p.employment_status === 'inactive';
 
   const url = photoUrl(p.photo_path);
   const av = el('pdAvatar');
   if (url){ av.style.backgroundImage = `url('${url}')`; av.textContent=''; }
   else { av.style.backgroundImage='none'; av.textContent = initials(p.full_name); }
-  av.style.filter = inactive ? 'grayscale(1)' : 'none';
-
-  const hero = el('pdHeroBg');
-  hero.style.backgroundImage = url ? `url('${url}')` : 'none';
-  hero.style.filter = inactive ? 'blur(38px) grayscale(1)' : '';
+  av.classList.toggle('inactive-photo', inactive);
 
   el('pdName').textContent = p.full_name;
 
@@ -4295,26 +4572,19 @@ async function openProfileDetail(id){
   const chips = [];
   chips.push(`<span class="pd-chip">${icon('<circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/>')}${escapeHtml(p.nationality || 'Nationality not set')}</span>`);
   if (p.passport_no) chips.push(`<span class="pd-chip">${icon('<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 17h7"/>')}${escapeHtml(p.passport_no)}</span>`);
-  if (p.phone) chips.push(`<span class="pd-chip">${icon('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z')}${escapeHtml(p.phone)}</span>`);
+  if (p.phone) chips.push(`<span class="pd-chip">${icon('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/>')}${escapeHtml(p.phone)}</span>`);
   chips.push(inactive
     ? `<span class="pd-chip" style="color:var(--ink-3)">${icon('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>')}No longer with the company</span>`
     : `<span class="pd-chip" style="color:var(--teal)">${icon('<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>')}Active</span>`);
   el('pdChips').innerHTML = chips.join('');
 
-  const [resData, custData] = await Promise.all([
-    call(window.api.reservations.list, { invitedBy:id, pageSize:200, sort:'check_in', dir:'desc' }),
-    call(window.api.customers.list, { pageSize:500 })
+  el('pdInvitedFilter').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 0));
+  const [custData, related] = await Promise.all([
+    call(window.api.customers.list, { assignedTo:id, pageSize:500 }, { silent:true }),
+    call(window.api.profiles.relatedCustomers, { id }, { silent:true })
   ]);
-  const invited = resData?.rows || [];
-  const guests = (custData?.rows || []).filter(c => c.marketing_profile_id === id);
-
-  el('pdInvitedCount').textContent = invited.length;
-  el('pdInvitedList').innerHTML = invited.length ? invited.map(r => `
-    <div class="mini-card">
-      <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
-      <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</div>
-      ${r.reservation_note ? `<div class="mc-note">"${escapeHtml(r.reservation_note)}"</div>` : ''}
-    </div>`).join('') : '<div class="empty-mini">No invitations yet.</div>';
+  const guests = custData?.rows || [];
+  const relList = related || [];
 
   el('pdGuestCount').textContent = guests.length;
   el('pdGuestList').innerHTML = guests.length ? guests.map(c => `
@@ -4323,14 +4593,51 @@ async function openProfileDetail(id){
       <div class="mc-sub">#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : '—'}</div>
     </div>`).join('') : '<div class="empty-mini">No assigned guests.</div>';
 
+  el('pdCustCount').textContent = relList.length;
+  el('pdCustList').innerHTML = relList.length ? relList.map(c => `
+    <div class="mini-card">
+      <div class="mc-top"><span>${escapeHtml(c.full_name)}</span>${statusTagHTML(c.status)}</div>
+      <div class="mc-sub">#${escapeHtml(c.code)} · ${escapeHtml(c.relationship)}</div>
+    </div>`).join('') : '<div class="empty-mini">No related guests yet.</div>';
+
+  const invitedTotal = await refreshPdInvited();
+
   const weeks = Math.max(1, daysBetween(p.created_at, new Date().toISOString()) / 7);
   el('pdStats').innerHTML = `
     <div class="pd-stat"><div class="n">${guests.length}</div><div class="l">Guests</div></div>
-    <div class="pd-stat"><div class="n">${invited.length}</div><div class="l">Reservations Invited</div></div>
-    <div class="pd-stat"><div class="n">${(invited.length/weeks).toFixed(1)}</div><div class="l">Avg Res / Week</div></div>
+    <div class="pd-stat"><div class="n">${invitedTotal}</div><div class="l">Reservations Invited</div></div>
+    <div class="pd-stat"><div class="n">${(invitedTotal/weeks).toFixed(1)}</div><div class="l">Avg Res / Week</div></div>
     <div class="pd-stat"><div class="n">${(guests.length/weeks).toFixed(1)}</div><div class="l">Avg Guests / Week</div></div>`;
 
   openModal('modalProfileDetail');
+}
+async function refreshPdInvited(){
+  if (currentDetailProfileId === null) return 0;
+  const resData = await call(window.api.reservations.list,
+    { invitedBy:currentDetailProfileId, from:periodFromDays(pdInvitedPeriod), pageSize:500, sort:'check_in', dir:'desc' },
+    { silent:true });
+  const invited = resData?.rows || [];
+  el('pdInvitedCount').textContent = invited.length;
+  el('pdInvitedList').innerHTML = invited.length ? invited.map(r => `
+    <div class="mini-card">
+      <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
+      <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</div>
+      ${r.reservation_note ? `<div class="mc-note">"${escapeHtml(r.reservation_note)}"</div>` : ''}
+    </div>`).join('') : '<div class="empty-mini">No invitations in this period.</div>';
+  return invited.length;
+}
+async function setPdInvitedPeriod(period){
+  pdInvitedPeriod = period;
+  [...el('pdInvitedFilter').children].forEach(b => b.classList.toggle('active', b.getAttribute('onclick') === `setPdInvitedPeriod('${period}')`));
+  await refreshPdInvited();
+}
+async function exportProfileSection(section){
+  if (currentDetailProfileId === null) return;
+  const entity = { invited:'profile_invited', guests:'profile_guests', customers:'profile_customers' }[section];
+  const params = { profileId:currentDetailProfileId };
+  if (section === 'invited') params.from = periodFromDays(pdInvitedPeriod);
+  const r = await call(window.api.export.filtered, { entity, params });
+  if (r) toast('success','Export complete', `${r.rows} rows → ${r.name}`);
 }
 function editProfileFromDetail(){ if (currentDetailProfileId !== null) openProfileModal(currentDetailProfileId); }
 
@@ -4613,7 +4920,7 @@ async function confirmDialog(opts){
 /* ---------------- RESERVATION ---------------- */
 let editingReservationId = null;
 
-async function openReservationModal(id){
+async function openReservationModal(id, presetCustomerId){
   editingReservationId = id ?? null;
   clearFieldErrors(el('modalReservation'));
   const sel = el('resCustomerSelect');
@@ -4640,7 +4947,7 @@ async function openReservationModal(id){
     el('resCancelResBtn').style.display = r.status === 'CANCELLED' ? 'none' : 'inline-flex';
   } else {
     el('resModalTitle').textContent = 'New Reservation';
-    sel.value = '';
+    sel.value = presetCustomerId || '';
     el('resCheckIn').value = '';
     el('resCheckOut').value = '';
     el('resInvitedBy').value = '';
