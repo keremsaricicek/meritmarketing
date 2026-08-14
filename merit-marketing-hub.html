@@ -314,6 +314,8 @@ button{ font-family:inherit; }
 }
 .btn-icon:hover{ background:var(--s2); color:var(--ink); }
 .btn-icon svg{ width:15px; height:15px; }
+.btn-icon[disabled]{ opacity:.35; cursor:not-allowed; }
+.btn-icon[disabled]:hover{ background:transparent; color:var(--ink-3); }
 
 .btn-home{
   display:none; align-items:center; gap:6px; height:30px; padding:0 12px;
@@ -386,6 +388,47 @@ button{ font-family:inherit; }
 .view-switch-tab:hover{ color:var(--ink-2); }
 .view-switch-tab.active{ color:var(--ink); font-weight:600; border-bottom-color:var(--accent); }
 .view-switch-tab .count-pill{ font-weight:500; }
+
+/* ------------------------------------------------------------------ */
+/* Action Calendar — density read at a glance, no heatmap fills        */
+/* ------------------------------------------------------------------ */
+.cal-nav{ display:flex; align-items:center; gap:2px; }
+.cal-month-label{ font-size:var(--t-md); font-weight:600; min-width:132px; text-align:center; }
+.cal-legend{ display:flex; gap:var(--sp-5); font-size:var(--t-xs); color:var(--ink-3); margin-bottom:var(--sp-4); }
+.cal-legend span{ display:inline-flex; align-items:center; }
+.cal-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; flex-shrink:0; }
+.cal-dot.arr{ background:var(--ok); }
+.cal-dot.act{ background:var(--ink-3); }
+.cal-dot.dep{ background:var(--warn); }
+.cal-weekdays{
+  display:grid; grid-template-columns:repeat(7,1fr);
+  font-size:9.5px; font-weight:600; letter-spacing:var(--tracking-wide); text-transform:uppercase;
+  color:var(--ink-3); padding-bottom:var(--sp-2);
+}
+.cal-weekdays > div{ text-align:center; padding:4px 0; }
+.cal-grid{
+  display:grid; grid-template-columns:repeat(7,1fr); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden;
+}
+.cal-day{
+  background:var(--s0); min-height:92px; padding:8px; cursor:pointer;
+  display:flex; flex-direction:column; transition:background .12s var(--ease);
+}
+.cal-day:hover{ background:var(--s1); }
+.cal-day.outside{ color:var(--ink-4); cursor:default; }
+.cal-day.outside .cal-day-n{ color:var(--ink-4); }
+.cal-day.today .cal-day-n{
+  color:var(--accent-ink); background:var(--accent); border-radius:50%;
+  width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center;
+}
+.cal-day-n{ font-size:var(--t-sm); font-weight:600; }
+.cal-day-stats{ display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:auto; padding-top:8px; }
+.cal-stat{ display:inline-flex; align-items:center; font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.cal-stat .cal-dot{ margin-right:3px; }
+@media (max-width:760px){
+  .cal-day{ min-height:64px; padding:6px; }
+  .cal-legend{ flex-wrap:wrap; gap:var(--sp-3); }
+}
 
 .toolbar{ display:flex; gap:var(--sp-4); align-items:center; margin-bottom:var(--sp-4); }
 /* the search is a ruled field, not a well */
@@ -1302,6 +1345,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="nav-group-label" id="navGroupGuests">Guests</div>
     <div class="nav" role="group" aria-labelledby="navGroupGuests">
       <div class="nav-item" data-page="reservations" onclick="switchTab('reservations')" role="button" tabindex="0" data-activatable><span class="dot"></span>RESERVATION HISTORY</div>
+      <div class="nav-item" data-page="calendar" onclick="switchTab('calendar')" role="button" tabindex="0" data-activatable><span class="dot"></span>ACTION CALENDAR</div>
       <div class="nav-item" data-page="profiles" onclick="switchTab('profiles')" role="button" tabindex="0" data-activatable><span class="dot"></span>PROFILES</div>
       <div class="nav-item" data-page="customers" onclick="switchTab('customers')" role="button" tabindex="0" data-activatable><span class="dot"></span>CRM PANEL</div>
       <div class="nav-item" data-page="customerlist" onclick="switchTab('customerlist')" role="button" tabindex="0" data-activatable><span class="dot"></span>CUSTOMER LIST</div>
@@ -1460,6 +1504,34 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </div>
       <div class="detail-panel empty" id="resDetailPanel">No guest selected</div>
     </div>
+  </div>
+
+  <!-- ---------- ACTION CALENDAR ---------- -->
+  <div class="page" id="page-calendar">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Action Calendar</h1>
+      <div class="head-actions">
+        <div class="cal-nav">
+          <button class="btn-icon" id="calPrevBtn" onclick="calShiftMonth(-1)" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="cal-month-label" id="calMonthLabel"></div>
+          <button class="btn-icon" onclick="calShiftMonth(1)" aria-label="Next month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="calGoToday()">TODAY</button>
+      </div>
+    </div>
+    <div class="cal-legend">
+      <span><span class="cal-dot arr"></span>Arrivals</span>
+      <span><span class="cal-dot act"></span>In House</span>
+      <span><span class="cal-dot dep"></span>Departures</span>
+    </div>
+    <div class="cal-weekdays">
+      <div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div><div>SUN</div>
+    </div>
+    <div class="cal-grid" id="calGrid" role="grid" aria-label="Reservation calendar"></div>
   </div>
 
   <!-- ---------- PROFILES ---------- -->
@@ -1887,6 +1959,32 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       <div class="foot-right">
         <button class="btn btn-ghost btn-sm" onclick="closeModal('modalCancelReservation')">Back</button>
         <button class="btn btn-gold btn-sm btn-destructive-solid" onclick="confirmCancelReservation()">CANCEL RESERVATION</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: CALENDAR DAY INSPECTOR ================= -->
+<div class="overlay" id="modalCalDay" role="dialog" aria-modal="true" aria-labelledby="calDayModalTitle">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h2 class="modal-title" id="calDayModalTitle">Day</h2>
+      <button class="modal-close" onclick="closeModal('modalCalDay')" aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="split-grid cols-3">
+        <div class="split-col">
+          <div class="split-col-title">Arrivals <span class="count-pill" id="calDayArrCount">0</span></div>
+          <div class="split-list" id="calDayArrList"></div>
+        </div>
+        <div class="split-col">
+          <div class="split-col-title">In House <span class="count-pill" id="calDayActCount">0</span></div>
+          <div class="split-list" id="calDayActList"></div>
+        </div>
+        <div class="split-col">
+          <div class="split-col-title">Departures <span class="count-pill" id="calDayDepCount">0</span></div>
+          <div class="split-list" id="calDayDepList"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -3051,6 +3149,42 @@ const api = {
       }); }
   },
 
+  calendar: {
+    /* one bucket per calendar day in the month: how many stays arrive,
+       are in-house, or depart — density for the grid, not a guest list */
+    month: (p) => { try { guard('reservations.read'); } catch (e) { return fail(e.code, e.message); }
+      const year = Number(p.year), month = Number(p.month);
+      const first = new Date(Date.UTC(year, month - 1, 1));
+      const last = new Date(Date.UTC(year, month, 0));
+      const fromISO = first.toISOString().slice(0,10), toISO = last.toISOString().slice(0,10);
+      const rs = filteredReservations({ pageSize:5000 });
+      const buckets = {};
+      for (let d = new Date(first); d <= last; d.setUTCDate(d.getUTCDate() + 1))
+        buckets[d.toISOString().slice(0,10)] = { arrivals:0, active:0, departures:0 };
+      rs.forEach(r => {
+        if (buckets[r.check_in]) buckets[r.check_in].arrivals++;
+        if (buckets[r.check_out]) buckets[r.check_out].departures++;
+        const spanFrom = r.check_in > fromISO ? r.check_in : fromISO;
+        const spanTo = r.check_out < toISO ? r.check_out : toISO;
+        if (spanFrom > spanTo) return;
+        for (let d = new Date(spanFrom + 'T00:00:00Z'); d.toISOString().slice(0,10) <= spanTo; d.setUTCDate(d.getUTCDate() + 1)){
+          const ds = d.toISOString().slice(0,10);
+          if (buckets[ds]) buckets[ds].active++;
+        }
+      });
+      return ok({ buckets }); },
+    day: (p) => { try { guard('reservations.read'); } catch (e) { return fail(e.code, e.message); }
+      const date = String(p.date || '');
+      const rs = filteredReservations({ pageSize:5000 });
+      const row = (r) => ({ id:r.id, customer_id:r.customer_id, customer_name:r.customer_name,
+        check_in:r.check_in, check_out:r.check_out, status:r.status, invited_by_name:r.invited_by_name });
+      return ok({
+        arrivals: rs.filter(r => r.check_in === date).map(row),
+        active: rs.filter(r => r.check_in <= date && r.check_out >= date).map(row),
+        departures: rs.filter(r => r.check_out === date).map(row)
+      }); }
+  },
+
   reports: {
     summary: () => { try { guard('reports.read'); } catch (e) { return fail(e.code, e.message); }
       const scope = scopeProfileId();
@@ -3502,6 +3636,7 @@ function closeSidebar(){
 const PAGE_LOADERS = {
   dashboard: () => renderDashboard(),
   reservations: () => renderReservations(),
+  calendar: () => renderCalendar(),
   profiles: () => renderProfiles(),
   customers: () => renderCustomers(),
   customerlist: () => renderCustomerList(),
@@ -3700,6 +3835,7 @@ function defaultCommands(){
   const cmds = [
     { kind:'Go', title:'Dashboard', run:"switchTab('dashboard')" },
     { kind:'Go', title:'Reservation History', run:"switchTab('reservations')" },
+    { kind:'Go', title:'Action Calendar', run:"switchTab('calendar')" },
     { kind:'Go', title:'CRM Panel', run:"switchTab('customers')" },
     { kind:'Go', title:'Reports', run:"switchTab('reports')" },
     { kind:'Go', title:'Settings', run:"switchTab('settings')" },
@@ -4485,6 +4621,78 @@ function can1(perm){
   const grants = { MANAGER:['customers.update','customers.assign','reservations.create','crmNotes.create'],
                     MARKETING:['customers.update','reservations.create','crmNotes.create'] };
   return (grants[role] || []).includes(perm);
+}
+
+/* ---------------- ACTION CALENDAR ---------------- */
+const CAL_MIN_YEAR = 2026, CAL_MIN_MONTH = 1; /* the business has no data before January 2026 */
+const CAL_WEEKDAY_MON0 = (jsDay) => (jsDay + 6) % 7; /* JS Sunday=0 → Monday-first index */
+let calYear = null, calMonth = null, calSelectedDate = null;
+function calInit(){
+  const t = new Date();
+  calYear = t.getFullYear(); calMonth = t.getMonth() + 1;
+  if (calYear < CAL_MIN_YEAR){ calYear = CAL_MIN_YEAR; calMonth = CAL_MIN_MONTH; }
+}
+function calGoToday(){ calInit(); renderCalendar(); }
+function calShiftMonth(delta){
+  calMonth += delta;
+  if (calMonth < 1){ calMonth = 12; calYear--; }
+  if (calMonth > 12){ calMonth = 1; calYear++; }
+  if (calYear < CAL_MIN_YEAR || (calYear === CAL_MIN_YEAR && calMonth < CAL_MIN_MONTH)){
+    calYear = CAL_MIN_YEAR; calMonth = CAL_MIN_MONTH;
+  }
+  renderCalendar();
+}
+const CAL_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+async function renderCalendar(){
+  if (calYear === null) calInit();
+  el('calMonthLabel').textContent = `${CAL_MONTH_NAMES[calMonth - 1]} ${calYear}`;
+  el('calPrevBtn').disabled = calYear === CAL_MIN_YEAR && calMonth === CAL_MIN_MONTH;
+
+  const data = await call(window.api.calendar.month, { year:calYear, month:calMonth }, { silent:true });
+  const buckets = data?.buckets || {};
+
+  const first = new Date(calYear, calMonth - 1, 1);
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+  const leadDays = CAL_WEEKDAY_MON0(first.getDay());
+  const totalCells = Math.ceil((leadDays + daysInMonth) / 7) * 7;
+  const todayStr = todayYMD();
+
+  let html = '';
+  for (let i = 0; i < totalCells; i++){
+    const dayNum = i - leadDays + 1;
+    const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
+    if (!inMonth){ html += `<div class="cal-day outside"></div>`; continue; }
+    const dateStr = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+    const b = buckets[dateStr] || { arrivals:0, active:0, departures:0 };
+    const stats = [];
+    if (b.arrivals) stats.push(`<span class="cal-stat"><span class="cal-dot arr"></span>${b.arrivals}</span>`);
+    if (b.active) stats.push(`<span class="cal-stat"><span class="cal-dot act"></span>${b.active}</span>`);
+    if (b.departures) stats.push(`<span class="cal-stat"><span class="cal-dot dep"></span>${b.departures}</span>`);
+    html += `
+    <div class="cal-day${dateStr === todayStr ? ' today' : ''}" onclick="openCalDay('${dateStr}')" role="gridcell" tabindex="0" data-activatable aria-label="${dateStr}, ${b.arrivals} arrivals, ${b.active} in house, ${b.departures} departures">
+      <span class="cal-day-n">${dayNum}</span>
+      <div class="cal-day-stats">${stats.join('')}</div>
+    </div>`;
+  }
+  el('calGrid').innerHTML = html;
+}
+async function openCalDay(dateStr){
+  calSelectedDate = dateStr;
+  el('calDayModalTitle').textContent = fmtDate(dateStr);
+  const data = await call(window.api.calendar.day, { date:dateStr });
+  if (!data) return;
+  const row = (r) => `
+    <div class="mini-card" onclick="closeModal('modalCalDay'); goToGuest(${r.customer_id},'reservations')" style="cursor:pointer">
+      <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
+      <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
+    </div>`;
+  el('calDayArrCount').textContent = data.arrivals.length;
+  el('calDayArrList').innerHTML = data.arrivals.length ? data.arrivals.map(row).join('') : '<div class="empty-mini">No arrivals.</div>';
+  el('calDayActCount').textContent = data.active.length;
+  el('calDayActList').innerHTML = data.active.length ? data.active.map(row).join('') : '<div class="empty-mini">No guests in house.</div>';
+  el('calDayDepCount').textContent = data.departures.length;
+  el('calDayDepList').innerHTML = data.departures.length ? data.departures.map(row).join('') : '<div class="empty-mini">No departures.</div>';
+  openModal('modalCalDay');
 }
 
 /* ---------------- PROFILES ---------------- */
