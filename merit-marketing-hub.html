@@ -276,6 +276,15 @@ button{ font-family:inherit; }
 .btn-outline:hover{ background:var(--s2); color:var(--ink); border-color:var(--line-3); }
 .btn-ghost{ color:var(--ink-3); }
 .btn-ghost:hover{ background:var(--s2); color:var(--ink); }
+/* a destructive secondary action (Cancel Reservation) — quiet at rest so
+   it never competes with the primary Save, only reads as dangerous when
+   actually engaged with */
+.btn-destructive-ghost:hover{ background:var(--danger-soft); color:var(--danger); }
+/* used only inside a modal whose sole purpose is the destructive action
+   itself (e.g. the Cancel Reservation confirmation) — never as a stray
+   button among unrelated actions */
+.btn-destructive-solid{ background:var(--danger); border-color:var(--danger); color:var(--accent-ink); }
+.btn-destructive-solid:hover{ background:#7a3226; border-color:#7a3226; }
 .btn-sm{ height:30px; padding:5px 12px; font-size:var(--t-xs); letter-spacing:var(--tracking-label); }
 .btn-block{ width:100%; }
 .btn[disabled]{ opacity:.45; cursor:not-allowed; }
@@ -336,6 +345,20 @@ button{ font-family:inherit; }
 .page-title:focus{ outline:none; }
 .page-title:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:2px; }
 .head-actions{ display:flex; gap:var(--sp-2); align-items:center; }
+
+/* two views of one dataset (e.g. Reservations / Cancelled) — a precise
+   underline switch, not a segmented-control widget, consistent with the
+   rest of the system's rule-driven rather than well-driven controls */
+.view-switch{ display:flex; gap:var(--sp-5); border-bottom:1px solid var(--line); margin-bottom:var(--sp-4); }
+.view-switch-tab{
+  background:none; border:none; padding:9px 0; margin-bottom:-1px; cursor:pointer;
+  font-family:inherit; font-size:var(--t-md); font-weight:500; color:var(--ink-3);
+  border-bottom:2px solid transparent; display:flex; align-items:center; gap:var(--sp-2);
+  transition:.14s var(--ease);
+}
+.view-switch-tab:hover{ color:var(--ink-2); }
+.view-switch-tab.active{ color:var(--ink); font-weight:600; border-bottom-color:var(--accent); }
+.view-switch-tab .count-pill{ font-weight:500; }
 
 .toolbar{ display:flex; gap:var(--sp-4); align-items:center; margin-bottom:var(--sp-4); }
 /* the search is a ruled field, not a well */
@@ -1310,6 +1333,10 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         <button class="btn btn-gold btn-sm" onclick="openReservationModal()">NEW RESERVATION</button>
       </div>
     </div>
+    <div class="view-switch" role="tablist" aria-label="Reservation view">
+      <button class="view-switch-tab active" role="tab" aria-selected="true" id="resViewActiveTab" onclick="setResView('active')">Reservations<span class="count-pill" id="resViewActiveCount">0</span></button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="resViewCancelledTab" onclick="setResView('cancelled')">Cancelled<span class="count-pill" id="resViewCancelledCount">0</span></button>
+    </div>
     <div class="toolbar">
       <label class="visually-hidden" for="resSearch">Search reservations</label>
       <input class="search" id="resSearch" placeholder="Search" oninput="onResSearch()">
@@ -1318,12 +1345,12 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
         </button>
         <div class="filter-menu wide" id="resFilterMenu" onclick="event.stopPropagation()">
-          <div class="fm-title">Status</div>
+          <div class="fm-title" id="resFStatusLabel">Status</div>
           <select class="fm-input" id="resFStatus" onchange="applyResFilters()">
             <option value="">All statuses</option>
             <option value="UPCOMING">Upcoming</option>
             <option value="CHECKED_IN">Checked in</option>
-            <option value="CANCELLED">Cancelled</option>
+            <option value="COMPLETED">Completed</option>
           </select>
           <div class="fm-title">Invited By</div>
           <select class="fm-input" id="resFInvited" onchange="applyResFilters()"></select>
@@ -1381,8 +1408,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="page-head">
       <h1 class="page-title" tabindex="-1">CRM Panel</h1>
       <div class="head-actions">
-        <button class="btn btn-outline btn-sm" onclick="openRecordModal()">NEW RECORD</button>
-        <button class="btn btn-gold btn-sm" onclick="openCustomerModal()">NEW CUSTOMER</button>
+        <button class="btn btn-gold btn-sm" onclick="openRecordModal()">NEW RECORD</button>
       </div>
     </div>
     <div class="toolbar">
@@ -1450,7 +1476,10 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         <thead>
           <tr><th scope="col">ID</th>
           <th scope="col" class="sortable" onclick="sortList('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
-          <th scope="col">PASSPORT NO</th><th scope="col">PHONE</th>
+          <th scope="col">PHONE</th>
+          <th scope="col">CREATED BY</th>
+          <th scope="col">ASSIGNED TO</th>
+          <th scope="col">STATUS</th>
           <th scope="col" class="sortable sorted" onclick="sortList('created')" aria-sort="descending">REGISTERED<span class="sort-arrow">↓</span></th></tr>
         </thead>
         <tbody id="listTableBody"></tbody>
@@ -1709,12 +1738,43 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-delete-icon" id="resDeleteBtn" style="display:none;" onclick="deleteReservation()" title="Delete">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-      </button>
+      <button class="btn btn-ghost btn-sm btn-destructive-ghost" id="resCancelResBtn" style="display:none;" onclick="openCancelReservationModal(editingReservationId)">CANCEL RESERVATION</button>
       <div class="foot-right">
-        <button class="btn btn-ghost btn-sm" onclick="closeModal('modalReservation')">Cancel</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modalReservation')">Close</button>
         <button class="btn btn-gold btn-sm" onclick="saveReservation(false)">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: CANCEL RESERVATION ================= -->
+<div class="overlay" id="modalCancelReservation" role="dialog" aria-modal="true" aria-labelledby="cancelResModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="cancelResModalTitle">Cancel Reservation</h2>
+      <button class="modal-close" onclick="closeModal('modalCancelReservation')" aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="setting-hint" style="margin-bottom:var(--sp-4);">
+        The reservation is preserved and remains visible in the Cancelled view — this does not delete any history.
+      </div>
+      <div class="ep-name" id="cancelResSummary" style="margin-bottom:var(--sp-4);"></div>
+      <div class="field">
+        <label for="cancelResReason">Reason <span class="muted">(optional)</span></label>
+        <select id="cancelResReason">
+          <option value=""></option>
+          <option value="Guest request">Guest request</option>
+          <option value="Duplicate">Duplicate</option>
+          <option value="Dates changed">Dates changed</option>
+          <option value="Operational">Operational</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modalCancelReservation')">Back</button>
+        <button class="btn btn-gold btn-sm btn-destructive-solid" onclick="confirmCancelReservation()">CANCEL RESERVATION</button>
       </div>
     </div>
   </div>
@@ -2093,7 +2153,7 @@ const blank = () => ({
   backups:[], seq:{ user:1, profile:1, customer:1, reservation:1, note:1, notif:1, audit:1 }
 });
 let db = load();
-migrateStatuses();
+migrateAttribution();
 migrateProfileKind();
 /* accounts saved while the form still offered the retired STAFF value */
 (function migrateRoles(){
@@ -2101,6 +2161,7 @@ migrateProfileKind();
   db.users.forEach(u => { if (!ROLES.includes(u.role)){ u.role = 'MARKETING'; touched = true; } });
   if (touched) save();
 })();
+syncReservationStatuses();
 function load(){
   try { const raw = localStorage.getItem(KEY); if (raw) return Object.assign(blank(), JSON.parse(raw)); }
   catch (_) {}
@@ -2178,41 +2239,92 @@ const custRes = (cid) => db.reservations.filter(r => r.customer_id === cid)
 function daysSince(d){ if (!d) return Infinity;
   const x = new Date(d), n = new Date();
   return Math.round((new Date(n.getFullYear(),n.getMonth(),n.getDate()) - new Date(x.getFullYear(),x.getMonth(),x.getDate()))/86400000); }
-function resStatusOf(ci, co){
+/* ---------- reservation lifecycle — single source of truth ----------
+   Status is a derived fact of the calendar, not something a person sets,
+   except cancellation: that is the one state a person chooses, and once
+   chosen it overrides date-based recomputation permanently. cancelled_at
+   is the authoritative cancellation signal; r.status is a cached copy of
+   the derived value, kept in sync by syncReservationStatuses() at the
+   trigger points the business rule calls for (app start, reservation
+   pages loading, dashboard loading, calendar loading, data refresh). */
+function deriveDateStatus(checkIn, checkOut){
   const t = today();
-  if (co < t) return 'CHECKED_IN';      /* the stay happened */
-  if (ci <= t && co >= t) return 'CHECKED_IN';
+  if (checkOut < t) return 'COMPLETED';
+  if (checkIn <= t && checkOut >= t) return 'CHECKED_IN';
   return 'UPCOMING';
 }
-/* migrate anything stored before COMPLETED was retired */
-function migrateStatuses(){
+function reservationStatusOf(r){
+  return r.cancelled_at ? 'CANCELLED' : deriveDateStatus(r.check_in, r.check_out);
+}
+function syncReservationStatuses(){
   let touched = false;
-  db.reservations.forEach(r => { if (r.status === 'COMPLETED'){ r.status = 'CHECKED_IN'; touched = true; } });
+  db.reservations.forEach(r => {
+    const next = reservationStatusOf(r);
+    if (r.status !== next){ r.status = next; touched = true; }
+  });
   if (touched) save();
 }
+/* ---------- one-time data migrations ----------
+   Runs once per stored record: adds fields this version introduced,
+   using neutral fallbacks rather than inventing history. Safe to run
+   on every load — already-migrated records are left untouched. */
+function migrateAttribution(){
+  let touched = false;
+  db.customers.forEach(c => {
+    if (c.created_by_user_id === undefined){ c.created_by_user_id = null; touched = true; }
+    if (c.created_by_profile_id === undefined){ c.created_by_profile_id = null; touched = true; }
+    if (!Array.isArray(c.assignment_history)){ c.assignment_history = []; touched = true; }
+  });
+  db.reservations.forEach(r => {
+    if (r.cancelled_at === undefined){
+      /* pre-existing data stored CANCELLED as a plain status string with
+         no timestamp; backfill a neutral cancelled_at so status becomes
+         derivable, without inventing who cancelled it or why */
+      r.cancelled_at = r.status === 'CANCELLED' ? (r.updated_at || r.created_at || nowISO()) : null;
+      touched = true;
+    }
+    if (r.cancelled_by === undefined){ r.cancelled_by = null; touched = true; }
+    if (r.cancellation_reason === undefined){ r.cancellation_reason = null; touched = true; }
+    if (r.created_by === undefined){ r.created_by = null; touched = true; }
+  });
+  if (touched) save();
+}
+/* No Record has exactly one definition, used everywhere it matters:
+   zero reservations AND zero CRM activity (spec §17/§41). The status
+   label below and the noRecord filter in filteredCustomers() must never
+   drift apart, so both are built from the same last/next/notes facts. */
 function decorateCustomer(c){
   const list = custRes(c.id);
   const past = list.filter(r => r.check_in <= today());
   const future = list.filter(r => r.check_in > today());
   const last = past.length ? past[0].check_in : null;
   const next = future.length ? future[future.length-1].check_in : null;
+  const notes = db.crmNotes.filter(n => n.customer_id === c.id);
+  const lastNoteDate = notes.length ? notes.reduce((m,n) => n.note_date > m ? n.note_date : m, notes[0].note_date) : null;
   let status = 'NO_RECORD';
-  if (last || next){
-    const ref = next || last;
+  if (last || next || notes.length){
+    const ref = next || last || lastNoteDate;
     const d = daysSince(ref);
     status = d <= 30 ? 'NEW' : d <= 90 ? 'AVAILABLE' : 'COLD';
   }
   const mk = profileById(c.marketing_profile_id);
+  const creatorUser = c.created_by_user_id ? db.users.find(u => u.id === c.created_by_user_id) : null;
+  const creatorProfile = c.created_by_profile_id ? profileById(c.created_by_profile_id) : null;
   return { ...c, marketing_name: mk?.full_name || null, marketing_status: mk?.employment_status || null,
-    reservation_count:list.length, last_visit:last, next_visit:next,
-    note_count: db.crmNotes.filter(n => n.customer_id === c.id).length, status };
+    reservation_count:list.length, last_visit:last, next_visit:next, note_count:notes.length, status,
+    created_by_username: creatorUser?.username || null,
+    created_by_profile_name: creatorProfile?.full_name || null,
+    created_by_label: creatorUser?.username || creatorProfile?.full_name || 'Unknown' };
 }
 function decorateReservation(r){
   const c = db.customers.find(x => x.id === r.customer_id && !x.deleted_at);
   const p = profileById(r.invited_by_profile_id);
-  return { ...r, customer_name:c?.full_name || 'Deleted guest', customer_code:c?.code || '',
+  const creator = r.created_by ? db.users.find(u => u.id === r.created_by) : null;
+  return { ...r, status: reservationStatusOf(r),
+    customer_name:c?.full_name || 'Deleted guest', customer_code:c?.code || '',
     customer_phone:c?.phone || '', invited_by_name:p?.full_name || null,
-    invited_by_status:p?.employment_status || null };
+    invited_by_status:p?.employment_status || null,
+    created_by_name: creator?.username || null };
 }
 function syncMarketing(customerId){
   const c = db.customers.find(x => x.id === customerId); if (!c) return;
@@ -2297,12 +2409,14 @@ function seedDemo(adminProfileId){
     const c = { id:nextId('customer'), code, first_name:name.split(' ')[0], last_name:name.split(' ').slice(1).join(' '),
       full_name:name, passport_no:passport, phone, email:'', nationality:'', photo_path:null,
       marketing_profile_id:mkId, registered:1, deleted_at:null,
+      created_by_user_id:null, created_by_profile_id:mkId, assignment_history:[],
       created_at:new Date(Date.now()-120*86400000).toISOString(), updated_at:nowISO() };
     db.customers.push(c);
     stays.forEach(([a,b]) => {
       const ci = a < 0 ? ago(-a) : ahead(a), co = b < 0 ? ago(-b) : ahead(b);
       db.reservations.push({ id:nextId('reservation'), customer_id:c.id, check_in:ci, check_out:co,
-        invited_by_profile_id:mkId, reservation_note: note || null, status:resStatusOf(ci,co),
+        invited_by_profile_id:mkId, reservation_note: note || null, status:deriveDateStatus(ci,co),
+        cancelled_at:null, cancelled_by:null, cancellation_reason:null,
         created_at:nowISO(), updated_at:nowISO(), created_by:null, updated_by:null });
     });
     if (note) db.crmNotes.push({ id:nextId('note'), customer_id:c.id, note, note_date:ago(20),
@@ -2359,6 +2473,10 @@ function filteredReservations(opts = {}){
     .filter(r => db.customers.some(c => c.id === r.customer_id && !c.deleted_at))
     .map(decorateReservation);
   if (scope !== null) rows = rows.filter(r => r.invited_by_profile_id === scope);
+  /* Reservations and Cancelled are two views of one dataset (spec §6/§41),
+     not separate collections — this is the one place that split happens. */
+  rows = opts.view === 'cancelled' ? rows.filter(r => r.status === 'CANCELLED')
+                                    : rows.filter(r => r.status !== 'CANCELLED');
   if (opts.status) rows = rows.filter(r => r.status === opts.status);
   if (opts.invitedBy) rows = rows.filter(r => String(r.invited_by_profile_id) === String(opts.invitedBy));
   if (opts.from) rows = rows.filter(r => r.check_in >= opts.from);
@@ -2524,6 +2642,9 @@ const api = {
         full_name:name, passport_no:p.passportNo || null, phone:p.phone || null, email:p.email || null,
         nationality:p.nationality || null, photo_path:p.photoPath || null,
         marketing_profile_id:p.marketingProfileId || null, registered: p.registered === false ? 0 : 1,
+        /* immutable once set — reassignment changes marketing_profile_id, never these */
+        created_by_user_id: session?.id ?? null, created_by_profile_id: session?.profile_id ?? null,
+        assignment_history: [],
         deleted_at:null, created_at:nowISO(), updated_at:nowISO() };
       db.customers.push(c); audit('CUSTOMER_CREATE','customer',c.id,`Created guest ${name} (${code})`); save();
       return ok({ id:c.id }); },
@@ -2543,11 +2664,23 @@ const api = {
       const prof = profileById(Number(p.profileId));
       if (!c) return fail('VALIDATION','Guest not found.');
       if (!prof || prof.employment_status !== 'active') return fail('VALIDATION','Select an active marketing profile.');
+      if (c.marketing_profile_id === prof.id) return ok({ ok:true });
+      const previousId = c.marketing_profile_id || null;
+      const previous = previousId ? profileById(previousId) : null;
+      /* current assignment is the only thing that changes here — Created
+         By and every past reservation's Invited By stay exactly as they
+         were (spec §18/§19: attribution is history, assignment is state) */
+      if (!Array.isArray(c.assignment_history)) c.assignment_history = [];
+      c.assignment_history.push({ previous_profile_id:previousId, new_profile_id:prof.id,
+        changed_at:nowISO(), changed_by:session?.id ?? null });
       c.marketing_profile_id = prof.id; c.updated_at = nowISO();
       db.notifications.push({ id:nextId('notif'), type:'assignment', title:'New guest assigned',
         message:`${c.full_name} (${c.code}) has been assigned to you`, target_profile_id:prof.id,
         related_customer_id:c.id, related_reservation_id:null, read:0, created_at:nowISO() });
-      audit('CUSTOMER_ASSIGN','customer',c.id,`Assigned ${c.full_name} to ${prof.full_name}`); save();
+      audit('CUSTOMER_ASSIGN','customer',c.id,
+        previous ? `Reassigned ${c.full_name} from ${previous.full_name} to ${prof.full_name}`
+                 : `Assigned ${c.full_name} to ${prof.full_name}`);
+      save();
       return ok({ ok:true }); },
     delete: (p) => { try { guard('customers.delete'); } catch (e) { return fail(e.code, e.message); }
       const c = db.customers.find(x => x.id === Number(p.id) && !x.deleted_at);
@@ -2562,7 +2695,7 @@ const api = {
   },
 
   reservations: {
-    list: (p = {}) => { try { return ok(paginate(filteredReservations(p), p)); } catch (e) { return fail(e.code, e.message); } },
+    list: (p = {}) => { try { syncReservationStatuses(); return ok(paginate(filteredReservations(p), p)); } catch (e) { return fail(e.code, e.message); } },
     get: (p) => { try { guard('reservations.read'); } catch (e) { return fail(e.code, e.message); }
       const r = db.reservations.find(x => x.id === Number(p.id));
       return ok(r ? decorateReservation(r) : null); },
@@ -2577,13 +2710,14 @@ const api = {
       const prof = p.invitedByProfileId ? profileById(Number(p.invitedByProfileId)) : null;
       if (p.invitedByProfileId && !prof) return fail('VALIDATION','Selected marketing profile no longer exists.','invitedByProfileId');
       if (prof && prof.employment_status === 'inactive') warnings.push('The selected marketing profile is no longer active.');
-      const conflicts = custRes(c.id).filter(r => r.status !== 'CANCELLED' && r.check_in <= co && r.check_out >= ci)
+      const conflicts = custRes(c.id).filter(r => !r.cancelled_at && r.check_in <= co && r.check_out >= ci)
         .map(r => ({ id:r.id, check_in:r.check_in, check_out:r.check_out }));
       if (conflicts.length && !p.force)
         return fail('CONFLICT','This guest already has a reservation overlapping those dates.', { field:'checkIn', conflicts });
       const r = { id:nextId('reservation'), customer_id:c.id, check_in:ci, check_out:co,
         invited_by_profile_id: prof?.id || null, reservation_note:p.note || null,
-        status: p.status || resStatusOf(ci,co), created_at:nowISO(), updated_at:nowISO(),
+        status: deriveDateStatus(ci,co), cancelled_at:null, cancelled_by:null, cancellation_reason:null,
+        created_at:nowISO(), updated_at:nowISO(),
         created_by:session?.id ?? null, updated_by:session?.id ?? null };
       db.reservations.push(r); syncMarketing(c.id);
       audit('RESERVATION_CREATE','reservation',r.id,`Reservation for ${c.full_name} ${ci} → ${co}`); save();
@@ -2591,10 +2725,11 @@ const api = {
     update: (p) => { try { guard('reservations.update'); } catch (e) { return fail(e.code, e.message); }
       const r = db.reservations.find(x => x.id === Number(p.id));
       if (!r) return fail('VALIDATION','Reservation not found.');
+      if (r.cancelled_at) return fail('VALIDATION','A cancelled reservation cannot be edited. Create a new reservation instead.');
       const ci = p.checkIn ?? r.check_in, co = p.checkOut ?? r.check_out;
       if (co < ci) return fail('VALIDATION','Check-out must be on or after check-in.','checkOut');
       const cid = p.customerId ? Number(p.customerId) : r.customer_id;
-      const conflicts = custRes(cid).filter(x => x.id !== r.id && x.status !== 'CANCELLED' && x.check_in <= co && x.check_out >= ci)
+      const conflicts = custRes(cid).filter(x => x.id !== r.id && !x.cancelled_at && x.check_in <= co && x.check_out >= ci)
         .map(x => ({ id:x.id, check_in:x.check_in, check_out:x.check_out }));
       if (conflicts.length && !p.force)
         return fail('CONFLICT','This guest already has a reservation overlapping those dates.', { field:'checkIn', conflicts });
@@ -2602,14 +2737,24 @@ const api = {
       r.customer_id = cid; r.check_in = ci; r.check_out = co;
       if (p.invitedByProfileId !== undefined) r.invited_by_profile_id = p.invitedByProfileId || null;
       if (p.note !== undefined) r.reservation_note = p.note || null;
-      r.status = p.status || resStatusOf(ci,co); r.updated_at = nowISO();
+      /* status is never taken from the client — it is always the derived
+         date state, so editing dates can never silently resurrect or
+         misstate a reservation's lifecycle position */
+      r.status = deriveDateStatus(ci, co); r.updated_by = session?.id ?? null; r.updated_at = nowISO();
       syncMarketing(cid); if (prev !== cid) syncMarketing(prev);
       audit('RESERVATION_UPDATE','reservation',r.id,`Updated reservation ${ci} → ${co}`); save();
       return ok({ id:r.id }); },
-    setStatus: (p) => { try { guard('reservations.update'); } catch (e) { return fail(e.code, e.message); }
+    cancel: (p) => { try { guard('reservations.update'); } catch (e) { return fail(e.code, e.message); }
       const r = db.reservations.find(x => x.id === Number(p.id)); if (!r) return fail('VALIDATION','Reservation not found.');
-      r.status = p.status; save(); return ok({ id:r.id, status:r.status }); },
+      if (r.cancelled_at) return ok({ id:r.id, status:'CANCELLED' });
+      r.cancelled_at = nowISO(); r.cancelled_by = session?.id ?? null;
+      r.cancellation_reason = p.reason || null; r.status = 'CANCELLED'; r.updated_at = nowISO();
+      const c = db.customers.find(x => x.id === r.customer_id);
+      audit('RESERVATION_CANCEL','reservation',r.id,
+        `Cancelled reservation ${r.check_in} → ${r.check_out} for ${c?.full_name || 'guest'}${p.reason ? ` (${p.reason})` : ''}`);
+      save(); return ok({ id:r.id, status:'CANCELLED' }); },
     delete: (p) => { try { guard('reservations.delete'); } catch (e) { return fail(e.code, e.message); }
+      if (session.role !== 'ADMIN') return fail('FORBIDDEN','Only an administrator can permanently delete a reservation. Cancel it instead.');
       const r = db.reservations.find(x => x.id === Number(p.id)); if (!r) return fail('VALIDATION','Reservation not found.');
       db.reservations = db.reservations.filter(x => x.id !== r.id); syncMarketing(r.customer_id);
       audit('RESERVATION_DELETE','reservation',r.id,`Deleted reservation ${r.check_in} → ${r.check_out}`); save();
@@ -2699,7 +2844,8 @@ const api = {
   },
 
   dashboard: {
-    load: () => { try { guard('dashboard.read'); } catch (e) { return fail(e.code, e.message); }
+    load: (p = {}) => { try { guard('dashboard.read'); } catch (e) { return fail(e.code, e.message); }
+      syncReservationStatuses();
       const cs = filteredCustomers({ pageSize:5000 });
       const rs = filteredReservations({ pageSize:5000 });
       const pendingRows = rs.filter(r => ['UPCOMING','CHECKED_IN'].includes(r.status) && r.check_in >= today())
@@ -2849,7 +2995,7 @@ const api = {
       } else if (p.entity === 'profiles'){
         rows = decoratedProfiles().map(x => ({ Name:x.full_name, Passport:x.passport_no || '', Phone:x.phone || '',
           Nationality:x.nationality || '', Status:x.employment_status,
-          'Reservations Invited':x.reservation_count, 'Assigned Guests':x.customer_count, Created:x.created_at }));
+          'Reservations Invited':x.reservation_count, Guests:x.customer_count, Created:x.created_at }));
       } else if (p.entity === 'audit_logs'){
         rows = db.auditLogs.slice().sort((a,b) => b.created_at.localeCompare(a.created_at))
           .map(a => ({ When:a.created_at, User:a.username || '', Action:a.action,
@@ -3010,6 +3156,7 @@ function statusMeta(code){
     case 'COLD':       return { label:'COLD', cls:'tag-cold' };
     case 'UPCOMING':   return { label:'UPCOMING', cls:'tag-hot' };
     case 'CHECKED_IN': return { label:'CHECKED IN', cls:'tag-warm' };
+    case 'COMPLETED':  return { label:'COMPLETED', cls:'tag-cold' };
     case 'CANCELLED':  return { label:'CANCELLED', cls:'tag-none' };
     default:           return { label:'NO RECORD', cls:'tag-none' };
   }
@@ -3076,7 +3223,7 @@ function resetViewState(){
   state.settings = {};
   state.selectedCustomerId = null;
   state.cust = { page:1, pageSize:50, search:'', status:'', marketing:'', sort:'updated', dir:'desc', total:0, rows:[] };
-  state.res  = { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', sort:'check_in', dir:'desc', total:0, rows:[] };
+  state.res  = { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', view:'active', sort:'check_in', dir:'desc', total:0, rows:[] };
   state.list = { sort:'created', dir:'desc' };
   state.audit = { page:1, pageSize:50, total:0 };
   ['resSearch','custSearch','listSearch','norecSearch'].forEach(id => { const n = el(id); if (n) n.value = ''; });
@@ -3302,7 +3449,10 @@ function focusSearch(){
 function contextualNew(){
   const page = document.querySelector('.page.active')?.id || '';
   if (page === 'page-profiles') return openProfileModal();
-  if (page === 'page-customers' || page === 'page-customerlist') return openCustomerModal();
+  /* Customer List is the one screen that creates guests (spec §13/§14) —
+     CRM Panel's contextual action is a CRM record on an existing guest */
+  if (page === 'page-customers') return openRecordModal();
+  if (page === 'page-customerlist') return openCustomerModal();
   if (page === 'page-users' && isAdmin()) return openUserModal();
   openReservationModal();
 }
@@ -3669,7 +3819,7 @@ function sortReservations(col){
 function resFilterParams(){
   const s = state.res;
   return { search:s.search, status:s.status || '', invitedBy:s.invitedBy || '',
-           from:s.from || '', to:s.to || '', sort:s.sort, dir:s.dir };
+           from:s.from || '', to:s.to || '', view:s.view, sort:s.sort, dir:s.dir };
 }
 function applyResFilters(){
   const s = state.res;
@@ -3687,6 +3837,23 @@ function clearResFilters(){
   applyResFilters();
   closeAllFilterMenus();
 }
+/* Reservations and Cancelled are one dataset viewed two ways (spec §6) —
+   switching just changes the view flag sent to the same list call. */
+function setResView(view){
+  const s = state.res;
+  if (s.view === view) return;
+  s.view = view; s.page = 1;
+  el('resViewActiveTab').classList.toggle('active', view === 'active');
+  el('resViewActiveTab').setAttribute('aria-selected', String(view === 'active'));
+  el('resViewCancelledTab').classList.toggle('active', view === 'cancelled');
+  el('resViewCancelledTab').setAttribute('aria-selected', String(view === 'cancelled'));
+  /* the status refinement (Upcoming/Checked in/Completed) only makes
+     sense inside the active view — every row in Cancelled already is */
+  el('resFStatus').style.display = view === 'cancelled' ? 'none' : '';
+  el('resFStatusLabel').style.display = view === 'cancelled' ? 'none' : '';
+  if (view === 'cancelled'){ el('resFStatus').value = ''; state.res.status = ''; }
+  renderReservations();
+}
 function fillFilterProfileSelects(){
   const opts = '<option value="">Anyone</option>' +
     state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}${p.employment_status === 'inactive' ? ' (inactive)' : ''}</option>`).join('');
@@ -3698,12 +3865,18 @@ async function renderReservations(){
   const s = state.res;
   s.search = el('resSearch')?.value.trim() || '';
   fillFilterProfileSelects();
-  const data = await call(window.api.reservations.list, {
-    ...resFilterParams(), page:s.page, pageSize:s.pageSize });
+  const [data, activeCount, cancelledCount] = await Promise.all([
+    call(window.api.reservations.list, { ...resFilterParams(), page:s.page, pageSize:s.pageSize }),
+    call(window.api.reservations.list, { view:'active', pageSize:1 }, { silent:true }),
+    call(window.api.reservations.list, { view:'cancelled', pageSize:1 }, { silent:true })
+  ]);
   if (!data) return;
   s.total = data.total; s.rows = data.rows;
+  el('resViewActiveCount').textContent = activeCount?.total ?? 0;
+  el('resViewCancelledCount').textContent = cancelledCount?.total ?? 0;
 
   const tbody = el('resTableBody');
+  const cancelledView = s.view === 'cancelled';
   tbody.innerHTML = data.rows.length ? data.rows.map(r => `
     <tr class="clickable" tabindex="0" data-activatable onclick="showCustomerDetail(${r.customer_id},'resDetailPanel')" ondblclick="openReservationModal(${r.id})" aria-label="${escapeHtml(r.customer_name)}, ${fmtDate(r.check_in)} to ${fmtDate(r.check_out)}">
       <td class="muted">#${escapeHtml(r.customer_code)}</td>
@@ -3714,17 +3887,15 @@ async function renderReservations(){
       <td class="muted">${r.reservation_note ? escapeHtml(r.reservation_note) : '—'}</td>
       <td>
         <div class="status-cell">
-          <span class="row-menu-wrap">
-            <span onclick="toggleRowMenu('resStatus_${r.id}', event)" class="clickable-tag" tabindex="0" role="button" data-activatable aria-haspopup="true" aria-label="Change status, currently ${statusMeta(r.status).label}">${statusTagHTML(r.status)}</span>
-            <div class="row-menu" id="resStatus_${r.id}" role="menu">
-              ${['UPCOMING','CHECKED_IN','CANCELLED'].map(st =>
-                `<div class="row-menu-item" role="menuitem" tabindex="0" data-activatable onclick="setReservationStatus(${r.id},'${st}', event)">${statusMeta(st).label}</div>`).join('')}
-            </div>
-          </span>
+          ${statusTagHTML(r.status)}
           <div class="row-actions">
             <button class="ra-btn" title="Edit" onclick="openReservationModal(${r.id}); event.stopPropagation();">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
+            ${!cancelledView ? `
+            <button class="ra-btn danger" title="Cancel reservation" onclick="openCancelReservationModal(${r.id}); event.stopPropagation();">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+            </button>` : ''}
           </div>
         </div>
       </td>
@@ -3733,10 +3904,36 @@ async function renderReservations(){
         ? emptyState({ icon:'search', title:'Nothing matched that search',
             text:`No reservation matches “${s.search}”.`,
             actions:[{ label:'Clear search', onclick:"el('resSearch').value='';onResSearch()" }] })
-        : emptyState({ icon:'calendar', title:'No reservations yet',
-            text:'Reservations you create will appear here.',
-            actions:[{ label:'New Reservation', onclick:'openReservationModal()', primary:true }] }));
+        : cancelledView
+          ? emptyState({ icon:'check', title:'No cancelled reservations',
+              text:'Cancelled reservations will appear here.' })
+          : emptyState({ icon:'calendar', title:'No reservations yet',
+              text:'Reservations you create will appear here.',
+              actions:[{ label:'New Reservation', onclick:'openReservationModal()', primary:true }] }));
   pagerHTML('resPager', s.page, s.pageSize, s.total, 'goResPage');
+}
+
+/* ---------- cancel reservation (replaces destructive delete in normal use) ---------- */
+let cancellingReservationId = null;
+async function openCancelReservationModal(id){
+  cancellingReservationId = id;
+  const r = state.res.rows.find(x => x.id === id) || (await call(window.api.reservations.get, { id }, { silent:true }))?.data;
+  if (!r) return;
+  el('cancelResSummary').textContent = `${r.customer_name} · ${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}`;
+  el('cancelResReason').value = '';
+  openModal('modalCancelReservation');
+}
+async function confirmCancelReservation(){
+  if (!cancellingReservationId) return;
+  const reason = el('cancelResReason').value || undefined;
+  const r = await call(window.api.reservations.cancel, { id:cancellingReservationId, reason });
+  if (r){
+    toast('success','Reservation cancelled');
+    closeModal('modalCancelReservation');
+    if (el('modalReservation').classList.contains('show')) closeModal('modalReservation');
+    cancellingReservationId = null;
+    await Promise.all([renderReservations(), renderDashboard()]);
+  }
 }
 
 /* ---------------- CRM PANEL ---------------- */
@@ -3851,11 +4048,13 @@ async function renderCustomerList(){
     <tr class="clickable" tabindex="0" ondblclick="openCustomerModal(${c.id})" onkeydown="if(event.key==='Enter'){openCustomerModal(${c.id})}" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
-      <td>${c.passport_no ? escapeHtml(c.passport_no) : '—'}</td>
       <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
+      <td class="muted">${escapeHtml(c.created_by_label)}</td>
+      <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
+      <td>${statusTagHTML(c.status)}</td>
       <td class="muted">${fmtDate(c.created_at)}</td>
     </tr>`).join('')
-    : emptyRow(5, q
+    : emptyRow(7, q
         ? emptyState({ icon:'search', title:'No matching guests',
             actions:[{ label:'Clear search', onclick:"el('listSearch').value='';onListSearch()" }] })
         : emptyState({ icon:'guests', title:'No guests registered yet',
@@ -3864,13 +4063,6 @@ async function renderCustomerList(){
 }
 
 /* Change a reservation's state straight from the table. */
-async function setReservationStatus(id, status, ev){
-  ev?.stopPropagation();
-  closeAllRowMenus();
-  const r = await call(window.api.reservations.setStatus, { id, status });
-  if (r){ toast('success', `Marked ${statusMeta(status).label.toLowerCase()}`); await Promise.all([renderReservations(), renderDashboard()]); }
-}
-
 /* ---------------- NO RECORD ---------------- */
 let norecTimer = null;
 function onNorecSearch(){ clearTimeout(norecTimer); norecTimer = setTimeout(renderNoRecord, 220); }
@@ -4133,7 +4325,7 @@ async function openProfileDetail(id){
 
   const weeks = Math.max(1, daysBetween(p.created_at, new Date().toISOString()) / 7);
   el('pdStats').innerHTML = `
-    <div class="pd-stat"><div class="n">${guests.length}</div><div class="l">Assigned Guests</div></div>
+    <div class="pd-stat"><div class="n">${guests.length}</div><div class="l">Guests</div></div>
     <div class="pd-stat"><div class="n">${invited.length}</div><div class="l">Reservations Invited</div></div>
     <div class="pd-stat"><div class="n">${(invited.length/weeks).toFixed(1)}</div><div class="l">Avg Res / Week</div></div>
     <div class="pd-stat"><div class="n">${(guests.length/weeks).toFixed(1)}</div><div class="l">Avg Guests / Week</div></div>`;
@@ -4445,7 +4637,7 @@ async function openReservationModal(id){
     el('resCheckOut').value = r.check_out || '';
     el('resInvitedBy').value = r.invited_by_name || '';
     el('resNotes').value = r.reservation_note || '';
-    el('resDeleteBtn').style.display = 'flex';
+    el('resCancelResBtn').style.display = r.status === 'CANCELLED' ? 'none' : 'inline-flex';
   } else {
     el('resModalTitle').textContent = 'New Reservation';
     sel.value = '';
@@ -4453,7 +4645,7 @@ async function openReservationModal(id){
     el('resCheckOut').value = '';
     el('resInvitedBy').value = '';
     el('resNotes').value = '';
-    el('resDeleteBtn').style.display = 'none';
+    el('resCancelResBtn').style.display = 'none';
   }
   await onResCustomerChange();
   openModal('modalReservation');
