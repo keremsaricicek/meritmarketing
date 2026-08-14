@@ -661,22 +661,47 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
   width:376px; flex-shrink:0; position:sticky; top:calc(var(--topbar-h) + var(--sp-6));
   background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2);
   overflow:hidden; display:flex; flex-direction:column;
-  max-height:calc(100vh - var(--topbar-h) - 64px);
+  max-height:min(640px, calc(100vh - var(--topbar-h) - 64px));
+  transition:width .18s var(--ease);
 }
 .detail-panel.empty{
   display:grid; place-items:center; min-height:200px;
   color:var(--ink-3); font-size:var(--t-md); padding:var(--sp-6); text-align:center;
 }
-.detail-head{ padding:var(--sp-6) var(--sp-5) var(--sp-4); text-align:center; position:relative; flex-shrink:0; }
-.detail-edit-btn{
-  position:absolute; top:var(--sp-3); right:var(--sp-3);
+/* collapsed = a slim rail, not a hidden panel — the selected guest stays
+   visible in miniature and the table reclaims the freed width */
+.detail-panel.collapsed{ width:52px; }
+.detail-panel.collapsed .detail-head,
+.detail-panel.collapsed .card-tabs,
+.detail-panel.collapsed .card-body-scroll{ display:none; }
+.dp-rail{ display:none; }
+.detail-panel.collapsed .dp-rail{
+  display:flex; flex-direction:column; align-items:center; gap:var(--sp-3);
+  padding:var(--sp-4) 0; cursor:pointer; height:100%; width:100%;
+  background:none; border:none; color:inherit; font-family:inherit;
+}
+.dp-rail:hover{ background:var(--s1); }
+.dp-rail:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+.dp-rail-toggle{
+  width:26px; height:26px; border-radius:var(--r-1); color:var(--ink-3);
+  display:grid; place-items:center; flex-shrink:0;
+}
+.dp-rail:hover .dp-rail-toggle{ color:var(--ink); }
+.dp-rail-toggle svg{ width:13px; height:13px; }
+.dp-rail .avatar{ width:32px; height:32px; font-size:var(--t-sm); }
+.dp-rail-status.tag-dot{ width:7px; height:7px; }
+.detail-head{ padding:var(--sp-5) var(--sp-5) var(--sp-3); text-align:center; position:relative; flex-shrink:0; }
+.detail-edit-btn, .detail-collapse-btn{
+  position:absolute; top:var(--sp-3);
   width:28px; height:28px; border-radius:var(--r-1);
   background:transparent; border:1px solid transparent; color:var(--ink-3);
   display:grid; place-items:center; cursor:pointer; transition:.14s var(--ease);
 }
-.detail-edit-btn:hover{ background:var(--s2); color:var(--ink); }
-.detail-edit-btn svg{ width:13px; height:13px; }
-.gc-name{ font-size:var(--t-xl); font-weight:600; letter-spacing:-.3px; }
+.detail-edit-btn{ right:var(--sp-3); }
+.detail-collapse-btn{ left:var(--sp-3); }
+.detail-edit-btn:hover, .detail-collapse-btn:hover{ background:var(--s2); color:var(--ink); }
+.detail-edit-btn svg, .detail-collapse-btn svg{ width:13px; height:13px; }
+.gc-name{ font-size:var(--t-lg); font-weight:600; letter-spacing:-.3px; }
 .gc-fields{
   display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-top:var(--sp-4);
   background:var(--line); border:1px solid var(--line); border-radius:var(--r-1);
@@ -799,7 +824,7 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 }
 .avatar.lg{ width:56px; height:56px; font-size:var(--t-lg); }
 .avatar.xl{ width:68px; height:68px; font-size:var(--t-xl); }
-.avatar.xxl{ width:84px; height:84px; font-size:24px; margin:0 auto var(--sp-3); }
+.avatar.xxl{ width:64px; height:64px; font-size:20px; margin:0 auto var(--sp-3); }
 
 /* profile detail — an editorial header, then the record */
 .modal.modal-full .modal-body{ padding:0; }
@@ -1235,6 +1260,8 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   .dash-col{ grid-template-rows:auto; }
   .customer-layout{ flex-direction:column; }
   .detail-panel{ width:100%; position:static; max-height:none; }
+  .detail-panel.collapsed{ width:100%; max-height:none; }
+  .detail-panel.collapsed .dp-rail{ flex-direction:row; justify-content:center; padding:var(--sp-3); height:auto; }
   .split-grid, .split-grid.cols-3{ grid-template-columns:1fr; }
   .split-col + .split-col{ border-left:none; padding-left:0; padding-top:var(--sp-4); border-top:1px solid var(--line); }
 }
@@ -4649,9 +4676,20 @@ async function showCustomerDetail(customerId, panelId){
       <div class="tl-title">${escapeHtml(e.title)}</div></div>`).join('')}</div>`
       : emptyState({ icon:'check', title:'Nothing has happened yet' })}`;
 
-  panel.classList.remove('empty');
+  const statusM = statusMeta(c.status);
+  panel.classList.remove('empty', 'collapsed');
   panel.innerHTML = `
+    <button class="dp-rail" onclick="toggleDetailPanel('${panelId}')" title="Expand" aria-label="Expand guest panel">
+      <span class="dp-rail-toggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </span>
+      <div class="avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : initials(c.full_name)}</div>
+      <span class="${statusM.cls}"><span class="dp-rail-status tag-dot"></span></span>
+    </button>
     <div class="detail-head">
+      <button class="detail-collapse-btn" onclick="toggleDetailPanel('${panelId}')" title="Collapse" aria-label="Collapse guest panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <button class="detail-edit-btn" onclick="openCustomerModal(${c.id})" title="Edit">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       </button>
@@ -4683,6 +4721,11 @@ function switchCardTab(uid, name, btn){
   ['overview','stays','notes','timeline'].forEach(n => el(`${uid}_${n}`)?.classList.toggle('active', n === name));
   [...el(`${uid}_tabs`).children].forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+}
+/* collapsing is a pure display toggle — nothing is re-rendered, so the
+   selected guest and active card tab are exactly as left */
+function toggleDetailPanel(panelId){
+  el(panelId)?.classList.toggle('collapsed');
 }
 function showReservationCustomerDetail(id){ showCustomerDetail(id, 'resDetailPanel'); }
 /* client-side mirror of the server's can() — used only to decide which
