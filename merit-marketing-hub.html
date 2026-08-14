@@ -1705,7 +1705,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="view-switch" role="tablist" aria-label="Report type" id="reportTypeTabs">
       <button class="view-switch-tab active" role="tab" aria-selected="true" onclick="setReportType('reservations', this)">Reservations</button>
       <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('guests', this)">Guest Activity</button>
-      <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('marketing', this)">Marketing Performance</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="reportMarketingTab" onclick="setReportType('marketing', this)">Marketing Performance</button>
       <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('cold', this)">Cold Guests</button>
       <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setReportType('norecord', this)">No Record</button>
     </div>
@@ -4910,8 +4910,19 @@ async function renderReports(){
   }
   el('reportEmptyWrap').innerHTML = '';
   const scopeNote = el('reportScope');
-  if (scopeNote) scopeNote.textContent = state.session?.role === 'MARKETING'
-    ? 'Your own figures' : 'All marketing profiles';
+  const isMarketing = state.session?.role === 'MARKETING';
+  if (scopeNote) scopeNote.textContent = isMarketing ? 'Your own figures' : 'All marketing profiles';
+  /* Marketing Performance ranks every profile against each other — an
+     ADMIN/MANAGER view, same restriction as the Dashboard's Team panel */
+  el('reportMarketingTab').classList.toggle('hidden', isMarketing);
+  if (isMarketing && reportType === 'marketing'){
+    reportType = 'reservations';
+    document.querySelectorAll('#reportTypeTabs .view-switch-tab').forEach(b => {
+      b.classList.remove('active'); b.setAttribute('aria-selected','false');
+    });
+    const resTab = document.querySelector('#reportTypeTabs .view-switch-tab');
+    resTab?.classList.add('active'); resTab?.setAttribute('aria-selected','true');
+  }
   renderReportFilters();
 }
 function setReportType(type, btn){
