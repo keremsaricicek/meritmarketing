@@ -197,7 +197,7 @@ button{ font-family:inherit; }
 .sidebar{
   position:fixed; top:0; left:0; bottom:0; width:244px; max-width:82vw; z-index:75;
   background:var(--s0); border-right:1px solid var(--line);
-  display:flex; flex-direction:column; padding:var(--sp-3);
+  display:flex; flex-direction:column; padding:var(--sp-4) var(--sp-3) var(--sp-3);
   transform:translateX(-100%); transition:transform .2s var(--ease);
 }
 .sidebar.open{ transform:none; }
@@ -211,19 +211,22 @@ button{ font-family:inherit; }
 .sidebar-close-btn:hover{ background:var(--s3); color:var(--ink); }
 
 .session-chip{
-  display:flex; align-items:center; gap:var(--sp-2);
-  padding:var(--sp-2); margin-bottom:var(--sp-3);
-  border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:10px;
+  padding:6px 8px; margin-bottom:var(--sp-5);
+  border-bottom:1px solid var(--line); padding-bottom:var(--sp-4);
 }
 .sc-av{
-  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
   background:var(--s3); border:1px solid var(--line-2);
   display:grid; place-items:center; font-size:var(--t-sm); font-weight:600; color:var(--ink-3);
   background-size:cover; background-position:center;
 }
 .sc-info{ flex:1; min-width:0; }
-.sc-name{ font-size:var(--t-md); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sc-role{ font-size:var(--t-xs); color:var(--ink-3); margin-top:1px; }
+.sc-name{ font-size:var(--t-md); font-weight:600; letter-spacing:-.1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sc-role{
+  font-size:9.5px; font-weight:600; letter-spacing:var(--tracking-wide); text-transform:uppercase;
+  color:var(--ink-3); margin-top:3px;
+}
 .logout-btn{
   background:transparent; border:none; color:var(--ink-3); width:28px; height:28px;
   border-radius:var(--r-1); cursor:pointer; display:grid; place-items:center; flex-shrink:0;
@@ -234,27 +237,27 @@ button{ font-family:inherit; }
 
 /* navigation is grouped by task, not listed flat — ten destinations
    read faster as three small clusters than one long column */
-.nav-group{ display:flex; flex-direction:column; gap:1px; }
-.nav-group + .nav-group{ margin-top:var(--sp-4); }
+.nav-group{ display:flex; flex-direction:column; gap:2px; }
+.nav-group + .nav-group{ margin-top:var(--sp-5); }
 .nav-group-label{
-  font-size:9.5px; font-weight:600; letter-spacing:var(--tracking-wide); text-transform:uppercase;
-  color:var(--ink-3); padding:0 10px; margin-bottom:5px;
+  font-size:9.5px; font-weight:700; letter-spacing:var(--tracking-wide); text-transform:uppercase;
+  color:var(--ink-4); padding:0 11px; margin-bottom:7px;
 }
-.nav{ display:flex; flex-direction:column; gap:1px; }
+.nav{ display:flex; flex-direction:column; gap:2px; }
 .nav-item{
-  position:relative; display:flex; align-items:center; gap:var(--sp-2);
-  padding:8px 10px 8px 13px; border-radius:var(--r-1); cursor:pointer;
-  color:var(--ink-2); font-size:var(--t-md); user-select:none;
+  position:relative; display:flex; align-items:center; gap:10px;
+  padding:8px 11px 8px 14px; border-radius:var(--r-1); cursor:pointer;
+  color:var(--ink-2); font-size:var(--t-md); font-weight:500; letter-spacing:-.05px; user-select:none;
   transition:background .12s var(--ease), color .12s var(--ease);
 }
-.nav-item .dot{ width:4px; height:4px; border-radius:50%; background:var(--ink-4); flex-shrink:0; }
+.nav-item .dot{ width:4px; height:4px; border-radius:50%; background:var(--ink-4); flex-shrink:0; transition:background .12s var(--ease); }
 .nav-item:hover{ background:var(--s2); color:var(--ink); }
 .nav-item:focus-visible{ outline-offset:-2px; }
 /* active state is a precise 2px accent rule, not a gray highlight fill —
    it reads as "you are here", not "this is selected in a list" */
 .nav-item.active{ background:var(--accent-soft); color:var(--ink); font-weight:600; }
 .nav-item.active::before{
-  content:""; position:absolute; left:0; top:6px; bottom:6px; width:2px;
+  content:""; position:absolute; left:0; top:7px; bottom:7px; width:2px;
   border-radius:1px; background:var(--accent);
 }
 .nav-item.active .dot{ background:var(--accent); }
@@ -266,10 +269,10 @@ button{ font-family:inherit; }
 .nav-badge.show{ display:flex; }
 .nav-badge.has{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
 .sidebar-footer{
-  margin-top:auto; padding:var(--sp-3) 6px 2px; border-top:1px solid var(--line);
-  font-size:var(--t-xs); color:var(--ink-3);
+  margin-top:auto; padding:var(--sp-4) 11px 2px; border-top:1px solid var(--line);
+  font-size:10.5px; color:var(--ink-4); letter-spacing:.1px;
 }
-.sidebar-footer b{ color:var(--ink-2); font-weight:500; }
+.sidebar-footer b{ color:var(--ink-3); font-weight:600; }
 
 /* ------------------------------------------------------------------ */
 /* 04 · BUTTONS — text first, wells only where an action must lead     */
@@ -677,7 +680,18 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .gc-field{ background:var(--s0); padding:9px 11px; min-width:0; }
 .gf-l{ font-size:var(--t-xs); color:var(--ink-3); letter-spacing:var(--tracking-label); text-transform:uppercase; }
 .gf-v{ font-size:var(--t-md); margin-top:2px; overflow-wrap:anywhere; }
-.gi-quick-actions{ display:flex; flex-wrap:wrap; gap:var(--sp-2); margin-bottom:var(--sp-4); }
+/* plain text actions, not buttons — a rule-separated row consistent with
+   the stat-divider pattern used elsewhere (.pd-stat + .pd-stat) */
+.gi-quick-actions{ display:flex; flex-wrap:wrap; align-items:center; margin-bottom:var(--sp-4); }
+.gi-action{
+  background:none; border:none; padding:0 var(--sp-3); margin:1px 0; cursor:pointer;
+  font-family:inherit; font-size:var(--t-sm); font-weight:600; color:var(--ink-2);
+  letter-spacing:.05px; line-height:1.4; transition:color .14s var(--ease);
+}
+.gi-action:first-child{ padding-left:0; }
+.gi-action + .gi-action{ border-left:1px solid var(--line); }
+.gi-action:hover{ color:var(--accent); }
+.gi-action:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:2px; }
 .gi-facts{
   display:grid; grid-template-columns:1fr 1fr; gap:1px;
   background:var(--line); border:1px solid var(--line); border-radius:var(--r-1);
@@ -807,6 +821,8 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .pd-stat .n{ font-size:24px; font-weight:500; letter-spacing:-.6px; color:var(--ink); }
 .pd-stat .l{ font-size:var(--t-xs); color:var(--ink-3); margin-top:5px; }
 
+.pd-pane{ display:none; }
+.pd-pane.active{ display:block; animation:rise .16s var(--ease); }
 .split-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-8); }
 .split-grid.cols-3{ grid-template-columns:repeat(3,1fr); }
 .split-col{ min-width:0; }
@@ -2057,37 +2073,47 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         </div>
       </div>
       <div class="pd-body">
-        <div class="pd-stats" id="pdStats"></div>
-        <div class="split-grid cols-3">
-          <div class="split-col">
-            <div class="split-col-head">
-              <div class="split-col-title">Reservations Invited <span class="count-pill" id="pdInvitedCount">0</span></div>
-              <button class="btn-link" onclick="exportProfileSection('invited')">Export</button>
-            </div>
-            <div class="split-filter" id="pdInvitedFilter" role="tablist" aria-label="Period">
-              <button class="active" onclick="setPdInvitedPeriod('30')">30D</button>
-              <button onclick="setPdInvitedPeriod('90')">3M</button>
-              <button onclick="setPdInvitedPeriod('180')">6M</button>
-              <button onclick="setPdInvitedPeriod('all')">ALL</button>
-            </div>
-            <div class="split-list" id="pdInvitedList"></div>
+        <div class="view-switch" role="tablist" aria-label="Profile view" id="pdViewTabs">
+          <button class="view-switch-tab active" role="tab" aria-selected="true" onclick="setPdView('overview', this)">Overview</button>
+          <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setPdView('invited', this)">Reservations Invited<span class="count-pill" id="pdInvitedCount">0</span></button>
+          <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setPdView('guests', this)">Assigned Guests<span class="count-pill" id="pdGuestCount">0</span></button>
+          <button class="view-switch-tab" role="tab" aria-selected="false" onclick="setPdView('customers', this)">Customer List<span class="count-pill" id="pdCustCount">0</span></button>
+        </div>
+
+        <div class="pd-pane active" id="pdPane_overview">
+          <div class="pd-stats" id="pdStats"></div>
+        </div>
+
+        <div class="pd-pane" id="pdPane_invited">
+          <div class="split-col-head">
+            <div class="split-col-title">Reservations Invited</div>
+            <button class="btn-link" onclick="exportProfileSection('invited')">Export</button>
           </div>
-          <div class="split-col">
-            <div class="split-col-head">
-              <div class="split-col-title">Assigned Guests <span class="count-pill" id="pdGuestCount">0</span></div>
-              <button class="btn-link" onclick="exportProfileSection('guests')">Export</button>
-            </div>
-            <div class="setting-hint" style="margin-bottom:var(--sp-3)">Guests currently assigned to this profile.</div>
-            <div class="split-list" id="pdGuestList"></div>
+          <div class="split-filter" id="pdInvitedFilter" role="tablist" aria-label="Period">
+            <button class="active" onclick="setPdInvitedPeriod('30')">30D</button>
+            <button onclick="setPdInvitedPeriod('90')">3M</button>
+            <button onclick="setPdInvitedPeriod('180')">6M</button>
+            <button onclick="setPdInvitedPeriod('all')">ALL</button>
           </div>
-          <div class="split-col">
-            <div class="split-col-head">
-              <div class="split-col-title">Customer List <span class="count-pill" id="pdCustCount">0</span></div>
-              <button class="btn-link" onclick="exportProfileSection('customers')">Export</button>
-            </div>
-            <div class="setting-hint" style="margin-bottom:var(--sp-3)">Every guest this profile has created, invited, or is assigned to.</div>
-            <div class="split-list" id="pdCustList"></div>
+          <div class="split-list" id="pdInvitedList"></div>
+        </div>
+
+        <div class="pd-pane" id="pdPane_guests">
+          <div class="split-col-head">
+            <div class="split-col-title">Assigned Guests</div>
+            <button class="btn-link" onclick="exportProfileSection('guests')">Export</button>
           </div>
+          <div class="setting-hint" style="margin-bottom:var(--sp-3)">Guests currently assigned to this profile.</div>
+          <div class="split-list" id="pdGuestList"></div>
+        </div>
+
+        <div class="pd-pane" id="pdPane_customers">
+          <div class="split-col-head">
+            <div class="split-col-title">Customer List</div>
+            <button class="btn-link" onclick="exportProfileSection('customers')">Export</button>
+          </div>
+          <div class="setting-hint" style="margin-bottom:var(--sp-3)">Every guest this profile has created, invited, or is assigned to.</div>
+          <div class="split-list" id="pdCustList"></div>
         </div>
       </div>
     </div>
@@ -4534,10 +4560,10 @@ async function showCustomerDetail(customerId, panelId){
      server enforces, so nothing here promises an action the API refuses. */
   const overviewHTML = `
     <div class="gi-quick-actions">
-      ${can1('reservations.create') ? `<button class="btn btn-outline btn-sm" onclick="openReservationModal(null, ${c.id})">ADD RESERVATION</button>` : ''}
-      ${can1('crmNotes.create') ? `<button class="btn btn-outline btn-sm" onclick="openCrmNoteModal(${c.id})">ADD CRM NOTE</button>` : ''}
-      ${can1('customers.update') ? `<button class="btn btn-outline btn-sm" onclick="openCustomerModal(${c.id})">EDIT GUEST</button>` : ''}
-      ${canAssign() ? `<button class="btn btn-outline btn-sm" onclick="openAssignModal(${c.id})">REASSIGN</button>` : ''}
+      ${can1('reservations.create') ? `<button class="gi-action" onclick="openReservationModal(null, ${c.id})">Add Reservation</button>` : ''}
+      ${can1('crmNotes.create') ? `<button class="gi-action" onclick="openCrmNoteModal(${c.id})">Add CRM Note</button>` : ''}
+      ${can1('customers.update') ? `<button class="gi-action" onclick="openCustomerModal(${c.id})">Edit Guest</button>` : ''}
+      ${canAssign() ? `<button class="gi-action" onclick="openAssignModal(${c.id})">Reassign</button>` : ''}
     </div>
     <div class="gi-facts">
       <div class="gc-field"><div class="gf-l">Phone</div><div class="gf-v">${c.phone ? escapeHtml(c.phone) : '—'}</div></div>
@@ -4740,11 +4766,17 @@ function periodFromDays(period){
   if (period === 'all') return '';
   return new Date(Date.now() - Number(period) * 86400000).toISOString().slice(0,10);
 }
+function setPdView(view, btn){
+  ['overview','invited','guests','customers'].forEach(v => el(`pdPane_${v}`)?.classList.toggle('active', v === view));
+  [...el('pdViewTabs').children].forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+  if (btn){ btn.classList.add('active'); btn.setAttribute('aria-selected','true'); }
+}
 async function openProfileDetail(id){
   const p = state.profiles.find(x => x.id === id);
   if (!p) return;
   currentDetailProfileId = id;
   pdInvitedPeriod = '30';
+  setPdView('overview', el('pdViewTabs').children[0]);
   const inactive = p.employment_status === 'inactive';
 
   const url = photoUrl(p.photo_path);
