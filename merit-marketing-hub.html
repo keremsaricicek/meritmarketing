@@ -152,7 +152,7 @@ button{ font-family:inherit; }
   display:grid; place-items:center; font-size:var(--t-sm); font-weight:600;
   letter-spacing:0;
 }
-.brand-logo{ width:26px; height:26px; border-radius:var(--r-1); object-fit:cover; display:none; flex-shrink:0; }
+.brand-logo{ width:26px; height:26px; border-radius:var(--r-1); object-fit:contain; display:none; flex-shrink:0; }
 .brand-text{
   font-size:var(--t-md); font-weight:600; letter-spacing:-.1px; white-space:nowrap;
   display:flex; align-items:baseline; gap:var(--sp-2);
@@ -345,7 +345,10 @@ button{ font-family:inherit; }
 /* ------------------------------------------------------------------ */
 .main{
   padding:calc(var(--topbar-h) + var(--tabstrip-h) + var(--sp-6)) var(--pad-x) var(--sp-10);
-  max-width:1680px; margin:0 auto;
+  /* wide enough that none of the three target desktop widths (1920/1600/1366)
+     ever hit this cap — it only stops the workspace from stretching absurdly
+     wide on a larger display than the app is designed for */
+  max-width:2200px; margin:0 auto;
 }
 
 /* the workspace strip is a second hairline-bordered row under the top
@@ -504,11 +507,16 @@ button{ font-family:inherit; }
    are unchanged and only phones/small tablets get the scrolling body —
    the alternative, at any width, was columns silently clipped by
    .table-wrap's own overflow:hidden with no way to reach them. */
-.table-wrap{ background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden; }
+.table-wrap{ background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); }
 .table-scroll{ min-width:0; }
 table{ width:100%; border-collapse:collapse; table-layout:fixed; }
+/* sticky on the row-group itself, not on each th — per-cell sticky inside a
+   table-layout:fixed table was mispainting one row's worth of content under
+   the header on first paint in Chromium once the offset grew past a row's
+   height, even though every cell's own computed layout rect was correct */
+thead{ position:sticky; top:calc(var(--topbar-h) + var(--tabstrip-h)); z-index:5; }
 thead th{
-  position:sticky; top:var(--topbar-h); z-index:5; background:var(--s1);
+  background:var(--s1);
   text-align:left; font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label);
   text-transform:uppercase; color:var(--ink-3);
   height:40px; padding:0 var(--sp-3); border-bottom:1px solid var(--line-2); white-space:nowrap;
@@ -665,10 +673,10 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .customer-layout{ display:flex; gap:var(--sp-5); align-items:flex-start; }
 .customer-layout .table-wrap{ flex:1; min-width:0; width:100%; }
 .detail-panel{
-  width:376px; flex-shrink:0; position:sticky; top:calc(var(--topbar-h) + var(--sp-6));
+  width:376px; flex-shrink:0; position:sticky; top:calc(var(--topbar-h) + var(--tabstrip-h) + var(--sp-6));
   background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2);
   overflow:hidden; display:flex; flex-direction:column;
-  max-height:min(640px, calc(100vh - var(--topbar-h) - 64px));
+  max-height:min(640px, calc(100vh - var(--topbar-h) - var(--tabstrip-h) - 64px));
   transition:width .18s var(--ease);
 }
 .detail-panel.empty{
@@ -917,7 +925,11 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
    informational column (notifications + recent activity) trails —
    composition carries the hierarchy, not four equal-weight cards */
 .dash-grid{ display:grid; grid-template-columns:1.32fr 1fr; gap:var(--sp-5); align-items:start; margin-top:var(--sp-6); }
-.dash-grid.has-rank{ grid-template-columns:1.15fr .95fr .95fr; }
+/* the Team column only ever holds a short top-6 ranking, so it doesn't
+   need — and shouldn't claim — an equal share of the newly-reclaimed
+   width; giving Needs You/Activity the room keeps Team from turning
+   into a mostly-empty box on wide screens */
+.dash-grid.has-rank{ grid-template-columns:1.2fr 1.05fr .75fr; }
 .dash-col{ display:grid; grid-template-rows:auto auto auto; gap:var(--sp-3) var(--sp-4); min-width:0; }
 .dash-col > .dash-section-label{ margin-bottom:0; }
 .dash-col .panel{ min-height:0; }
@@ -1027,6 +1039,7 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .field input:disabled{ background:var(--s2); color:var(--ink-3); cursor:not-allowed; }
 .field input::placeholder, .field textarea::placeholder{ color:var(--ink-3); }
 .field-row{ display:flex; gap:var(--sp-3); }
+.field-hint{ font-size:11.5px; color:var(--ink-3); margin-top:6px; }
 .field-row .field{ flex:1; min-width:0; }
 .field-error{ font-size:var(--t-xs); color:var(--danger); margin-top:5px; display:none; }
 .field-error.show{ display:block; }
@@ -1312,6 +1325,9 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <div class="login-card" id="loginCard">
     <div class="login-brand">
       <div class="brand-mark" id="loginFallback">M</div>
+      <img class="brand-logo" src="./logo.png" alt=""
+           onload="this.style.display='block'; el('loginFallback').style.display='none'"
+           onerror="this.remove()">
     </div>
     <h1 class="login-title">MERIT MARKETING HUB</h1>
     <div class="login-sub">Casino CRM</div>
@@ -1328,7 +1344,12 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   </div>
 
   <div class="login-card" id="setupCard" style="display:none;">
-    <div class="login-brand"><div class="brand-mark">M</div></div>
+    <div class="login-brand">
+      <div class="brand-mark" id="setupFallback">M</div>
+      <img class="brand-logo" src="./logo.png" alt=""
+           onload="this.style.display='block'; el('setupFallback').style.display='none'"
+           onerror="this.remove()">
+    </div>
     <h1 class="login-title">Welcome</h1>
     <div class="login-sub">Create the administrator account</div>
     <div class="setup-steps"><div class="setup-dot active"></div><div class="setup-dot active"></div></div>
@@ -1361,6 +1382,9 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   <div class="topbar-brand">
     <button class="app-menu-trigger" id="appMenuTrigger" onclick="toggleAppMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="appMenu" title="Application menu">
       <div class="brand-mark" id="brandFallback" aria-hidden="true">M</div>
+      <img class="brand-logo" src="./logo.png" alt="" aria-hidden="true"
+           onload="this.style.display='block'; el('brandFallback').style.display='none'"
+           onerror="this.remove()">
     </button>
     <div class="brand-text">MERIT MARKETING HUB<small>Casino CRM</small></div>
   </div>
@@ -1568,7 +1592,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
             <option value="CHECKED_IN">Checked in</option>
             <option value="COMPLETED">Completed</option>
           </select>
-          <div class="fm-title">Invited By</div>
+          <div class="fm-title" id="resFInvitedLabel">Invited By</div>
           <select class="fm-input" id="resFInvited" onchange="applyResFilters()"></select>
           <div class="fm-title">Check-in Between</div>
           <div class="fm-row">
@@ -2018,6 +2042,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <label for="resInvitedBy">Invited By</label>
           <input type="text" id="resInvitedBy" list="profileNames">
           <datalist id="profileNames"></datalist>
+          <div class="field-hint" id="resInvitedByLockedHint" style="display:none;">Reservations you create are always attributed to you.</div>
         </div>
         <div class="field">
           <label for="resNotes">Reservation Note</label>
@@ -2482,7 +2507,16 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 const KEY = 'merit.preview.v1';
 const ROLES = ['ADMIN','MANAGER','MARKETING'];
 const nowISO = () => new Date().toISOString();
-const today = () => nowISO().slice(0,10);
+/* The operational date is the local calendar date of the Windows PC running
+   the app, never a UTC conversion — toISOString().slice(0,10) silently
+   rolls the date backward/forward across the local-to-UTC gap (e.g. every
+   evening in Türkiye, UTC+3), which used to shift reservation lifecycle
+   status (UPCOMING/CHECKED_IN/COMPLETED) a day early. This is the one
+   authoritative "what day is it" function on this side of the app. */
+const localYMD = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const today = () => localYMD();
+const daysAgoYMD = (n) => { const d = new Date(); d.setDate(d.getDate()-n); return localYMD(d); };
 const ok = (data) => Promise.resolve({ ok:true, data });
 const fail = (code, message, extra = {}) => Promise.resolve({ ok:false, error:{ code, message, ...extra } });
 
@@ -2714,8 +2748,8 @@ function generateNotifications(profileId){
 
 /* ---------- demo content so the preview is not an empty shell ---------- */
 function seedDemo(adminProfileId){
-  const ago = (n) => { const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); };
-  const ahead = (n) => { const d = new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+  const ago = (n) => daysAgoYMD(n);
+  const ahead = (n) => daysAgoYMD(-n);
   const mk = (name, nat, phone, inactive) => {
     const p = { id:nextId('profile'), first_name:name.split(' ')[0], last_name:name.split(' ').slice(1).join(' '),
       full_name:name, passport_no:'U'+Math.floor(10000000+Math.random()*89999999), phone, email:'',
@@ -2862,6 +2896,14 @@ function decoratedProfiles(includeStaff){
     customer_count: db.customers.filter(c => !c.deleted_at && c.marketing_profile_id === p.id).length
   })).sort((a,b) => (a.employment_status === 'inactive') - (b.employment_status === 'inactive')
                  || a.full_name.localeCompare(b.full_name,'tr'));
+}
+/* profiles.list/get are also how name pickers resolve "who is this marketer",
+   so MARKETING keeps read access to the roster — but the counts are another
+   marketer's real business performance, which stays out of reach for them
+   at the API layer, not just behind a hidden report tab (spec §7/§11). */
+function maskOtherProfileMetrics(rows){
+  if (session?.role !== 'MARKETING') return rows;
+  return rows.map(p => p.id === session.profile_id ? p : { ...p, reservation_count:null, customer_count:null });
 }
 
 /* Every guest this profile has ever touched — created, currently assigned,
@@ -3083,8 +3125,12 @@ const api = {
       const c = db.customers.find(x => x.id === Number(p.customerId) && !x.deleted_at);
       if (!c) return fail('VALIDATION','Guest not found.','customerId');
       const warnings = [];
-      const prof = p.invitedByProfileId ? profileById(Number(p.invitedByProfileId)) : null;
-      if (p.invitedByProfileId && !prof) return fail('VALIDATION','Selected marketing profile no longer exists.','invitedByProfileId');
+      /* MARKETING can only ever invite as themselves — enforced here, not
+         just hidden in the UI, so a crafted request can't attribute a
+         reservation to (or hide it under) another marketer's scope. */
+      const invitedByInput = session?.role === 'MARKETING' ? session.profile_id : p.invitedByProfileId;
+      const prof = invitedByInput ? profileById(Number(invitedByInput)) : null;
+      if (invitedByInput && !prof) return fail('VALIDATION','Selected marketing profile no longer exists.','invitedByProfileId');
       if (prof && prof.employment_status === 'inactive') warnings.push('The selected marketing profile is no longer active.');
       const conflicts = custRes(c.id).filter(r => !r.cancelled_at && r.check_in <= co && r.check_out >= ci)
         .map(r => ({ id:r.id, check_in:r.check_in, check_out:r.check_out }));
@@ -3111,7 +3157,10 @@ const api = {
         return fail('CONFLICT','This guest already has a reservation overlapping those dates.', { field:'checkIn', conflicts });
       const prev = r.customer_id;
       r.customer_id = cid; r.check_in = ci; r.check_out = co;
-      if (p.invitedByProfileId !== undefined) r.invited_by_profile_id = p.invitedByProfileId || null;
+      /* MARKETING can never reassign a reservation's Invited By to someone
+         else, or to nobody — enforced here regardless of what the client sent. */
+      if (session?.role === 'MARKETING') r.invited_by_profile_id = session.profile_id;
+      else if (p.invitedByProfileId !== undefined) r.invited_by_profile_id = p.invitedByProfileId || null;
       if (p.note !== undefined) r.reservation_note = p.note || null;
       /* status is never taken from the client — it is always the derived
          date state, so editing dates can never silently resurrect or
@@ -3138,9 +3187,11 @@ const api = {
   },
 
   profiles: {
-    list: (p = {}) => { try { guard('profiles.read'); } catch (e) { return fail(e.code, e.message); } return ok(decoratedProfiles(p.includeStaff)); },
+    list: (p = {}) => { try { guard('profiles.read'); } catch (e) { return fail(e.code, e.message); }
+      return ok(maskOtherProfileMetrics(decoratedProfiles(p.includeStaff))); },
     get: (p) => { try { guard('profiles.read'); } catch (e) { return fail(e.code, e.message); }
-      return ok(decoratedProfiles(true).find(x => x.id === Number(p.id)) || null); },
+      const found = decoratedProfiles(true).find(x => x.id === Number(p.id)) || null;
+      return ok(found ? maskOtherProfileMetrics([found])[0] : null); },
     create: (p) => { try { guard('profiles.create'); } catch (e) { return fail(e.code, e.message); }
       const name = String(p.fullName || '').trim();
       if (!name) return fail('VALIDATION','Name is required.','fullName');
@@ -3230,7 +3281,7 @@ const api = {
          Guests, Active Marketing, Cold, No Record) describe the present and
          stay period-independent, and Upcoming stays forward-looking */
       const periodDays = p.periodDays && p.periodDays !== 'all' ? Number(p.periodDays) : null;
-      const periodFrom = periodDays ? new Date(Date.now() - periodDays * 86400000).toISOString().slice(0,10) : null;
+      const periodFrom = periodDays ? daysAgoYMD(periodDays) : null;
       const periodRows = periodFrom ? rs.filter(r => r.check_in >= periodFrom) : rs;
       const pendingRows = rs.filter(r => ['UPCOMING','CHECKED_IN'].includes(r.status) && r.check_in >= today())
         .sort((a,b) => a.check_in.localeCompare(b.check_in));
@@ -3243,7 +3294,11 @@ const api = {
           upcomingOut: rs.filter(r => r.check_out >= today() && daysSince(r.check_out) >= -7).length,
           activeMarketing: db.profiles.filter(p => !p.deleted_at && p.employment_status === 'active').length,
           cold: cs.filter(c => c.status === 'COLD').length,
-          noRecord: cs.filter(c => c.reservation_count === 0 && c.note_count === 0).length,
+          /* must match the No Record screen's own definition exactly (registered +
+             zero reservations + zero notes) — this used to omit the registered
+             check, so an unregistered lead with no activity inflated the count
+             past what the No Record list (registeredOnly:true) actually shows */
+          noRecord: cs.filter(c => c.registered && c.reservation_count === 0 && c.note_count === 0).length,
           pending: pendingRows.length
         },
         pending: pendingRows.slice(0,8).map(r => ({ id:r.id, check_in:r.check_in, check_out:r.check_out,
@@ -3387,7 +3442,11 @@ const api = {
           Nights: Math.round((Date.parse(r.check_out)-Date.parse(r.check_in))/86400000),
           'Invited By':r.invited_by_name || '', Status:r.status, Note:r.reservation_note || '', Created:r.created_at }));
       } else if (p.entity === 'profiles'){
-        rows = decoratedProfiles().map(x => ({ Name:x.full_name, Passport:x.passport_no || '', Phone:x.phone || '',
+        /* decoratedProfiles() carries every marketer's real global counts —
+           masked the same way profiles.list/get are, so this export can't be
+           used to pull another marketer's performance data around the
+           hidden Marketing Performance report tab (spec §7/§11) */
+        rows = maskOtherProfileMetrics(decoratedProfiles()).map(x => ({ Name:x.full_name, Passport:x.passport_no || '', Phone:x.phone || '',
           Nationality:x.nationality || '', Status:x.employment_status,
           'Reservations Invited':x.reservation_count, Guests:x.customer_count, Created:x.created_at }));
       } else if (p.entity === 'audit_logs'){
@@ -3408,10 +3467,10 @@ const api = {
             Status:c.status, Reservations:c.reservation_count, Notes:c.note_count, Created:c.created_at }));
       } else if (p.entity === 'report_marketing'){
         const periodRows = filteredReservations({ pageSize:5000, from:q.from || '' });
-        rows = decoratedProfiles().map(x => {
+        rows = maskOtherProfileMetrics(decoratedProfiles()).map(x => {
           const periodReservations = periodRows.filter(r => r.invited_by_profile_id === x.id).length;
           return { Profile:x.full_name, Status:x.employment_status,
-            [`Reservations (${q.periodLabel || 'All Time'})`]: periodReservations,
+            [`Reservations (${q.periodLabel || 'All Time'})`]: x.customer_count === null ? null : periodReservations,
             'Guests Assigned':x.customer_count, 'Total Reservations Invited':x.reservation_count };
         });
       } else {
@@ -3456,7 +3515,13 @@ function escapeHtml(str){
 }
 function jsAttr(str){ return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function el(id){ return document.getElementById(id); }
-function todayYMD(){ return new Date().toISOString().slice(0,10); }
+/* Renderer-side mirror of the main process's local-date rule (spec §14) —
+   the local calendar date of the machine running the app, never a UTC
+   conversion. Keep this the ONLY "what day is it" helper on this side. */
+function todayYMD(d = new Date()){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function daysAgoYMD(n){ const d = new Date(); d.setDate(d.getDate()-n); return todayYMD(d); }
 function fmtDate(v){
   if (!v) return '—';
   const d = new Date(v);
@@ -3706,6 +3771,14 @@ async function applyRoleToChrome(){
   el('crmTabNoRecord')?.classList.toggle('hidden', !mayOpen('norecord'));
   el('crmSubmenuCustomerList')?.classList.toggle('hidden', !mayOpen('customerlist'));
   el('crmSubmenuNoRecord')?.classList.toggle('hidden', !mayOpen('norecord'));
+  /* MARKETING is already scoped server-side to their own invited reservations,
+     so an Invited By selector offering other marketers can only ever return
+     zero rows for any choice but themselves — hide it rather than leave a
+     control on screen that can't do anything useful. */
+  const marketingScoped = state.session?.role === 'MARKETING';
+  el('resFInvitedLabel')?.classList.toggle('hidden', marketingScoped);
+  el('resFInvited')?.classList.toggle('hidden', marketingScoped);
+  if (marketingScoped && state.res) state.res.invitedBy = '';
   const av = el('sessionAvatar');
   await resolvePhotos([state.session?.photo_path]).catch(() => {});
   const url = photoUrl(state.session?.photo_path);
@@ -4131,10 +4204,15 @@ async function runPaletteSearch(){
   const lower = q.toLowerCase();
   const items = defaultCommands().filter(c => c.title.toLowerCase().includes(lower));
 
+  /* MARKETING can't open Profiles and their profiles.list rows carry no
+     other marketer's real figures anymore (spec §7/§11) — searching people
+     would either be a dead end or show blank counts, so skip the category
+     for them entirely rather than surface something unusable/confusing */
+  const canSearchPeople = mayOpen('profiles');
   const [guests, reservations, profiles] = await Promise.all([
     call(window.api.customers.list, { search:q, pageSize:6 }, { silent:true }).catch(() => null),
     call(window.api.reservations.list, { search:q, pageSize:5 }, { silent:true }).catch(() => null),
-    Promise.resolve(state.profiles.filter(p => p.full_name.toLowerCase().includes(lower)).slice(0,4))
+    canSearchPeople ? Promise.resolve(state.profiles.filter(p => p.full_name.toLowerCase().includes(lower)).slice(0,4)) : Promise.resolve([])
   ]);
 
   (guests?.rows || []).forEach(c => items.push({
@@ -4145,7 +4223,7 @@ async function runPaletteSearch(){
     run:`openReservationModal(${r.id})` }));
   (profiles || []).forEach(p => items.push({
     kind:'Person', title:p.full_name, sub:`${p.reservation_count} invited · ${p.customer_count} guests`,
-    run: mayOpen('profiles') ? `openProfileDetail(${p.id})` : `switchTab('dashboard')` }));
+    run:`openProfileDetail(${p.id})` }));
 
   renderPalette(items);
 }
@@ -4611,6 +4689,16 @@ function clearCustFilters(){
   renderCustomers();
 }
 
+/* CRM Panel's three tabs share one dataset of guests, and every pane's
+   DOM exists at once (only the active one is shown) — so a mutation that
+   can change any guest's record/marketing status must refresh all three,
+   not just whichever tab happened to be on screen when it fired. Calling
+   this instead of renderCustomers() alone is what keeps an already-open
+   No Record or Customer List tab from showing stale rows after a note,
+   assignment, or edit made from somewhere else (spec §19/§21). */
+async function refreshCrmViews(){
+  await Promise.all([renderCustomers(), renderCustomerList(), renderNoRecord()]);
+}
 async function renderCustomers(){
   const s = state.cust;
   s.search = el('custSearch')?.value.trim() || '';
@@ -5066,7 +5154,7 @@ let currentDetailProfileId = null;
 let pdInvitedPeriod = '30';
 function periodFromDays(period){
   if (period === 'all') return '';
-  return new Date(Date.now() - Number(period) * 86400000).toISOString().slice(0,10);
+  return daysAgoYMD(Number(period));
 }
 function setPdView(view, btn){
   ['overview','invited','guests','customers'].forEach(v => el(`pdPane_${v}`)?.classList.toggle('active', v === view));
@@ -5271,6 +5359,17 @@ function setReportType(type, btn){
 }
 function fillProfileSelect(id){
   const sel = el(id); if (!sel) return;
+  /* every report a MARKETING user can reach is already scoped to their own
+     profile server-side, so a selector offering other marketers is dead
+     weight at best — lock it to self instead (spec §7) */
+  if (state.session?.role === 'MARKETING'){
+    const self = state.profiles.find(p => p.id === state.session.profile_id);
+    sel.innerHTML = `<option value="${state.session.profile_id}">${escapeHtml(self?.full_name || state.session.full_name || 'Me')}</option>`;
+    sel.value = String(state.session.profile_id);
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
   sel.innerHTML = '<option value="">All</option>' +
     state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('');
 }
@@ -5352,7 +5451,7 @@ async function runReport(){
         Reservations:c.reservation_count, Registered:fmtDate(c.created_at) }));
       reportExportEntity = 'customerlist'; reportExportParams = params;
     } else if (reportType === 'marketing'){
-      const from = reportPeriod === 'all' ? '' : new Date(Date.now() - Number(reportPeriod) * 86400000).toISOString().slice(0,10);
+      const from = reportPeriod === 'all' ? '' : daysAgoYMD(Number(reportPeriod));
       const periodLabel = DASH_PERIOD_LABEL[reportPeriod] || '30 Days';
       const data = await call(window.api.reservations.list, { from, pageSize:1000 }, { silent:true });
       const tally = {};
@@ -5601,6 +5700,14 @@ async function openReservationModal(id, presetCustomerId){
     el('resNotes').value = '';
     el('resCancelResBtn').style.display = 'none';
   }
+  /* MARKETING is already scoped to their own invited-by profile everywhere
+     they can see a reservation, so letting them retype a different name
+     here would be meaningless at best and a scope-changing mistake at
+     worst — lock it to self and let the API enforce it authoritatively. */
+  const marketingLock = state.session?.role === 'MARKETING';
+  el('resInvitedBy').disabled = marketingLock;
+  el('resInvitedByLockedHint').style.display = marketingLock ? '' : 'none';
+  if (marketingLock) el('resInvitedBy').value = state.session.full_name || '';
   await onResCustomerChange();
   openModal('modalReservation');
 }
@@ -5692,17 +5799,6 @@ async function saveReservation(force){
   });
 }
 
-async function deleteReservation(){
-  if (editingReservationId === null) return;
-  if (!await confirmDialog({ title:'Delete reservation', message:'Delete this reservation?',
-      detail:'This cannot be undone.', confirmLabel:'Delete' })) return;
-  await call(window.api.reservations.delete, { id: editingReservationId });
-  closeModal('modalReservation');
-  editingReservationId = null;
-  toast('success','Reservation deleted');
-  await Promise.all([renderReservations(), renderDashboard()]);
-}
-
 /* ---------------- CUSTOMER ---------------- */
 let editingCustomerId = null;
 let pendingCustomerPhoto = null;
@@ -5761,7 +5857,7 @@ async function saveCustomer(){
       closeModal('modalCustomer');
       editingCustomerId = null;
       toast('success','Customer saved');
-      await Promise.all([renderCustomers(), renderCustomerList(), renderDashboard()]);
+      await Promise.all([refreshCrmViews(), renderDashboard()]);
     } catch (e) {
       if (!applyServerError(e, { code:'custId', fullName:'custName', passportNo:'custPassport', email:'custPhone' })){
         toast('error','Customer not saved', e.message);
@@ -5788,7 +5884,7 @@ async function deleteCustomer(){
     const p = el(pid);
     if (p){ p.classList.add('empty'); p.innerHTML = 'No guest selected'; }
   });
-  await Promise.all([renderCustomers(), renderCustomerList(), renderReservations(), renderDashboard()]);
+  await Promise.all([refreshCrmViews(), renderReservations(), renderDashboard()]);
 }
 
 /* ---------------- PHOTO PICK + CROP ----------------
@@ -5993,7 +6089,7 @@ async function saveCrmNote(){
       closeModal('modalCrmNote');
       toast('success','Note added');
       await showCustomerDetail(crmNoteCustomerId, document.querySelector('#page-customers.active') ? 'detailPanel' : 'resDetailPanel');
-      await renderCustomers();
+      await refreshCrmViews();
     } catch (e){ if (!applyServerError(e, { note:'crmNoteText' })) toast('error','Note not saved', e.message); }
   });
 }
@@ -6047,7 +6143,7 @@ async function saveRecord(){
         { customerId:Number(id), note, noteDate: el('recDate').value || todayYMD() }, { silent:true });
       closeModal('modalRecord');
       toast('success','Record saved');
-      await Promise.all([renderCustomers(), renderDashboard()]);
+      await Promise.all([refreshCrmViews(), renderDashboard()]);
       refreshNotifBadge();
     } catch (e){ toast('error','Record not saved', e.message); }
   });
@@ -6083,7 +6179,7 @@ async function saveAssign(){
     await call(window.api.customers.assign, { id:assigningCustomerId, profileId:Number(to) });
     closeModal('modalAssign');
     toast('success','Guest assigned');
-    await Promise.all([renderCustomers(), renderDashboard()]);
+    await Promise.all([refreshCrmViews(), renderDashboard()]);
     refreshNotifBadge();
   });
 }
