@@ -3873,6 +3873,20 @@ async function setCrmView(view, btn){
   if (view === 'overview') await renderCustomers();
   else if (view === 'customerlist') await renderCustomerList();
   else if (view === 'norecord') await renderNoRecord();
+  /* No Record's tab/submenu badges must reflect the real count as soon as
+     CRM Panel opens, not only after the guest actually visits that tab. */
+  if (view !== 'norecord') refreshNoRecordBadge();
+}
+async function refreshNoRecordBadge(){
+  const data = await call(window.api.customers.list,
+    { noRecord:true, registeredOnly:true, pageSize:1 }, { silent:true });
+  if (!data) return;
+  const badge = el('norecBadge');
+  if (badge){ badge.textContent = data.total; badge.classList.toggle('has', data.total > 0); badge.classList.toggle('show', data.total > 0); }
+  const tabBadge = el('norecTabBadge');
+  if (tabBadge){ tabBadge.textContent = data.total; }
+  const submenuBadge = el('norecSubmenuBadge');
+  if (submenuBadge){ submenuBadge.textContent = data.total; }
 }
 async function goCrmView(view){
   await switchTab('customers');
@@ -4291,6 +4305,12 @@ async function renderDashboard(){
       <div class="sc-n">${c.n}${c.flag ? '<span class="sc-flag"></span>' : ''}</div>
       <div class="sc-sub">${c.sub}</div>
     </div>`).join('');
+
+  /* Dashboard always reloads fresh, so piggyback the No Record tab/submenu
+     badges on its live count rather than leaving them stale until the guest
+     opens CRM Panel's No Record tab directly. */
+  const norecTabBadge = el('norecTabBadge'); if (norecTabBadge) norecTabBadge.textContent = s.noRecord;
+  const norecSubmenuBadge = el('norecSubmenuBadge'); if (norecSubmenuBadge) norecSubmenuBadge.textContent = s.noRecord;
 
   await resolvePhotos([...d.recent.map(r => r.photo_path), ...d.attention.map(a => a.photo_path)]);
 
