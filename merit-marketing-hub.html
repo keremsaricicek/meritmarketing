@@ -414,24 +414,37 @@ button{ font-family:inherit; }
   color:var(--ink-3); padding-bottom:var(--sp-2);
 }
 .cal-weekdays > div{ text-align:center; padding:4px 0; }
+/* the grid line uses --line-2 rather than --line: a boundary needs to
+   separate cells clearly in both palettes, and plain --line reads as
+   near-invisible in dark mode where it sits only one step off --s0 */
 .cal-grid{
   display:grid; grid-template-columns:repeat(7,1fr); gap:1px;
-  background:var(--line); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden;
+  background:var(--line-2); border:1px solid var(--line-2); border-radius:var(--r-2); overflow:hidden;
 }
 .cal-day{
   background:var(--s0); min-height:92px; padding:8px; cursor:pointer;
   display:flex; flex-direction:column; transition:background .12s var(--ease);
 }
-.cal-day:hover{ background:var(--s1); }
-.cal-day.outside{ color:var(--ink-4); cursor:default; }
+/* --s2 is the surface that reliably reads as "one step up" in both
+   palettes (the same step used by .stat-cell/.pd-stat hover) — --s1 was
+   used here before, which is a step *down* in dark mode and made a
+   hovered day fade toward the page instead of standing off it */
+.cal-day:hover{ background:var(--s2); }
+/* outside-month days recede into the page rather than just dimming their
+   number — --s1 is the "receded" surface in both palettes */
+.cal-day.outside{ background:var(--s1); color:var(--ink-4); cursor:default; }
+.cal-day.outside:hover{ background:var(--s1); }
 .cal-day.outside .cal-day-n{ color:var(--ink-4); }
+/* today gets a full-cell ring, not just the badge on its number, so the
+   day still reads clearly as "today" even collapsed on small screens */
+.cal-day.today{ box-shadow:inset 0 0 0 1px var(--accent-line); }
 .cal-day.today .cal-day-n{
   color:var(--accent-ink); background:var(--accent); border-radius:50%;
   width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center;
 }
 .cal-day-n{ font-size:var(--t-sm); font-weight:600; }
 .cal-day-stats{ display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:auto; padding-top:8px; }
-.cal-stat{ display:inline-flex; align-items:center; font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.cal-stat{ display:inline-flex; align-items:center; font-size:10.5px; color:var(--ink-2); font-variant-numeric:tabular-nums; }
 .cal-stat .cal-dot{ margin-right:3px; }
 @media (max-width:760px){
   .cal-day{ min-height:64px; padding:6px; }
@@ -1066,6 +1079,12 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .field input:disabled{ background:var(--s2); color:var(--ink-3); cursor:not-allowed; }
 .field input::placeholder, .field textarea::placeholder{ color:var(--ink-3); }
 .field-row{ display:flex; gap:var(--sp-3); }
+/* pairs a text/select field with a small icon action (e.g. the profile
+   search trigger) without disturbing the field's own full-width sizing */
+.field-input-row{ display:flex; gap:6px; align-items:center; }
+.field-input-row input, .field-input-row select{ flex:1; min-width:0; }
+.field-input-row .field-input-btn{ flex-shrink:0; width:36px; height:36px; border:1px solid var(--line-2); border-radius:var(--r-1); }
+.field-input-row .field-input-btn:hover{ border-color:var(--accent-line); color:var(--accent); }
 .field-hint{ font-size:11.5px; color:var(--ink-3); margin-top:6px; }
 /* check-in/check-out read as one paired relationship, not two unrelated
    date fields — a quiet directional mark between them is enough */
@@ -1131,6 +1150,63 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .ep-meta{ font-size:var(--t-sm); color:var(--ink-3); margin-top:3px; line-height:1.5; }
 .ep-pills{ display:flex; gap:var(--sp-3); margin-top:var(--sp-2); flex-wrap:wrap; align-items:center; }
 .ep-pill{ font-size:var(--t-xs); color:var(--ink-3); }
+.ep-change{ flex-shrink:0; align-self:flex-start; }
+
+/* the entry point into the Customer/Profile Finder — a real Merit-branded
+   control (accent search icon, not a generic gray input) rather than a
+   plain <select> a guest could scroll for ten thousand rows */
+.finder-trigger{
+  width:100%; display:flex; align-items:center; gap:10px; height:44px;
+  padding:0 var(--sp-4); border:1px solid var(--line-2); border-radius:var(--r-1);
+  background:var(--s1); color:var(--ink-3); cursor:pointer; font-family:inherit;
+  font-size:var(--t-md); text-align:left; transition:.14s var(--ease);
+}
+.finder-trigger:hover, .finder-trigger:focus-visible{ border-color:var(--accent-line); color:var(--ink-2); background:var(--s2); }
+.finder-trigger svg{ width:16px; height:16px; color:var(--accent); flex-shrink:0; }
+.finder-trigger span{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.finder-trigger-sm{ height:36px; font-size:var(--t-sm); }
+.guest-new-link{ display:inline-block; margin-top:var(--sp-2); }
+
+/* ---- shared Finder overlay (customer + profile search) ---- */
+.finder-overlay{ z-index:150; }
+.modal.finder-modal{ width:640px; max-height:78vh; }
+.finder-search-wrap{
+  display:flex; align-items:center; gap:10px; padding:var(--sp-4) var(--sp-6);
+  border-bottom:1px solid var(--line); flex-shrink:0;
+}
+.finder-search-wrap svg{ width:16px; height:16px; color:var(--ink-3); flex-shrink:0; }
+.finder-search{
+  flex:1; border:none; background:transparent; padding:0; color:var(--ink);
+  font-family:inherit; font-size:var(--t-lg); min-width:0;
+}
+.finder-search:focus{ outline:none; }
+.finder-search::placeholder{ color:var(--ink-3); }
+.finder-cols{
+  display:grid; grid-template-columns:110px 1fr 140px; gap:var(--sp-3);
+  padding:7px var(--sp-6); font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label);
+  text-transform:uppercase; color:var(--ink-3); border-bottom:1px solid var(--line); flex-shrink:0;
+}
+.finder-cols.single{ grid-template-columns:1fr; }
+.finder-cols .fc-phone, .finder-row .fc-phone{ text-align:right; }
+.finder-results{ flex:1; overflow-y:auto; min-height:120px; max-height:min(50vh,420px); padding:var(--sp-1) 0; }
+.finder-row{
+  display:grid; grid-template-columns:110px 1fr 140px; gap:var(--sp-3); align-items:center;
+  padding:9px var(--sp-6); cursor:pointer; font-size:var(--t-md); transition:background .1s var(--ease);
+}
+.finder-row.single{ grid-template-columns:1fr; }
+.finder-row:hover, .finder-row.cursor{ background:var(--s2); }
+.finder-row .fc-id{ color:var(--ink-3); font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.finder-row .fc-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.finder-row .fc-phone{ color:var(--ink-3); font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.finder-row .fc-sub{ color:var(--ink-3); font-size:var(--t-sm); margin-left:8px; }
+.finder-foot{
+  padding:9px var(--sp-6); border-top:1px solid var(--line); font-size:var(--t-xs);
+  color:var(--ink-3); background:var(--s1); flex-shrink:0;
+}
+@media (max-width:600px){
+  .modal.finder-modal{ width:100%; }
+  .finder-cols, .finder-row{ grid-template-columns:70px 1fr 90px; }
+}
 
 /* photo crop */
 .crop-stage{ position:relative; width:300px; max-width:100%; margin:0 auto var(--sp-4); }
@@ -1324,6 +1400,37 @@ body.theme-dark .brand-mark{ background:var(--accent); color:var(--accent-ink); 
 body.theme-dark ::-webkit-scrollbar-thumb{ background:#3a3833; border-color:var(--s1); }
 body.theme-dark .switch input:checked + .track{ background:var(--accent); border-color:var(--accent); }
 body.theme-dark .switch input:checked + .track .knob{ background:var(--accent-ink); }
+
+/* form controls in dark mode: --s0 is the same tone as the modal/panel
+   they sit inside, so a field's only separation was a 1px --line-2 border
+   — barely there against a near-identical fill. Elevate every control to
+   --s2 (the same "one step up" surface used by .stat-cell/.entity-preview)
+   with a firmer border, so a field reads as its own control at rest, not
+   just a lighter modal background. Never white — this is graphite, not an
+   inverted light-mode field. */
+body.theme-dark .field input,
+body.theme-dark .field select,
+body.theme-dark .field textarea,
+body.theme-dark .fm-input,
+body.theme-dark .setting-control select,
+body.theme-dark .setting-control input[type=text]{
+  background:var(--s2); border-color:var(--line-3); color:var(--ink);
+}
+body.theme-dark .field input:focus,
+body.theme-dark .field select:focus,
+body.theme-dark .field textarea:focus,
+body.theme-dark .fm-input:focus{
+  border-color:var(--accent);
+}
+body.theme-dark .field input::placeholder,
+body.theme-dark .field textarea::placeholder{ color:var(--ink-3); }
+/* disabled/read-only recedes below the resting surface instead of just
+   sitting there unreadable — a clearly "flattened", inactive control */
+body.theme-dark .field input:disabled,
+body.theme-dark .field select:disabled,
+body.theme-dark .field textarea:disabled{
+  background:var(--s1); color:var(--ink-4); border-color:var(--line-2);
+}
 
 body.density-compact{ --row-h:36px; }
 body.density-compact tbody td{ font-size:var(--t-sm); }
@@ -1611,6 +1718,13 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           </div>
           <div class="panel-body" id="rankPanel"></div>
         </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">New Guests</h2>
+            <button class="btn-link" onclick="goCrmView('customerlist')">Customer List</button>
+          </div>
+          <div class="panel-body" id="newGuestsList" style="max-height:230px"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1754,8 +1868,6 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           </button>
           <div class="filter-menu" id="custFilterMenu" role="menu">
             <div class="filter-opt active" data-val="" onclick="setCustFilter('', this)" tabindex="0" role="menuitemradio" aria-checked="true" data-activatable>ALL</div>
-            <div class="filter-opt" data-val="NEW" onclick="setCustFilter('NEW', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ok)"></span>NEW</div>
-            <div class="filter-opt" data-val="AVAILABLE" onclick="setCustFilter('AVAILABLE', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--warn)"></span>AVAILABLE</div>
             <div class="filter-opt" data-val="COLD" onclick="setCustFilter('COLD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--cold)"></span>COLD</div>
             <div class="filter-opt" data-val="NO_RECORD" onclick="setCustFilter('NO_RECORD', this)" tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ink-4)"></span>NO RECORD</div>
             <div class="fm-sep"></div>
@@ -1800,17 +1912,15 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
             <div class="fm-title">Status</div>
             <select class="fm-input" id="listFStatus" onchange="applyListFilters()">
               <option value="">All statuses</option>
-              <option value="NEW">New</option>
-              <option value="AVAILABLE">Available</option>
               <option value="COLD">Cold</option>
               <option value="NO_RECORD">No record</option>
             </select>
-            <div class="fm-title">Created By</div>
-            <select class="fm-input" id="listFCreatedBy" onchange="applyListFilters()"></select>
+            <div id="listFCreatedByWrap">
+              <div class="fm-title">Created By</div>
+              <select class="fm-input" id="listFCreatedBy" onchange="applyListFilters()"></select>
+            </div>
             <div class="fm-title">Assigned To</div>
             <select class="fm-input" id="listFAssignedTo" onchange="applyListFilters()"></select>
-            <div class="fm-title">Nationality</div>
-            <input class="fm-input" type="text" id="listFNationality" placeholder="e.g. Türkiye" onchange="applyListFilters()">
             <div class="fm-title">Reservations</div>
             <select class="fm-input" id="listFHasRes" onchange="applyListFilters()">
               <option value="">Any</option>
@@ -2065,9 +2175,15 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="modal-body">
       <div class="form-group first">
         <div class="form-group-title">Guest</div>
-        <div class="field">
-          <select id="resCustomerSelect" onchange="onResCustomerChange()"><option value=""></option></select>
+        <div class="field" id="resGuestFinderField">
+          <input type="hidden" id="resCustomerSelect" value="">
+          <button type="button" class="finder-trigger" id="resGuestFinderBtn"
+                  onclick="openFinder({ mode:'customer', targetInputId:'resCustomerSelect', scoped:false, title:'Find Guest', subtitle:'Search by ID, name or phone', onSelect:onResCustomerChange })">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <span id="resGuestFinderLabel">Find guest by ID, name or phone…</span>
+          </button>
           <div class="field-error" id="err-resCustomerSelect" role="alert"></div>
+          <a class="btn-link guest-new-link" id="resNewGuestLink" href="javascript:void(0)" onclick="setResNewGuest(true)">+ New guest (not yet registered)</a>
         </div>
         <div class="entity-preview" id="resGuestPreview">
           <div class="avatar lg" id="resGuestAvatar" style="margin:0;"></div>
@@ -2076,6 +2192,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
             <div class="ep-meta" id="resGuestMeta"></div>
             <div class="ep-pills" id="resGuestPills"></div>
           </div>
+          <button type="button" class="btn-link ep-change" onclick="setResNewGuest(false); openFinder({ mode:'customer', targetInputId:'resCustomerSelect', scoped:false, title:'Find Guest', subtitle:'Search by ID, name or phone', onSelect:onResCustomerChange })">Change</button>
         </div>
         <div class="field-row" id="resNewCustomerField" style="display:none;">
           <div class="field">
@@ -2088,6 +2205,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
             <input type="text" id="resNewCustomerName">
             <div class="field-error" id="err-resNewCustomerName" role="alert"></div>
           </div>
+          <a class="btn-link guest-new-link" href="javascript:void(0)" onclick="setResNewGuest(false)">Choose an existing guest instead</a>
         </div>
       </div>
 
@@ -2109,8 +2227,14 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <div class="form-group-title">Marketing</div>
           <div class="field">
             <label for="resInvitedBy">Invited By</label>
-            <input type="text" id="resInvitedBy" list="profileNames">
-            <datalist id="profileNames"></datalist>
+            <div class="field-input-row">
+              <input type="text" id="resInvitedBy" list="profileNames">
+              <datalist id="profileNames"></datalist>
+              <button type="button" class="btn-icon field-input-btn" id="resInvitedByFinderBtn" title="Search marketing profiles"
+                      onclick="openFinder({ mode:'profile', targetInputId:'resInvitedBy', title:'Find Marketing Profile', subtitle:'Search by name' })">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              </button>
+            </div>
             <div class="field-error" id="err-resInvitedBy" role="alert"></div>
             <div class="field-hint" id="resInvitedByLockedHint" style="display:none;">Reservations you create are always attributed to you.</div>
           </div>
@@ -2154,7 +2278,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       <div class="ep-name" id="cancelResSummary" style="margin-bottom:var(--sp-4);"></div>
       <div class="field">
         <label for="cancelResReason">Reason <span class="muted">(optional)</span></label>
-        <select id="cancelResReason">
+        <select id="cancelResReason" onchange="onCancelReasonChange()">
           <option value=""></option>
           <option value="Guest request">Guest request</option>
           <option value="Duplicate">Duplicate</option>
@@ -2162,6 +2286,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <option value="Operational">Operational</option>
           <option value="Other">Other</option>
         </select>
+      </div>
+      <div class="field" id="cancelResOtherField" style="display:none;">
+        <label for="cancelResOtherText">Reason details</label>
+        <input type="text" id="cancelResOtherText" placeholder="Describe the reason">
+        <div class="field-error" id="err-cancelResOtherText" role="alert"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -2395,8 +2524,14 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="modal-body">
       <div class="form-group">
         <div class="form-group-title">Guest</div>
-        <div class="field">
-          <select id="recCustomerSelect" onchange="onRecordCustomerChange()"><option value=""></option></select>
+        <div class="field" id="recGuestFinderField">
+          <input type="hidden" id="recCustomerSelect" value="">
+          <button type="button" class="finder-trigger" id="recGuestFinderBtn"
+                  onclick="openFinder({ mode:'customer', targetInputId:'recCustomerSelect', scoped:isMarketingScoped(), title:'Find Guest', subtitle:'Search by ID, name or phone', onSelect:onRecordCustomerChange })">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <span>Find guest by ID, name or phone…</span>
+          </button>
+          <div class="field-error" id="err-recCustomerSelect" role="alert"></div>
         </div>
         <div class="entity-preview" id="recPreview">
           <div class="avatar lg" id="recPreviewAvatar" style="margin:0;"></div>
@@ -2405,13 +2540,23 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
             <div class="ep-meta" id="recPreviewMeta"></div>
             <div class="ep-pills" id="recPreviewPills"></div>
           </div>
+          <button type="button" class="btn-link ep-change" onclick="onRecordChangeGuestClick()">Change</button>
         </div>
       </div>
       <div class="form-group">
         <div class="form-group-title">Record</div>
         <div class="field-row">
           <div class="field"><label for="recDate">Record Date</label><input type="date" id="recDate"></div>
-          <div class="field"><label for="recMarketing">Marketing</label><select id="recMarketing"></select></div>
+          <div class="field">
+            <label for="recMarketing">Marketing</label>
+            <div class="field-input-row">
+              <select id="recMarketing"></select>
+              <button type="button" class="btn-icon field-input-btn" title="Search marketing profiles"
+                      onclick="openFinder({ mode:'profile', targetInputId:'recMarketing', writeAs:'id', title:'Find Marketing Profile', subtitle:'Search by name' })">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="field"><label for="recNote">CRM Note</label><textarea id="recNote"></textarea></div>
       </div>
@@ -2564,6 +2709,26 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         <button class="btn btn-gold btn-sm" onclick="applyCrop()">Use Photo</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ================= FINDER (customer / profile search, shared) ================= -->
+<div class="overlay finder-overlay" id="modalFinder" role="dialog" aria-modal="true" aria-labelledby="finderTitle" onkeydown="finderKeydown(event)">
+  <div class="modal finder-modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="finderTitle">Find Guest</h2>
+        <div class="modal-subtitle" id="finderSubtitle">Search by ID, name or phone</div>
+      </div>
+      <button class="modal-close" onclick="closeFinder()" aria-label="Close dialog">✕</button>
+    </div>
+    <div class="finder-search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="text" class="finder-search" id="finderInput" placeholder="Start typing to search…" autocomplete="off" spellcheck="false" oninput="onFinderInput()">
+    </div>
+    <div class="finder-cols" id="finderCols"></div>
+    <div class="finder-results" id="finderResults" role="listbox" aria-label="Search results"></div>
+    <div class="finder-foot" id="finderFoot"></div>
   </div>
 </div>
 
@@ -2794,7 +2959,9 @@ function decorateCustomer(c){
   if (last || next || notes.length){
     const ref = next || last || lastNoteDate;
     const d = daysSince(ref);
-    status = d <= 30 ? 'NEW' : d <= 90 ? 'AVAILABLE' : 'COLD';
+    /* only COLD and NO_RECORD are highlighted statuses — anything more
+       recent than the COLD threshold is simply ACTIVE, with no badge */
+    status = d <= 90 ? 'ACTIVE' : 'COLD';
   }
   const mk = profileById(c.marketing_profile_id);
   const creatorUser = c.created_by_user_id ? db.users.find(u => u.id === c.created_by_user_id) : null;
@@ -2884,15 +3051,19 @@ function seedDemo(adminProfileId){
   db.users.push({ id:nextId('user'), username:'kerem', password:'kerem1', role:'MARKETING',
     profile_id:kerem.id, active:1, last_login_at:null, created_at:nowISO() });
 
+  /* customer IDs are whatever a marketer types in — no mandatory prefix
+     or format (spec §16) — so the demo book uses plain numeric account
+     numbers rather than a made-up "MSF-" scheme that could be mistaken
+     for a required pattern */
   const guests = [
-    ['MSF-1001','MEHMET YILMAZ','+90 532 111 22 33','P1122334', kerem.id, [[-9,-7]], 'VIP guest, prefers a sea view.'],
-    ['MSF-1002','ELIF KAYA','+90 533 222 33 44','P5566778', sena.id, [[-150,-148]], 'Vegetarian menu preference.'],
-    ['MSF-1003','CAN DEMIR','+90 534 333 44 55','P9900112', aleyna.id, [[-2,-1],[6,9]], ''],
-    ['MSF-1004','AYSE KARA','+90 535 444 55 66','P3344556', kerem.id, [[2,5]], 'Requested a quiet floor.'],
-    ['MSF-1005','BURAK ARSLAN','+90 536 555 66 77','P7788990', okan.id, [[-200,-198]], 'Was handled by a colleague who has since left.'],
-    ['MSF-1006','ZEYNEP AY','+90 537 666 77 88','P2233445', null, [], ''],
-    ['MSF-1008','DENIZ POLAT','+90 539 888 99 00','P4455667', null, [], ''],
-    ['MSF-1007','MURAT SAHIN','+90 538 777 88 99','P6677889', sena.id, [[1,3]], '']
+    ['100011001','MEHMET YILMAZ','+90 532 111 22 33','P1122334', kerem.id, [[-9,-7]], 'VIP guest, prefers a sea view.'],
+    ['100011002','ELIF KAYA','+90 533 222 33 44','P5566778', sena.id, [[-150,-148]], 'Vegetarian menu preference.'],
+    ['100011003','CAN DEMIR','+90 534 333 44 55','P9900112', aleyna.id, [[-2,-1],[6,9]], ''],
+    ['100011004','AYSE KARA','+90 535 444 55 66','P3344556', kerem.id, [[2,5]], 'Requested a quiet floor.'],
+    ['100011005','BURAK ARSLAN','+90 536 555 66 77','P7788990', okan.id, [[-200,-198]], 'Was handled by a colleague who has since left.'],
+    ['100011006','ZEYNEP AY','+90 537 666 77 88','P2233445', null, [], ''],
+    ['100011008','DENIZ POLAT','+90 539 888 99 00','P4455667', null, [], ''],
+    ['100011007','MURAT SAHIN','+90 538 777 88 99','P6677889', sena.id, [[1,3]], '']
   ];
   guests.forEach(([code,name,phone,passport,mkId,stays,note]) => {
     const c = { id:nextId('customer'), code, first_name:name.split(' ')[0], last_name:name.split(' ').slice(1).join(' '),
@@ -2948,7 +3119,6 @@ function filteredCustomers(opts = {}){
   if (opts.status) rows = rows.filter(c => c.status === opts.status);
   if (opts.createdBy) rows = rows.filter(c => String(c.created_by_profile_id) === String(opts.createdBy));
   if (opts.assignedTo) rows = rows.filter(c => String(c.marketing_profile_id) === String(opts.assignedTo));
-  if (opts.nationality) rows = rows.filter(c => c.nationality === opts.nationality);
   if (opts.hasReservation === 'yes') rows = rows.filter(c => c.reservation_count > 0);
   if (opts.hasReservation === 'no') rows = rows.filter(c => c.reservation_count === 0);
   if (opts.hasCrm === 'yes') rows = rows.filter(c => c.note_count > 0);
@@ -3140,10 +3310,27 @@ const api = {
 
   customers: {
     list: (p = {}) => { try { return ok(paginate(filteredCustomers(p), p)); } catch (e) { return fail(e.code, e.message); } },
-    picker: () => { try { guard('customers.read'); } catch (e) { return fail(e.code, e.message); }
-      return ok(db.customers.filter(c => !c.deleted_at)
-        .sort((a,b) => a.full_name.localeCompare(b.full_name,'tr'))
-        .map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone }))); },
+    /* the Customer Finder's search endpoint: capped result count so a
+       10,000-guest book never renders as one giant list, filtered by the
+       caller's typed text, and — only when the caller asks for it — scoped
+       to the signed-in marketer's own permitted guests. Reservation guest
+       search stays deliberately unscoped (any registered guest can be
+       invited to a stay by any marketer); New Record's search opts into
+       scoped:true because acting on someone else's guest there wouldn't
+       make sense. */
+    picker: (p = {}) => { try { guard('customers.read'); } catch (e) { return fail(e.code, e.message); }
+      let rows = db.customers.filter(c => !c.deleted_at);
+      if (p.scoped){
+        const scope = scopeProfileId();
+        if (scope !== null) rows = rows.filter(c => c.marketing_profile_id === scope);
+      }
+      if (p.search){
+        const q = String(p.search).trim().toLowerCase();
+        rows = rows.filter(c => `${c.code} ${c.full_name} ${c.phone||''}`.toLowerCase().includes(q));
+      }
+      rows = rows.slice().sort((a,b) => a.full_name.localeCompare(b.full_name,'tr'));
+      const pageSize = Math.min(500, Math.max(1, Number(p.pageSize) || 500));
+      return ok(rows.slice(0, pageSize).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone }))); },
     get: (p) => { try { guard('customers.read'); } catch (e) { return fail(e.code, e.message); }
       const c = db.customers.find(x => x.id === Number(p.id) && !x.deleted_at);
       if (!c) return ok(null);
@@ -3445,8 +3632,15 @@ const api = {
       rs.forEach(r => {
         if (buckets[r.check_in]) buckets[r.check_in].arrivals++;
         if (buckets[r.check_out]) buckets[r.check_out].departures++;
-        const spanFrom = r.check_in > fromISO ? r.check_in : fromISO;
-        const spanTo = r.check_out < toISO ? r.check_out : toISO;
+        /* IN HOUSE is strictly between arrival and departure — a guest is
+           either an ARRIVAL, a DEPARTURE, or IN HOUSE on any given day,
+           never two of those at once (spec §6) */
+        const inFromD = new Date(r.check_in + 'T00:00:00Z'); inFromD.setUTCDate(inFromD.getUTCDate() + 1);
+        const inToD = new Date(r.check_out + 'T00:00:00Z'); inToD.setUTCDate(inToD.getUTCDate() - 1);
+        const inFrom = inFromD.toISOString().slice(0,10), inTo = inToD.toISOString().slice(0,10);
+        if (inFrom > inTo) return;
+        const spanFrom = inFrom > fromISO ? inFrom : fromISO;
+        const spanTo = inTo < toISO ? inTo : toISO;
         if (spanFrom > spanTo) return;
         for (let d = new Date(spanFrom + 'T00:00:00Z'); d.toISOString().slice(0,10) <= spanTo; d.setUTCDate(d.getUTCDate() + 1)){
           const ds = d.toISOString().slice(0,10);
@@ -3461,7 +3655,9 @@ const api = {
         check_in:r.check_in, check_out:r.check_out, status:r.status, invited_by_name:r.invited_by_name });
       return ok({
         arrivals: rs.filter(r => r.check_in === date).map(row),
-        active: rs.filter(r => r.check_in <= date && r.check_out >= date).map(row),
+        /* strictly between check_in and check_out — a day already counted
+           as an arrival or departure never also counts as in-house */
+        active: rs.filter(r => r.check_in < date && r.check_out > date).map(row),
         departures: rs.filter(r => r.check_out === date).map(row)
       }); }
   },
@@ -3744,19 +3940,24 @@ function avatarStyle(name){
 /* ---------- status presentation ---------- */
 function statusMeta(code){
   switch(code){
-    case 'NEW':        return { label:'NEW', cls:'tag-hot' };
-    case 'AVAILABLE':  return { label:'AVAILABLE', cls:'tag-warm' };
     case 'COLD':       return { label:'COLD', cls:'tag-cold' };
+    case 'NO_RECORD':  return { label:'NO RECORD', cls:'tag-none' };
     case 'UPCOMING':   return { label:'UPCOMING', cls:'tag-hot' };
     case 'CHECKED_IN': return { label:'CHECKED IN', cls:'tag-warm' };
     case 'COMPLETED':  return { label:'COMPLETED', cls:'tag-cold' };
     case 'CANCELLED':  return { label:'CANCELLED', cls:'tag-none' };
-    default:           return { label:'NO RECORD', cls:'tag-none' };
+    /* users list reuses this for account state, kept independent of the
+       customer-status vocabulary above */
+    case 'ACCOUNT_ACTIVE':   return { label:'ACTIVE', cls:'tag-hot' };
+    case 'ACCOUNT_DISABLED': return { label:'DISABLED', cls:'tag-none' };
+    /* ACTIVE (a guest that is neither COLD nor NO_RECORD) carries no badge —
+       only COLD and NO RECORD are highlighted statuses */
+    default:           return null;
   }
 }
 function statusTagHTML(code){
   const m = statusMeta(code);
-  return `<span class="tag ${m.cls}"><span class="tag-dot"></span>${m.label}</span>`;
+  return m ? `<span class="tag ${m.cls}"><span class="tag-dot"></span>${m.label}</span>` : '';
 }
 function invitedByHTML(name, status){
   if (!name) return '<span class="muted">—</span>';
@@ -3817,7 +4018,7 @@ function resetViewState(){
   state.selectedCustomerId = null;
   state.cust = { page:1, pageSize:50, search:'', status:'', marketing:'', sort:'updated', dir:'desc', total:0, rows:[] };
   state.res  = { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', view:'active', sort:'check_in', dir:'desc', total:0, rows:[] };
-  state.list = { sort:'created', dir:'desc', status:'', createdBy:'', assignedTo:'', nationality:'',
+  state.list = { sort:'created', dir:'desc', status:'', createdBy:'', assignedTo:'',
     hasReservation:'', hasCrm:'', createdFrom:'', createdTo:'' };
   state.audit = { page:1, pageSize:50, total:0 };
   ['resSearch','custSearch','listSearch','norecSearch'].forEach(id => { const n = el(id); if (n) n.value = ''; });
@@ -3862,7 +4063,11 @@ function handleSignedOut(){
 /* Which roles may open which screen. Anything not listed is visible to all. */
 const PAGE_ROLES = {
   profiles:     ['ADMIN','MANAGER'],
-  customerlist: ['ADMIN','MANAGER'],
+  /* MARKETING needs Customer List to create/work with their own guests —
+     filteredCustomers() already scopes every query to their assigned
+     guests server-side, so opening the tab can never surface anyone
+     else's record */
+  customerlist: ['ADMIN','MANAGER','MARKETING'],
   norecord:     ['ADMIN','MANAGER'],
   users:        ['ADMIN'],
   audit:        ['ADMIN','MANAGER']
@@ -3891,6 +4096,12 @@ async function applyRoleToChrome(){
   el('resFInvitedLabel')?.classList.toggle('hidden', marketingScoped);
   el('resFInvited')?.classList.toggle('hidden', marketingScoped);
   if (marketingScoped && state.res) state.res.invitedBy = '';
+  /* Created By is meaningless once Customer List is already scoped to a
+     marketer's own guests (spec §4) — a marketer's guests may have been
+     created by someone else entirely, so filtering by it can only ever
+     hide records that legitimately belong to them */
+  el('listFCreatedByWrap')?.classList.toggle('hidden', marketingScoped);
+  if (marketingScoped && state.list) state.list.createdBy = '';
   const av = el('sessionAvatar');
   await resolvePhotos([state.session?.photo_path]).catch(() => {});
   const url = photoUrl(state.session?.photo_path);
@@ -4172,6 +4383,116 @@ function closeModal(id){
   }
   clearFieldErrors(el(id));
   lastFocused?.focus?.();
+}
+
+/* ---------- Finder: shared search-and-select overlay ----------
+   One component behind both the Customer Finder (spec §9-12) and the
+   Invited By / Marketing profile search (spec §13) — a guest picks a
+   result by mouse or keyboard (arrows + Enter), Escape backs out, and the
+   caller-supplied onSelect writes the choice back into its own form. */
+let finderMode = 'customer';
+let finderTargetInput = null;
+let finderOnSelect = null;
+let finderScoped = false;
+let finderWriteAs = 'id';
+let finderRows = [];
+let finderCursor = -1;
+let finderSearchTimer = null;
+let finderSeq = 0;
+
+function openFinder(opts){
+  finderMode = opts.mode;
+  finderTargetInput = opts.targetInputId;
+  finderOnSelect = opts.onSelect || null;
+  finderScoped = !!opts.scoped;
+  finderWriteAs = opts.writeAs || (finderMode === 'profile' ? 'name' : 'id');
+  el('finderTitle').textContent = opts.title;
+  el('finderSubtitle').textContent = opts.subtitle;
+  el('finderInput').value = '';
+  el('finderCols').className = finderMode === 'profile' ? 'finder-cols single' : 'finder-cols';
+  el('finderCols').innerHTML = finderMode === 'profile'
+    ? '<div>NAME</div>'
+    : '<div>ID</div><div>NAME SURNAME</div><div class="fc-phone">PHONE</div>';
+  openModal('modalFinder');
+  runFinderSearch('');
+  setTimeout(() => el('finderInput').focus(), 40);
+}
+function closeFinder(){ closeModal('modalFinder'); }
+
+function onFinderInput(){
+  clearTimeout(finderSearchTimer);
+  finderSearchTimer = setTimeout(() => runFinderSearch(el('finderInput').value.trim()), 160);
+}
+
+async function runFinderSearch(q){
+  const seq = ++finderSeq;
+  if (finderMode === 'profile'){
+    const query = q.toLowerCase();
+    let rows = state.profiles.filter(p => !query || p.full_name.toLowerCase().includes(query));
+    rows = rows.slice().sort((a,b) => a.full_name.localeCompare(b.full_name,'tr'));
+    finderRows = rows.slice(0,50).map(p => ({ id:p.id, full_name:p.full_name,
+      sub:p.employment_status === 'inactive' ? 'inactive' : '' }));
+  } else {
+    const data = await call(window.api.customers.picker, { search:q, pageSize:50, scoped:finderScoped }, { silent:true });
+    if (seq !== finderSeq) return;
+    finderRows = (data || []).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone }));
+  }
+  finderCursor = finderRows.length ? 0 : -1;
+  renderFinderResults(q);
+}
+
+function renderFinderResults(q){
+  const wrap = el('finderResults');
+  if (!finderRows.length){
+    wrap.innerHTML = emptyState({ icon:'search',
+      title: q ? 'No matches' : (finderMode === 'profile' ? 'No profiles yet' : 'No guests yet'),
+      text: q ? 'Try a different ID, name or phone.' : '' });
+    el('finderFoot').textContent = '';
+    return;
+  }
+  wrap.innerHTML = finderRows.map((r,i) => finderMode === 'profile'
+    ? `<div class="finder-row single${i === finderCursor ? ' cursor' : ''}" role="option" aria-selected="${i === finderCursor}"
+         onmouseenter="finderSetCursor(${i})" onclick="selectFinderRow(${i})">
+         <span class="fc-name">${escapeHtml(r.full_name)}${r.sub ? `<span class="fc-sub">${escapeHtml(r.sub)}</span>` : ''}</span>
+       </div>`
+    : `<div class="finder-row${i === finderCursor ? ' cursor' : ''}" role="option" aria-selected="${i === finderCursor}"
+         onmouseenter="finderSetCursor(${i})" onclick="selectFinderRow(${i})">
+         <span class="fc-id">#${escapeHtml(r.code)}</span>
+         <span class="fc-name">${escapeHtml(r.full_name)}</span>
+         <span class="fc-phone">${r.phone ? escapeHtml(r.phone) : '—'}</span>
+       </div>`
+  ).join('');
+  const capped = finderRows.length === 50;
+  el('finderFoot').textContent = `${finderRows.length}${capped ? '+' : ''} result${finderRows.length === 1 ? '' : 's'}` +
+    (capped ? ' — keep typing to narrow it down' : '');
+  scrollFinderCursorIntoView();
+}
+function finderSetCursor(i){ finderCursor = i; renderFinderCursorState(); }
+function renderFinderCursorState(){
+  [...el('finderResults').children].forEach((row,i) => {
+    row.classList.toggle('cursor', i === finderCursor);
+    row.setAttribute('aria-selected', i === finderCursor);
+  });
+}
+function scrollFinderCursorIntoView(){
+  el('finderResults').children[finderCursor]?.scrollIntoView({ block:'nearest' });
+}
+function selectFinderRow(i){
+  const r = finderRows[i]; if (!r) return;
+  el(finderTargetInput).value = finderWriteAs === 'name' ? r.full_name : r.id;
+  closeFinder();
+  finderOnSelect?.(r);
+}
+function finderKeydown(e){
+  /* stopPropagation on every key this handles — the document-level Escape
+     handler closes "the topmost open overlay", and without stopping the
+     bubble here it would run a second time after this closes the Finder
+     and close the modal underneath it too (Reservation/Record) in the
+     same keystroke */
+  if (e.key === 'ArrowDown'){ e.preventDefault(); e.stopPropagation(); if (finderRows.length){ finderCursor = Math.min(finderCursor+1, finderRows.length-1); renderFinderCursorState(); scrollFinderCursorIntoView(); } }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); e.stopPropagation(); if (finderRows.length){ finderCursor = Math.max(finderCursor-1, 0); renderFinderCursorState(); scrollFinderCursorIntoView(); } }
+  else if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); if (finderCursor >= 0) selectFinderRow(finderCursor); }
+  else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeFinder(); }
 }
 
 /* ---------- global wiring ---------- */
@@ -4562,6 +4883,7 @@ async function renderRolePanel(){
   if (!rank || !col) return;
   col.style.display = '';
   col.closest('.dash-grid')?.classList.add('has-rank');
+  renderNewGuestsPanel();
 
   const rows = (await call(window.api.reservations.list, { pageSize:1000 }, { silent:true }).catch(() => null))?.rows || [];
   const period = state.dashPeriod;
@@ -4582,6 +4904,26 @@ async function renderRolePanel(){
       <div class="rank-val">${n}</div>
     </div>`).join('')
     : emptyState({ icon:'check', title:'No activity in this period' });
+}
+/* ADMIN/MANAGER-only: recently created customer records, independent of
+   the now-removed NEW status (spec §18) — driven by created_at, not a
+   status derivation, so it can never disagree with the guest's real
+   status badge (or lack of one). */
+async function renderNewGuestsPanel(){
+  const wrap = el('newGuestsList');
+  if (!wrap) return;
+  const data = await call(window.api.customers.list, { sort:'created', dir:'desc', pageSize:8 }, { silent:true });
+  const rows = data?.rows || [];
+  await resolvePhotos(rows.map(c => c.photo_path));
+  wrap.innerHTML = rows.length ? rows.map(c => `
+    <div class="list-row" onclick="goToGuest(${c.id},'customers')">
+      <div class="lr-avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : initials(c.full_name)}</div>
+      <div class="lr-main">
+        <div class="lr-name">${escapeHtml(c.full_name)}</div>
+        <div class="lr-sub">#${escapeHtml(c.code)}</div>
+      </div>
+      <div class="lr-right muted">${c.marketing_name ? escapeHtml(c.marketing_name) : '—'}</div>
+    </div>`).join('') : '<div class="panel-empty">No new guests yet</div>';
 }
 
 async function goCustomersFiltered(code){
@@ -4699,7 +5041,8 @@ async function renderReservations(){
       <td>${fmtDate(r.check_in)}</td>
       <td>${fmtDate(r.check_out)}</td>
       <td>${invitedByHTML(r.invited_by_name, r.invited_by_status)}</td>
-      <td class="muted">${r.reservation_note ? escapeHtml(r.reservation_note) : '—'}</td>
+      <td class="muted">${r.status === 'CANCELLED' && r.cancellation_reason ? 'Cancelled — ' + escapeHtml(r.cancellation_reason)
+        : r.reservation_note ? escapeHtml(r.reservation_note) : '—'}</td>
       <td>
         <div class="status-cell">
           ${statusTagHTML(r.status)}
@@ -4738,11 +5081,28 @@ async function openCancelReservationModal(id){
   cancellingReservationCustomerId = r.customer_id;
   el('cancelResSummary').textContent = `${r.customer_name} · ${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}`;
   el('cancelResReason').value = '';
+  el('cancelResOtherText').value = '';
+  el('cancelResOtherField').style.display = 'none';
   openModal('modalCancelReservation');
+}
+function onCancelReasonChange(){
+  const isOther = el('cancelResReason').value === 'Other';
+  el('cancelResOtherField').style.display = isOther ? '' : 'none';
+  if (isOther) setTimeout(() => el('cancelResOtherText')?.focus(), 30);
 }
 async function confirmCancelReservation(){
   if (!cancellingReservationId) return;
-  const reason = el('cancelResReason').value || undefined;
+  clearFieldErrors(el('modalCancelReservation'));
+  const picked = el('cancelResReason').value;
+  /* a predefined reason already explains itself in the Notes/context it
+     ends up in — "Other" is the one case that needs the marketer's own
+     words instead, so it's the custom text that gets stored, not the
+     literal word "Other" (spec §14) */
+  if (picked === 'Other'){
+    const custom = el('cancelResOtherText').value.trim();
+    if (!custom){ showFieldError('cancelResOtherText', 'Describe the reason, or pick one of the listed options instead.'); return; }
+  }
+  const reason = picked === 'Other' ? el('cancelResOtherText').value.trim() : (picked || undefined);
   const r = await call(window.api.reservations.cancel, { id:cancellingReservationId, reason });
   if (r){
     toast('success','Reservation cancelled');
@@ -4912,27 +5272,27 @@ function fillListFilterSelects(){
 }
 function applyListFilters(){
   const s = state.list;
+  const isMarketing = state.session?.role === 'MARKETING';
   s.status = el('listFStatus').value;
-  s.createdBy = el('listFCreatedBy').value;
+  s.createdBy = isMarketing ? '' : el('listFCreatedBy').value;
   s.assignedTo = el('listFAssignedTo').value;
-  s.nationality = el('listFNationality').value.trim();
   s.hasReservation = el('listFHasRes').value;
   s.hasCrm = el('listFHasCrm').value;
   s.createdFrom = el('listFCreatedFrom').value;
   s.createdTo = el('listFCreatedTo').value;
-  const active = !!(s.status || s.createdBy || s.assignedTo || s.nationality || s.hasReservation || s.hasCrm || s.createdFrom || s.createdTo);
+  const active = !!(s.status || s.createdBy || s.assignedTo || s.hasReservation || s.hasCrm || s.createdFrom || s.createdTo);
   el('listFilterBtn').classList.toggle('filtered', active);
   renderCustomerList();
 }
 function clearListFilters(){
-  ['listFStatus','listFCreatedBy','listFAssignedTo','listFNationality','listFHasRes','listFHasCrm','listFCreatedFrom','listFCreatedTo']
+  ['listFStatus','listFCreatedBy','listFAssignedTo','listFHasRes','listFHasCrm','listFCreatedFrom','listFCreatedTo']
     .forEach(id => el(id).value = '');
   applyListFilters();
   closeAllFilterMenus();
 }
 function listFilterParams(){
   const s = state.list;
-  return { status:s.status, createdBy:s.createdBy, assignedTo:s.assignedTo, nationality:s.nationality,
+  return { status:s.status, createdBy:s.createdBy, assignedTo:s.assignedTo,
     hasReservation:s.hasReservation, hasCrm:s.hasCrm, createdFrom:s.createdFrom, createdTo:s.createdTo };
 }
 async function renderCustomerList(){
@@ -5026,11 +5386,18 @@ async function showCustomerDetail(customerId, panelId){
   const c = await call(window.api.customers.get, { id: customerId });
   if (!c){ panel.classList.add('empty'); panel.innerHTML = 'Guest not found.'; delete panel.dataset.customerId; return; }
 
-  const [resList, notes] = await Promise.all([
+  /* Reservations and Cancelled are two views of one dataset everywhere
+     else in the app (spec §6/§41) — the guest inspector's history must be
+     the same: a cancelled stay is still part of this guest's record, just
+     visibly marked, not silently missing from the timeline (spec §15). */
+  const [resList, cancelledList, notes] = await Promise.all([
     call(window.api.reservations.list, { pageSize:200, sort:'check_in', dir:'desc' }, { silent:true }),
+    call(window.api.reservations.list, { pageSize:200, sort:'check_in', dir:'desc', view:'cancelled' }, { silent:true }),
     call(window.api.crmNotes.list, { customerId }, { silent:true })
   ]);
-  const stays = (resList?.rows || []).filter(r => r.customer_id === c.id);
+  const stays = [...(resList?.rows || []), ...(cancelledList?.rows || [])]
+    .filter(r => r.customer_id === c.id)
+    .sort((a,b) => b.check_in.localeCompare(a.check_in));
   const noteList = notes || [];
   await resolvePhotos([c.photo_path]);
   const uid = 'gc' + (++expandSeq);
@@ -5039,7 +5406,8 @@ async function showCustomerDetail(customerId, panelId){
     <div class="rz-item">
       <div class="rz-dates"><span>${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</span>${statusTagHTML(r.status)}</div>
       <div class="rz-meta">Invited By: ${invitedByHTML(r.invited_by_name, r.invited_by_status)}</div>
-      ${r.reservation_note ? `<div class="rz-note">“${escapeHtml(r.reservation_note)}”</div>` : ''}
+      ${r.status === 'CANCELLED' && r.cancellation_reason ? `<div class="rz-note">Cancelled — “${escapeHtml(r.cancellation_reason)}”</div>`
+        : r.reservation_note ? `<div class="rz-note">“${escapeHtml(r.reservation_note)}”</div>` : ''}
     </div>`).join('')
     : emptyState({ icon:'calendar', title:'No stays yet',
         actions:[{ label:'New Reservation', onclick:'openReservationModal()', primary:true }] });
@@ -5111,7 +5479,7 @@ async function showCustomerDetail(customerId, panelId){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
       </span>
       <div class="avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : initials(c.full_name)}</div>
-      <span class="${statusM.cls}"><span class="dp-rail-status tag-dot"></span></span>
+      <span class="${statusM ? statusM.cls : 'tag-none'}"><span class="dp-rail-status tag-dot"></span></span>
     </button>
     <div class="detail-head">
       <button class="detail-collapse-btn" onclick="toggleDetailPanel('${panelId}')" title="Collapse" aria-label="Collapse guest panel">
@@ -5370,10 +5738,14 @@ async function openProfileDetail(id){
     </div>`).join('') : '<div class="empty-mini">No assigned guests.</div>';
 
   el('pdCustCount').textContent = relList.length;
+  /* ID and name only — the Created/Assigned/Invited relationship text was
+     dropped from the display (spec §17); the underlying attribution that
+     put a guest in this list at all is unchanged, just not spelled out
+     here anymore */
   el('pdCustList').innerHTML = relList.length ? relList.map(c => `
     <div class="mini-card">
       <div class="mc-top"><span>${escapeHtml(c.full_name)}</span>${statusTagHTML(c.status)}</div>
-      <div class="mc-sub">#${escapeHtml(c.code)} · ${escapeHtml(c.relationship)}</div>
+      <div class="mc-sub">#${escapeHtml(c.code)}</div>
     </div>`).join('') : '<div class="empty-mini">No related guests yet.</div>';
 
   const invitedTotal = await refreshPdInvited();
@@ -5564,13 +5936,12 @@ function renderReportFilters(){
       <div class="report-filter-grid">
         <div class="field"><label for="rptGStatus">Status</label>
           <select class="fm-input" id="rptGStatus"><option value="">All statuses</option>
-            <option value="NEW">New</option><option value="COLD">Cold</option><option value="NO_RECORD">No Record</option></select></div>
-        <div class="field"><label for="rptGCreatedBy">Created By</label><select class="fm-input" id="rptGCreatedBy"></select></div>
+            <option value="COLD">Cold</option><option value="NO_RECORD">No Record</option></select></div>
         <div class="field"><label for="rptGAssignedTo">Assigned To</label><select class="fm-input" id="rptGAssignedTo"></select></div>
         <div class="field"><label for="rptGFrom">Registered From</label><input class="fm-input" type="date" id="rptGFrom"></div>
         <div class="field"><label for="rptGTo">Registered To</label><input class="fm-input" type="date" id="rptGTo"></div>
       </div>`;
-    fillProfileSelect('rptGCreatedBy'); fillProfileSelect('rptGAssignedTo');
+    fillProfileSelect('rptGAssignedTo');
   } else if (reportType === 'marketing'){
     wrap.innerHTML = `
       <div class="field"><label>Period</label>
@@ -5609,12 +5980,12 @@ async function runReport(){
       reportExportEntity = 'reservations';
       reportExportParams = { status:params.status, invitedBy:params.invitedBy, from:params.from, to:params.to };
     } else if (reportType === 'guests'){
-      const params = { status: el('rptGStatus').value, createdBy: el('rptGCreatedBy').value,
+      const params = { status: el('rptGStatus').value,
         assignedTo: el('rptGAssignedTo').value, createdFrom: el('rptGFrom').value, createdTo: el('rptGTo').value,
         registeredOnly:true, pageSize:1000 };
       const data = await call(window.api.customers.list, params, { silent:true });
       reportRows = (data?.rows || []).map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '—',
-        Status:c.status, 'Created By':c.created_by_label, 'Assigned To':c.marketing_name || '—',
+        Status:c.status, 'Assigned To':c.marketing_name || '—',
         Reservations:c.reservation_count, Registered:fmtDate(c.created_at) }));
       reportExportEntity = 'customerlist'; reportExportParams = params;
     } else if (reportType === 'marketing'){
@@ -5675,7 +6046,7 @@ async function renderUsers(){
       <td>${escapeHtml(u.username)}</td>
       <td>${u.full_name ? escapeHtml(u.full_name) : '<span class="muted">—</span>'}</td>
       <td><span class="role-pill ${u.role.toLowerCase()}">${u.role}</span></td>
-      <td>${u.active ? statusTagHTML('NEW').replace('NEW','ACTIVE') : statusTagHTML('CANCELLED').replace('CANCELLED','DISABLED')}</td>
+      <td>${statusTagHTML(u.active ? 'ACCOUNT_ACTIVE' : 'ACCOUNT_DISABLED')}</td>
       <td class="muted">${u.last_login_at ? fmtDateTime(u.last_login_at) : 'Never'}</td>
     </tr>`).join('') : emptyRow(5, emptyState({ icon:'guests', title:'No accounts yet',
         actions:[{ label:'New User', onclick:'openUserModal()', primary:true }] }));
@@ -5838,12 +6209,6 @@ async function openReservationModal(id, presetCustomerId){
   clearFieldErrors(el('modalReservation'));
   const sel = el('resCustomerSelect');
 
-  /* Every guest in the system, not just the ones already assigned to you. */
-  const rows = await call(window.api.customers.picker, {}, { silent:true }) || [];
-  sel.innerHTML = '<option value=""></option>' +
-    rows.map(c => `<option value="${c.id}">${escapeHtml(c.full_name)} — #${escapeHtml(c.code)}</option>`).join('') +
-    '<option value="__new__">+ New guest</option>';
-
   el('resNewCustomerField').style.display = 'none';
   el('resNewCustomerId').value = '';
   el('resNewCustomerName').value = '';
@@ -5881,17 +6246,29 @@ async function openReservationModal(id, presetCustomerId){
      worst — lock it to self and let the API enforce it authoritatively. */
   const marketingLock = state.session?.role === 'MARKETING';
   el('resInvitedBy').disabled = marketingLock;
+  el('resInvitedByFinderBtn').style.display = marketingLock ? 'none' : '';
   el('resInvitedByLockedHint').style.display = marketingLock ? '' : 'none';
   if (marketingLock) el('resInvitedBy').value = state.session.full_name || '';
   await onResCustomerChange();
   openModal('modalReservation');
 }
 
+function setResNewGuest(isNew){
+  el('resCustomerSelect').value = isNew ? '__new__' : '';
+  onResCustomerChange();
+  if (isNew) setTimeout(() => el('resNewCustomerId')?.focus(), 30);
+}
+
 async function onResCustomerChange(){
   const v = el('resCustomerSelect').value;
-  el('resNewCustomerField').style.display = v === '__new__' ? 'flex' : 'none';
+  const isNew = v === '__new__';
+  el('resNewCustomerField').style.display = isNew ? 'flex' : 'none';
+  /* the finder trigger + "new guest" link only make sense before a guest
+     is chosen — once one is (existing or "__new__"), the entity-preview
+     card (with its own Change link) or the new-guest fields take over */
+  el('resGuestFinderField').style.display = v ? 'none' : '';
   const prev = el('resGuestPreview');
-  if (!v || v === '__new__'){ prev.classList.remove('show'); return; }
+  if (!v || isNew){ prev.classList.remove('show'); return; }
 
   const c = await call(window.api.customers.summary, { id: Number(v) }, { silent:true }).catch(() => null);
   if (!c){ prev.classList.remove('show'); return; }
@@ -6036,8 +6413,13 @@ async function saveCustomer(){
       } else {
         const code = el('custId').value.trim();
         if (!code){ showFieldError('custId','A unique ID is required.'); return; }
+        /* a marketer creating a guest through their own (now-scoped)
+           Customer List must actually be able to see that guest afterward
+           — auto-assign to self, the same self-attribution already used
+           for reservations' Invited By (spec §3) */
+        const marketingProfileId = state.session?.role === 'MARKETING' ? state.session.profile_id : undefined;
         await call(window.api.customers.create,
-          { code, fullName, passportNo, phone, photoPath:pendingCustomerPhoto, registered:true }, { silent:true });
+          { code, fullName, passportNo, phone, photoPath:pendingCustomerPhoto, registered:true, marketingProfileId }, { silent:true });
       }
       closeModal('modalCustomer');
       editingCustomerId = null;
@@ -6280,11 +6662,11 @@ async function saveCrmNote(){
 }
 
 /* ---------------- RECORD ---------------- */
+function isMarketingScoped(){ return state.session?.role === 'MARKETING'; }
 async function openRecordModal(){
   clearFieldErrors(el('modalRecord'));
-  const rows = await call(window.api.customers.picker, {}, { silent:true }) || [];
-  el('recCustomerSelect').innerHTML = '<option value=""></option>' +
-    rows.map(c => `<option value="${c.id}">${escapeHtml(c.full_name)} — #${escapeHtml(c.code)}</option>`).join('');
+  el('recCustomerSelect').value = '';
+  el('recGuestFinderField').style.display = '';
   el('recMarketing').innerHTML = '<option value=""></option>' +
     state.profiles.filter(p => p.employment_status === 'active')
       .map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('');
@@ -6293,9 +6675,17 @@ async function openRecordModal(){
   el('recPreview').classList.remove('show');
   openModal('modalRecord');
 }
+function onRecordChangeGuestClick(){
+  el('recCustomerSelect').value = '';
+  el('recGuestFinderField').style.display = '';
+  el('recPreview').classList.remove('show');
+  openFinder({ mode:'customer', targetInputId:'recCustomerSelect', scoped:isMarketingScoped(),
+    title:'Find Guest', subtitle:'Search by ID, name or phone', onSelect:onRecordCustomerChange });
+}
 async function onRecordCustomerChange(){
   const v = el('recCustomerSelect').value;
   const prev = el('recPreview');
+  el('recGuestFinderField').style.display = v ? 'none' : '';
   if (!v){ prev.classList.remove('show'); return; }
   const c = await call(window.api.customers.summary, { id: Number(v) }, { silent:true }).catch(() => null);
   if (!c){ prev.classList.remove('show'); return; }
