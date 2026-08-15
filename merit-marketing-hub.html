@@ -3482,10 +3482,18 @@ const api = {
         return fail('VALIDATION','That ID is already in use.','code');
       if (p.passportNo && db.customers.some(c => !c.deleted_at && c.passport_no === p.passportNo))
         return fail('VALIDATION','Passport number already registered.','passportNo');
+      /* Scope is a two-way boundary: a marketer must not be able to WRITE into
+         someone else's book either. Creating a guest owned by another profile
+         would inject a record into their guest count, KPIs and No Record list
+         that the creator can't even see afterwards. MARKETING creates for
+         themselves; only ADMIN/MANAGER may set an owner directly. */
+      const requestedOwner = p.marketingProfileId || null;
+      if (session?.role === 'MARKETING' && requestedOwner && Number(requestedOwner) !== session.profile_id)
+        return fail('FORBIDDEN','You can only create guests assigned to yourself.','marketingProfileId');
       const c = { id:nextId('customer'), code, first_name:name.split(' ')[0], last_name:name.split(' ').slice(1).join(' '),
         full_name:name, passport_no:p.passportNo || null, phone:p.phone || null, email:p.email || null,
         nationality:p.nationality || null, photo_path:p.photoPath || null,
-        marketing_profile_id:p.marketingProfileId || null, registered: p.registered === false ? 0 : 1,
+        marketing_profile_id:requestedOwner, registered: p.registered === false ? 0 : 1,
         /* immutable once set — reassignment changes marketing_profile_id, never these */
         created_by_user_id: session?.id ?? null, created_by_profile_id: session?.profile_id ?? null,
         assignment_history: [],
