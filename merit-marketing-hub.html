@@ -835,14 +835,17 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .avatar.xl{ width:68px; height:68px; font-size:var(--t-xl); }
 .avatar.xxl{ width:64px; height:64px; font-size:20px; margin:0 auto var(--sp-3); }
 
-/* profile detail — an editorial header, then the record */
-.modal.modal-full .modal-body{ padding:0; }
-.pd-hero{ position:relative; padding:var(--sp-8) var(--sp-8) var(--sp-6); border-bottom:1px solid var(--line); background:var(--s1); }
+/* profile detail — an editorial header, then the record. The stat tiles
+   get the same "own instrument" treatment as the Dashboard KPI band
+   (elevated surface, bolder numerals) instead of bare divided text, and
+   Overview carries a compact recent-invitations list so a profile with a
+   short history doesn't read as a mostly-empty page. */
+.pd-hero{ position:relative; padding:var(--sp-6) var(--sp-7); border-bottom:1px solid var(--line); background:var(--s1); }
 .pd-hero-inner{ position:relative; z-index:1; display:flex; align-items:center; gap:var(--sp-5); flex-wrap:wrap; }
 .pd-photo{
-  width:104px; aspect-ratio:3/4; flex-shrink:0; border-radius:var(--r-1); overflow:hidden;
+  width:88px; aspect-ratio:3/4; flex-shrink:0; border-radius:var(--r-1); overflow:hidden;
   border:1px solid var(--line-2); background:var(--s2); background-size:cover; background-position:center top;
-  display:grid; place-items:center; font-size:28px; font-weight:600; color:var(--ink-3);
+  display:grid; place-items:center; font-size:24px; font-weight:600; color:var(--ink-3);
 }
 .pd-photo.inactive-photo{ filter:grayscale(1); opacity:.75; }
 .pd-hero-info{ flex:1; min-width:200px; }
@@ -852,12 +855,16 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .pd-chip{ display:inline-flex; align-items:center; gap:6px; font-size:var(--t-sm); color:var(--ink-3); }
 .pd-chip svg{ width:13px; height:13px; opacity:.7; }
 .pd-actions{ display:flex; gap:var(--sp-2); align-items:center; flex-shrink:0; }
-.pd-body{ padding:var(--sp-6) var(--sp-8) var(--sp-8); }
-.pd-stats{ display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--line);
-  border-bottom:1px solid var(--line); margin-bottom:var(--sp-6); }
-.pd-stat{ padding:var(--sp-4) var(--sp-4) var(--sp-4) 0; min-width:0; }
-.pd-stat + .pd-stat{ border-left:1px solid var(--line); padding-left:var(--sp-4); }
-.pd-stat .n{ font-size:24px; font-weight:500; letter-spacing:-.6px; color:var(--ink); }
+.pd-body{ padding:var(--sp-6) var(--sp-7) var(--sp-7); }
+.pd-stats{
+  display:grid; grid-template-columns:repeat(4,1fr);
+  background:var(--s2); border:1px solid var(--line-2); border-radius:var(--r-2);
+  overflow:hidden; box-shadow:var(--shadow-sm); margin-bottom:var(--sp-6); position:relative;
+}
+.pd-stats::before{ content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--accent-line); opacity:.6; }
+.pd-stat{ padding:var(--sp-4); min-width:0; }
+.pd-stat + .pd-stat{ border-left:1px solid var(--line-2); }
+.pd-stat .n{ font-size:23px; font-weight:700; letter-spacing:-.4px; color:var(--ink); font-variant-numeric:tabular-nums; }
 .pd-stat .l{ font-size:var(--t-xs); color:var(--ink-3); margin-top:5px; }
 
 /* generic pane-switcher used by every module-level tab strip
@@ -869,7 +876,11 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .split-col{ min-width:0; }
 .split-col + .split-col{ border-left:1px solid var(--line); padding-left:var(--sp-8); }
 .split-col-head{ display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2); margin-bottom:var(--sp-3); }
-.split-filter{ display:flex; gap:2px; background:var(--s1); border:1px solid var(--line); border-radius:var(--r-1); padding:2px; }
+/* inline-flex so this segmented toggle hugs its own content everywhere
+   it's used, instead of stretching full-width when its parent is a plain
+   block container (Profile Detail's tab panes) rather than a flex row
+   (Dashboard's page-head, where it happened to look right by accident) */
+.split-filter{ display:inline-flex; gap:2px; background:var(--s1); border:1px solid var(--line); border-radius:var(--r-1); padding:2px; }
 .split-filter button{
   border:none; background:transparent; font-family:inherit; cursor:pointer; padding:4px 8px;
   font-size:10.5px; font-weight:600; letter-spacing:.2px; color:var(--ink-3); border-radius:3px; transition:.14s var(--ease);
@@ -893,18 +904,30 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 /* ------------------------------------------------------------------ */
 /* the band is orientation, not the headline — a compact instrument row
    the eye passes on the way to the panels, which carry the actual
-   decisions. Kept quiet: no fills, no radius per cell, hairline rules. */
+   decisions. It still needs to read as its own instrument, though: a
+   surface one step lighter than the page (not nearly the same tone, which
+   let the whole band wash out against the background in dark mode), with
+   a top accent line and slightly heavier numerals so the figures carry
+   real weight without turning into colorful tiles. */
 .stat-band{
   display:grid; grid-template-columns:repeat(5,1fr);
-  background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden;
+  background:var(--s2); border:1px solid var(--line-2); border-radius:var(--r-2);
+  overflow:hidden; box-shadow:var(--shadow-sm); position:relative;
 }
-.stat-cell{ padding:10px var(--sp-5); cursor:pointer; min-width:0; transition:background .12s var(--ease); }
-.stat-cell + .stat-cell{ border-left:1px solid var(--line); }
-.stat-cell:hover, .stat-cell:focus-visible{ background:var(--s1); }
+.stat-band::before{
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:var(--accent-line); opacity:.6;
+}
+.stat-cell{ padding:11px var(--sp-5); cursor:pointer; min-width:0; transition:background .12s var(--ease); }
+.stat-cell + .stat-cell{ border-left:1px solid var(--line-2); }
+.stat-cell:hover, .stat-cell:focus-visible{ background:var(--s3); }
 .stat-cell:focus-visible{ outline-offset:-2px; }
 .sc-l{ font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sc-n{ font-size:20px; font-weight:600; letter-spacing:-.5px; margin-top:4px; line-height:1.15; color:var(--ink); }
-.sc-sub{ font-size:9px; font-weight:600; letter-spacing:.3px; color:var(--ink-4); margin-top:3px; text-transform:uppercase; }
+.sc-n{
+  font-size:23px; font-weight:700; letter-spacing:-.4px; margin-top:5px; line-height:1.15;
+  color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.sc-sub{ font-size:9px; font-weight:600; letter-spacing:.3px; color:var(--ink-4); margin-top:4px; text-transform:uppercase; }
 .sc-flag{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--warn); margin-left:8px; vertical-align:middle; }
 .kpi-arrow{ display:none; }
 
@@ -975,7 +998,6 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
   display:none; align-items:center; justify-content:center; z-index:100; padding:var(--sp-6);
 }
 .overlay.show{ display:flex; }
-.overlay.overlay-full{ padding:0; }
 .modal{
   width:520px; max-width:100%; max-height:88vh;
   background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-3);
@@ -983,7 +1005,17 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
   box-shadow:var(--shadow-dialog); animation:rise .16s var(--ease-emphasized);
 }
 .modal.modal-wide{ width:900px; }
-.modal.modal-full{ width:100%; height:100%; max-height:100%; border-radius:0; border:none; }
+/* a large bounded modal (Profile Detail) — big enough for a real record
+   view, but sized to its content rather than forced to fill the whole
+   viewport, which used to leave a huge dead area under a short Overview */
+.modal.modal-xl{ width:1020px; }
+.modal.modal-xl .modal-body{ padding:0; }
+/* wide enough to let Stay Details and Marketing sit side by side as a
+   composed two-column form instead of one long stacked column */
+.modal.modal-md{ width:660px; }
+.form-row-split{ display:grid; grid-template-columns:1.3fr 1fr; gap:var(--sp-6); }
+.form-row-split .form-group{ margin-bottom:0; }
+@media (max-width:720px){ .form-row-split{ grid-template-columns:1fr; gap:0; } }
 .modal-head{
   display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3);
   padding:var(--sp-4) var(--sp-6); border-bottom:1px solid var(--line); flex-shrink:0; background:var(--s1);
@@ -999,7 +1031,6 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 }
 .modal-close:hover{ background:var(--s3); color:var(--ink); }
 .modal-body{ padding:var(--sp-6); overflow-y:auto; flex:1; }
-.modal.modal-full .modal-body{ display:flex; flex-direction:column; }
 .modal-foot{
   display:flex; align-items:center; gap:var(--sp-2);
   padding:var(--sp-3) var(--sp-6); border-top:1px solid var(--line); background:var(--s1); flex-shrink:0;
@@ -1038,7 +1069,13 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .field-hint{ font-size:11.5px; color:var(--ink-3); margin-top:6px; }
 /* check-in/check-out read as one paired relationship, not two unrelated
    date fields — a quiet directional mark between them is enough */
-.stay-dates{ display:flex; align-items:flex-start; gap:var(--sp-3); }
+/* check-in/check-out as one settled "stay" block, same elevated-surface
+   language as the guest preview card rather than bare inputs on the
+   modal's own background */
+.stay-dates{
+  display:flex; align-items:flex-start; gap:var(--sp-3);
+  background:var(--s1); border:1px solid var(--line); border-radius:var(--r-2); padding:var(--sp-4);
+}
 .stay-dates .field{ flex:1; min-width:0; }
 .stay-dates-arrow{ flex-shrink:0; height:36px; display:grid; place-items:center; margin-top:26px; color:var(--ink-4); }
 .stay-dates-arrow svg{ width:15px; height:15px; }
@@ -1080,9 +1117,13 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .check-row input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
 .cr-text{ font-size:var(--t-md); }
 
+/* a confirmed selection reads as a settled card, not a plain row of text
+   sitting on the modal's own background — the same principle as the
+   stat-band/pd-stats elevation, applied to "here is who/what you picked" */
 .entity-preview{
   display:none; align-items:center; gap:var(--sp-3);
-  padding:var(--sp-3) 0; margin-top:var(--sp-3); border-top:1px solid var(--line);
+  padding:var(--sp-3) var(--sp-4); margin-top:var(--sp-3);
+  background:var(--s1); border:1px solid var(--line); border-radius:var(--r-2);
 }
 .entity-preview.show{ display:flex; }
 .ep-info{ flex:1; min-width:0; }
@@ -2013,7 +2054,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 
 <!-- ================= MODAL: RESERVATION ================= -->
 <div class="overlay" id="modalReservation" role="dialog" aria-modal="true" aria-labelledby="resModalTitle">
-  <div class="modal">
+  <div class="modal modal-md">
     <div class="modal-head">
       <div class="modal-head-text">
         <h2 class="modal-title" id="resModalTitle">New Reservation</h2>
@@ -2050,27 +2091,29 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
         </div>
       </div>
 
-      <div class="form-group">
-        <div class="form-group-title">Stay Details</div>
-        <div class="stay-dates">
-          <div class="field"><label for="resCheckIn">Check In</label><input type="date" id="resCheckIn">
-            <div class="field-error" id="err-resCheckIn" role="alert"></div></div>
-          <div class="stay-dates-arrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+      <div class="form-row-split" style="margin-bottom:var(--sp-6);">
+        <div class="form-group">
+          <div class="form-group-title">Stay Details</div>
+          <div class="stay-dates">
+            <div class="field"><label for="resCheckIn">Check In</label><input type="date" id="resCheckIn">
+              <div class="field-error" id="err-resCheckIn" role="alert"></div></div>
+            <div class="stay-dates-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+            </div>
+            <div class="field"><label for="resCheckOut">Check Out</label><input type="date" id="resCheckOut">
+              <div class="field-error" id="err-resCheckOut" role="alert"></div></div>
           </div>
-          <div class="field"><label for="resCheckOut">Check Out</label><input type="date" id="resCheckOut">
-            <div class="field-error" id="err-resCheckOut" role="alert"></div></div>
         </div>
-      </div>
 
-      <div class="form-group">
-        <div class="form-group-title">Marketing</div>
-        <div class="field">
-          <label for="resInvitedBy">Invited By</label>
-          <input type="text" id="resInvitedBy" list="profileNames">
-          <datalist id="profileNames"></datalist>
-          <div class="field-error" id="err-resInvitedBy" role="alert"></div>
-          <div class="field-hint" id="resInvitedByLockedHint" style="display:none;">Reservations you create are always attributed to you.</div>
+        <div class="form-group">
+          <div class="form-group-title">Marketing</div>
+          <div class="field">
+            <label for="resInvitedBy">Invited By</label>
+            <input type="text" id="resInvitedBy" list="profileNames">
+            <datalist id="profileNames"></datalist>
+            <div class="field-error" id="err-resInvitedBy" role="alert"></div>
+            <div class="field-hint" id="resInvitedByLockedHint" style="display:none;">Reservations you create are always attributed to you.</div>
+          </div>
         </div>
       </div>
 
@@ -2227,8 +2270,8 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </div>
 
 <!-- ================= MODAL: PROFILE DETAIL ================= -->
-<div class="overlay overlay-full" id="modalProfileDetail" role="dialog" aria-modal="true" aria-labelledby="profileDetailTitle">
-  <div class="modal modal-full">
+<div class="overlay" id="modalProfileDetail" role="dialog" aria-modal="true" aria-labelledby="profileDetailTitle">
+  <div class="modal modal-xl">
     <div class="modal-head">
       <h2 class="modal-title" id="profileDetailTitle">Profile</h2>
       <button class="modal-close" onclick="closeModal('modalProfileDetail')" aria-label="Close dialog">✕</button>
@@ -2257,6 +2300,8 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 
         <div class="tab-pane active" id="pdPane_overview">
           <div class="pd-stats" id="pdStats"></div>
+          <div class="pane-title">Recent Invitations</div>
+          <div class="split-list" id="pdRecentInvited"></div>
         </div>
 
         <div class="tab-pane" id="pdPane_invited">
@@ -5302,12 +5347,20 @@ async function openProfileDetail(id){
   el('pdChips').innerHTML = chips.join('');
 
   el('pdInvitedFilter').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 0));
-  const [custData, related] = await Promise.all([
+  const [custData, related, recentInvited] = await Promise.all([
     call(window.api.customers.list, { assignedTo:id, pageSize:500 }, { silent:true }),
-    call(window.api.profiles.relatedCustomers, { id }, { silent:true })
+    call(window.api.profiles.relatedCustomers, { id }, { silent:true }),
+    call(window.api.reservations.list, { invitedBy:id, pageSize:3, sort:'check_in', dir:'desc' }, { silent:true })
   ]);
   const guests = custData?.rows || [];
   const relList = related || [];
+
+  const recentRows = recentInvited?.rows || [];
+  el('pdRecentInvited').innerHTML = recentRows.length ? recentRows.map(r => `
+    <div class="mini-card">
+      <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
+      <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</div>
+    </div>`).join('') : '<div class="empty-mini">No reservations invited yet.</div>';
 
   el('pdGuestCount').textContent = guests.length;
   el('pdGuestList').innerHTML = guests.length ? guests.map(c => `
