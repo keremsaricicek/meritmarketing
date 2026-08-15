@@ -1888,7 +1888,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
             <thead>
               <tr><th scope="col">ID</th>
                   <th scope="col" class="sortable" onclick="sortCustomers('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
-                  <th scope="col">PHONE</th><th scope="col">MARKETING</th><th scope="col">CRM NOTE</th><th scope="col">STATUS</th>
+                  <th scope="col">MARKETING</th><th scope="col">CRM NOTE</th><th scope="col">STATUS</th>
                   <th scope="col" class="sortable sorted" onclick="sortCustomers('updated')" aria-sort="descending">LAST MODIFIED<span class="sort-arrow">↓</span></th></tr>
             </thead>
             <tbody id="custTableBody"></tbody>
@@ -1956,7 +1956,6 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
             <thead>
               <tr><th scope="col">ID</th>
               <th scope="col" class="sortable" onclick="sortList('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
-              <th scope="col">PHONE</th>
               <th scope="col">CREATED BY</th>
               <th scope="col">ASSIGNED TO</th>
               <th scope="col">STATUS</th>
@@ -2194,6 +2193,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           </div>
           <button type="button" class="btn-link ep-change" onclick="setResNewGuest(false); openFinder({ mode:'customer', targetInputId:'resCustomerSelect', scoped:false, title:'Find Guest', subtitle:'Search by ID, name or phone', onSelect:onResCustomerChange })">Change</button>
         </div>
+        <div class="field-error" id="resGuestProtectedWarning" style="display:none;">Guest protection period has not expired.</div>
         <div class="field-row" id="resNewCustomerField" style="display:none;">
           <div class="field">
             <label for="resNewCustomerId">New Guest ID</label>
@@ -2801,10 +2801,13 @@ const fail = (code, message, extra = {}) => Promise.resolve({ ok:false, error:{ 
 const blank = () => ({
   users:[], profiles:[], customers:[], reservations:[], crmNotes:[],
   notifications:[], auditLogs:[], photos:{},
+  /* appearance.theme/density live here only as the fallback a brand-new
+     user starts from — each signed-in user's own choice is stored per-user
+     in userPrefs (spec §32-34) and always wins once they've made one */
   settings:{ 'backup.auto_enabled':'true','backup.frequency':'startup','backup.keep':'10',
              'appearance.theme':'dark','appearance.density':'comfortable',
              'notifications.manager_feed':'true' },
-  backups:[], seq:{ user:1, profile:1, customer:1, reservation:1, note:1, notif:1, audit:1 }
+  userPrefs:{}, backups:[], seq:{ user:1, profile:1, customer:1, reservation:1, note:1, notif:1, audit:1 }
 });
 let db = load();
 migrateAttribution();
@@ -2949,8 +2952,14 @@ function migrateAttribution(){
    drift apart, so both are built from the same last/next/notes facts. */
 function decorateCustomer(c){
   const list = custRes(c.id);
-  const past = list.filter(r => r.check_in <= today());
-  const future = list.filter(r => r.check_in > today());
+  /* a cancelled booking never happened — it must not read as a recent
+     visit, a pending arrival, or "current activity" for Cold/status
+     purposes (spec §18/§27); reservation_count below intentionally keeps
+     the full history including cancellations, which is a different,
+     unrelated concept (total bookings ever made) */
+  const qualifying = list.filter(r => !r.cancelled_at);
+  const past = qualifying.filter(r => r.check_in <= today());
+  const future = qualifying.filter(r => r.check_in > today());
   const last = past.length ? past[0].check_in : null;
   const next = future.length ? future[future.length-1].check_in : null;
   const notes = db.crmNotes.filter(n => n.customer_id === c.id);
@@ -2984,11 +2993,47 @@ function decorateReservation(r){
 }
 function syncMarketing(customerId){
   const c = db.customers.find(x => x.id === customerId); if (!c) return;
-  const list = custRes(customerId);
-  if (!list.length || !list[0].invited_by_profile_id) return;
-  const p = profileById(list[0].invited_by_profile_id);
+  /* a cancelled reservation never happened — it must not drive automatic
+     marketing attribution any more than it drives Cold status or protection
+     (spec §18); the reservation-creation guard below is what actually stops
+     an unprotected takeover, this just keeps the derived value itself
+     honest about what "most recent" means */
+  const latest = custRes(customerId).find(r => !r.cancelled_at);
+  if (!latest || !latest.invited_by_profile_id) return;
+  const p = profileById(latest.invited_by_profile_id);
   c.marketing_profile_id = (!p || p.employment_status === 'inactive') ? null : p.id;
   c.updated_at = nowISO();
+}
+/* ---------- guest protection: one authoritative definition (spec §15-24) ----------
+   A guest stays protected under their CURRENT marketing relationship for one
+   calendar year after the latest qualifying (non-cancelled) reservation date
+   on record for them — regardless of who is invited on that reservation.
+   While protected, a DIFFERENT marketing profile cannot become the guest's
+   new attribution by simply creating a reservation for them. An explicit
+   ADMIN/MANAGER reassignment (customers.assign) is the one legitimate
+   override and is exempt from this rule (spec §22). */
+function latestQualifyingVisit(customerId){
+  const r = custRes(customerId).find(x => !x.cancelled_at);
+  return r ? r.check_in : null;
+}
+function guestProtectionExpiry(customerId){
+  const c = db.customers.find(x => x.id === customerId);
+  if (!c || !c.marketing_profile_id) return null;
+  const last = latestQualifyingVisit(customerId);
+  if (!last) return null;
+  const d = new Date(last + 'T00:00:00Z');
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  return d.toISOString().slice(0,10);
+}
+/* true when `forProfileId` is currently blocked from taking over this
+   guest's marketing attribution (i.e. the guest belongs to someone else
+   and that protection has not yet expired) */
+function isGuestProtectedFrom(customerId, forProfileId){
+  const c = db.customers.find(x => x.id === customerId);
+  if (!c || !c.marketing_profile_id) return false;
+  if (c.marketing_profile_id === forProfileId) return false;
+  const expiry = guestProtectionExpiry(customerId);
+  return !!expiry && today() <= expiry;
 }
 function paginate(rows, opts){
   const page = Math.max(1, Number(opts.page) || 1);
@@ -3187,6 +3232,17 @@ function maskOtherProfileMetrics(rows){
   if (session?.role !== 'MARKETING') return rows;
   return rows.map(p => p.id === session.profile_id ? p : { ...p, reservation_count:null, customer_count:null });
 }
+/* one authoritative "Active Marketing" definition, reused everywhere the
+   concept appears (Dashboard KPI, anywhere else it's ever counted) — the
+   Dashboard bug this fixes came from counting db.profiles directly with
+   no kind filter, so ADMIN/MANAGER staff profiles (also employment_status
+   'active' by default) were silently counted alongside real marketing
+   profiles and inflated the number past what the Profiles page itself
+   shows (spec §2/§6) */
+function activeMarketingProfiles(){
+  return db.profiles.filter(p => !p.deleted_at && p.kind !== 'staff' && p.employment_status === 'active');
+}
+function countActiveMarketingProfiles(){ return activeMarketingProfiles().length; }
 
 /* Every guest this profile has ever touched — created, currently assigned,
    or ever invited to a stay — deduplicated into one relationship list
@@ -3330,7 +3386,11 @@ const api = {
       }
       rows = rows.slice().sort((a,b) => a.full_name.localeCompare(b.full_name,'tr'));
       const pageSize = Math.min(500, Math.max(1, Number(p.pageSize) || 500));
-      return ok(rows.slice(0, pageSize).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone }))); },
+      /* phone stays searchable (the query above already matches it) but the
+         finder displays Last Visit instead — the same qualifying-visit
+         definition guest protection is built on (spec §26/§27) */
+      return ok(rows.slice(0, pageSize).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone,
+        last_visit: latestQualifyingVisit(c.id) }))); },
     get: (p) => { try { guard('customers.read'); } catch (e) { return fail(e.code, e.message); }
       const c = db.customers.find(x => x.id === Number(p.id) && !x.deleted_at);
       if (!c) return ok(null);
@@ -3343,10 +3403,14 @@ const api = {
       const c = db.customers.find(x => x.id === Number(p.id) && !x.deleted_at);
       if (!c) return ok(null);
       const d = decorateCustomer(c);
+      /* lets the picker UI warn (and disable Save) before the guest even
+         attempts the blocked action, without exposing who owns the guest
+         or when protection expires (spec §20/§21) */
+      const protectedFromMe = session?.role === 'MARKETING' && isGuestProtectedFrom(c.id, session.profile_id);
       return ok({ id:d.id, code:d.code, full_name:d.full_name, phone:d.phone, passport_no:d.passport_no,
                   photo_path:d.photo_path, status:d.status, reservation_count:d.reservation_count,
                   note_count:d.note_count, marketing_name:d.marketing_name, marketing_status:d.marketing_status,
-                  marketing_profile_id:d.marketing_profile_id }); },
+                  marketing_profile_id:d.marketing_profile_id, protected_from_me:protectedFromMe }); },
     create: (p) => { try { guard('customers.create'); } catch (e) { return fail(e.code, e.message); }
       const code = String(p.code || '').trim(); const name = String(p.fullName || '').trim();
       if (!code) return fail('VALIDATION','ID is required.','code');
@@ -3382,6 +3446,11 @@ const api = {
       if (!c) return fail('VALIDATION','Guest not found.');
       if (!prof || prof.employment_status !== 'active') return fail('VALIDATION','Select an active marketing profile.');
       if (c.marketing_profile_id === prof.id) return ok({ ok:true });
+      /* a MARKETING user cannot bypass guest protection through this path
+         either — ADMIN/MANAGER remain unrestricted, which is the
+         authorized reassignment override (spec §21/§22) */
+      if (session?.role === 'MARKETING' && isGuestProtectedFrom(c.id, session.profile_id))
+        return fail('FORBIDDEN','Guest protection period has not expired.');
       const previousId = c.marketing_profile_id || null;
       const previous = previousId ? profileById(previousId) : null;
       /* current assignment is the only thing that changes here — Created
@@ -3423,6 +3492,13 @@ const api = {
       if (co < ci) return fail('VALIDATION','Check-out must be on or after check-in.','checkOut');
       const c = db.customers.find(x => x.id === Number(p.customerId) && !x.deleted_at);
       if (!c) return fail('VALIDATION','Guest not found.','customerId');
+      /* selecting an existing guest must never silently steal ownership —
+         a protected guest can still be found and viewed, but a different
+         MARKETING user creating a reservation for them is exactly the
+         takeover this blocks (spec §15/§16/§21). ADMIN/MANAGER are exempt:
+         their explicit reassignment (customers.assign) is the override. */
+      if (session?.role === 'MARKETING' && isGuestProtectedFrom(c.id, session.profile_id))
+        return fail('FORBIDDEN','Guest protection period has not expired.');
       const warnings = [];
       /* MARKETING can only ever invite as themselves — enforced here, not
          just hidden in the UI, so a crafted request can't attribute a
@@ -3450,6 +3526,8 @@ const api = {
       const ci = p.checkIn ?? r.check_in, co = p.checkOut ?? r.check_out;
       if (co < ci) return fail('VALIDATION','Check-out must be on or after check-in.','checkOut');
       const cid = p.customerId ? Number(p.customerId) : r.customer_id;
+      if (cid !== r.customer_id && session?.role === 'MARKETING' && isGuestProtectedFrom(cid, session.profile_id))
+        return fail('FORBIDDEN','Guest protection period has not expired.');
       const conflicts = custRes(cid).filter(x => x.id !== r.id && !x.cancelled_at && x.check_in <= co && x.check_out >= ci)
         .map(x => ({ id:x.id, check_in:x.check_in, check_out:x.check_out }));
       if (conflicts.length && !p.force)
@@ -3589,9 +3667,14 @@ const api = {
         stats: {
           totalGuests: cs.filter(c => c.registered).length,   /* mirrors the Customer List exactly */
           reservations: periodRows.length,
-          upcomingIn: rs.filter(r => r.check_in >= today() && daysSince(r.check_in) >= -7).length,
-          upcomingOut: rs.filter(r => r.check_out >= today() && daysSince(r.check_out) >= -7).length,
-          activeMarketing: db.profiles.filter(p => !p.deleted_at && p.employment_status === 'active').length,
+          /* the authoritative r.status is what goReservationsUpcoming() also
+             filters by — a hand-rolled date-arithmetic version of "upcoming"
+             here previously disagreed with the destination list every time a
+             same-day arrival (already CHECKED_IN) fell inside the old date
+             window (spec §8/§14) */
+          upcomingIn: rs.filter(r => r.status === 'UPCOMING').length,
+          upcomingOut: rs.filter(r => r.status === 'UPCOMING' || r.status === 'CHECKED_IN').length,
+          activeMarketing: countActiveMarketingProfiles(),
           cold: cs.filter(c => c.status === 'COLD').length,
           /* must match the No Record screen's own definition exactly (registered +
              zero reservations + zero notes) — this used to omit the registered
@@ -3673,12 +3756,27 @@ const api = {
   },
 
   settings: {
-    all: () => ok({ ...db.settings }),
+    /* personal keys resolve to the CALLING user's own saved choice, falling
+       back to the shared default only until they've picked one themselves
+       — never to whatever the last person who touched the app chose
+       (spec §32/§36: one user's theme must never leak into another's) */
+    all: () => {
+      const personal = ['appearance.theme','appearance.density'];
+      const mine = (session && db.userPrefs[session.id]) || {};
+      const merged = { ...db.settings };
+      personal.forEach(k => { if (mine[k] !== undefined) merged[k] = mine[k]; });
+      return ok(merged); },
     set: (p) => {
       const personal = ['appearance.theme','appearance.density'];
       if (!personal.includes(p.key) && session?.role !== 'ADMIN')
         return fail('FORBIDDEN','Only an administrator can change this setting.');
-      db.settings[p.key] = String(p.value); save(); return ok({ ok:true }); },
+      if (personal.includes(p.key) && session){
+        if (!db.userPrefs[session.id]) db.userPrefs[session.id] = {};
+        db.userPrefs[session.id][p.key] = String(p.value);
+      } else {
+        db.settings[p.key] = String(p.value);
+      }
+      save(); return ok({ ok:true }); },
     permissions: () => {
       const roles = {};
       ['MANAGER','MARKETING'].forEach(role => {
@@ -4412,7 +4510,7 @@ function openFinder(opts){
   el('finderCols').className = finderMode === 'profile' ? 'finder-cols single' : 'finder-cols';
   el('finderCols').innerHTML = finderMode === 'profile'
     ? '<div>NAME</div>'
-    : '<div>ID</div><div>NAME SURNAME</div><div class="fc-phone">PHONE</div>';
+    : '<div>ID</div><div>NAME SURNAME</div><div class="fc-phone">LAST VISIT</div>';
   openModal('modalFinder');
   runFinderSearch('');
   setTimeout(() => el('finderInput').focus(), 40);
@@ -4435,7 +4533,7 @@ async function runFinderSearch(q){
   } else {
     const data = await call(window.api.customers.picker, { search:q, pageSize:50, scoped:finderScoped }, { silent:true });
     if (seq !== finderSeq) return;
-    finderRows = (data || []).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone }));
+    finderRows = (data || []).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone, last_visit:c.last_visit }));
   }
   finderCursor = finderRows.length ? 0 : -1;
   renderFinderResults(q);
@@ -4459,7 +4557,7 @@ function renderFinderResults(q){
          onmouseenter="finderSetCursor(${i})" onclick="selectFinderRow(${i})">
          <span class="fc-id">#${escapeHtml(r.code)}</span>
          <span class="fc-name">${escapeHtml(r.full_name)}</span>
-         <span class="fc-phone">${r.phone ? escapeHtml(r.phone) : '—'}</span>
+         <span class="fc-phone">${r.last_visit ? fmtDate(r.last_visit) : '—'}</span>
        </div>`
   ).join('');
   const capped = finderRows.length === 50;
@@ -4802,7 +4900,7 @@ async function renderDashboard(){
       go: ['ADMIN','MANAGER'].includes(state.session?.role) ? "goCrmView('customerlist')" : "switchTab('customers')" },
     ...(isAdmin() ? [{ l:'Active Marketing', n:s.activeMarketing, sub:'CURRENT', go:"switchTab('profiles')" }] : []),
     { l:'Reservations',     n:s.reservations, sub:periodLabel.toUpperCase(), go:"switchTab('reservations')" },
-    { l:'Upcoming Check-ins',  n:s.upcomingIn, sub:'NEXT 7 DAYS', go:"goReservationsUpcoming()" },
+    { l:'Upcoming Check-ins',  n:s.upcomingIn, sub:'UPCOMING', go:"goReservationsUpcoming()" },
     { l:'Cold Guests',      n:s.cold, sub:'CURRENT', flag:s.cold > 0,        go:"goCustomersFiltered('COLD')" },
     { l:'No Record',        n:s.noRecord, sub:'CURRENT', flag:s.noRecord > 0, go:"goCustomersFiltered('NO_RECORD')" }
   ];
@@ -5202,7 +5300,7 @@ async function refreshCrmViews(){
    stale count until the guest happens to revisit it (spec §22/§28). */
 async function refreshReservationViews(customerId){
   await Promise.all([
-    renderReservations(), renderDashboard(), renderCalendar(),
+    renderReservations(), renderDashboard(), renderCalendar(), renderProfiles(),
     customerId != null ? refreshOpenInspectors(customerId) : Promise.resolve()
   ]);
 }
@@ -5220,7 +5318,6 @@ async function renderCustomers(){
     <tr class="clickable" tabindex="0" data-activatable onclick="showCustomerDetail(${c.id},'detailPanel')" ondblclick="openCustomerModal(${c.id})" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
-      <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
       <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
       <td class="muted">${c.note_count ? `${c.note_count} note${c.note_count > 1 ? 's' : ''}` : '—'}</td>
       <td>
@@ -5238,7 +5335,7 @@ async function renderCustomers(){
       </td>
       <td class="muted">${fmtDate(c.updated_at)}</td>
     </tr>`).join('')
-    : emptyRow(7, s.search
+    : emptyRow(6, s.search
         ? emptyState({ icon:'search', title:'No matching guests',
             text:`Nothing matches “${s.search}”.`,
             actions:[{ label:'Clear search', onclick:"el('custSearch').value='';onCustSearch()" },
@@ -5306,13 +5403,12 @@ async function renderCustomerList(){
     <tr class="clickable" tabindex="0" data-activatable onclick="showCustomerDetail(${c.id},'listDetailPanel')" ondblclick="openCustomerModal(${c.id})" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
-      <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
       <td class="muted">${escapeHtml(c.created_by_label)}</td>
       <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
       <td>${statusTagHTML(c.status)}</td>
       <td class="muted">${fmtDate(c.created_at)}</td>
     </tr>`).join('')
-    : emptyRow(7, q || s.status || s.createdBy || s.assignedTo
+    : emptyRow(6, q || s.status || s.createdBy || s.assignedTo
         ? emptyState({ icon:'search', title:'No guests match the active filters',
             actions:[{ label:'Clear filters', onclick:'clearListFilters();el(\'listSearch\').value=\'\';onListSearch()' }] })
         : emptyState({ icon:'guests', title:'No guests registered yet',
@@ -6268,10 +6364,12 @@ async function onResCustomerChange(){
      card (with its own Change link) or the new-guest fields take over */
   el('resGuestFinderField').style.display = v ? 'none' : '';
   const prev = el('resGuestPreview');
-  if (!v || isNew){ prev.classList.remove('show'); return; }
+  const warn = el('resGuestProtectedWarning');
+  const saveBtn = document.querySelector('#modalReservation .btn-gold');
+  if (!v || isNew){ prev.classList.remove('show'); warn.style.display = 'none'; if (saveBtn) saveBtn.disabled = false; return; }
 
   const c = await call(window.api.customers.summary, { id: Number(v) }, { silent:true }).catch(() => null);
-  if (!c){ prev.classList.remove('show'); return; }
+  if (!c){ prev.classList.remove('show'); warn.style.display = 'none'; if (saveBtn) saveBtn.disabled = false; return; }
   await resolvePhotos([c.photo_path]);
   const av = el('resGuestAvatar');
   const url = photoUrl(c.photo_path);
@@ -6283,6 +6381,21 @@ async function onResCustomerChange(){
   el('resGuestPills').innerHTML =
     `${statusTagHTML(c.status)}<span class="ep-pill">${c.reservation_count} visits</span>`;
   prev.classList.add('show');
+  /* the API is authoritative and will refuse this at save time regardless
+     — this early flag just avoids sending the guest through the whole
+     form only to be blocked at the end (spec §21). The text is reset here
+     rather than left to the static markup because clearFieldErrors() —
+     run at the top of every openReservationModal() call since this is a
+     .field-error element too — blanks it the first time the modal opens
+     and nothing else would ever put it back. */
+  warn.textContent = 'Guest protection period has not expired.';
+  /* explicit 'block', not '' — clearFieldErrors() (run at the top of every
+     openReservationModal() call) strips this element's .show class along
+     with every other .field-error, so relying on that class to drive
+     visibility left the banner permanently invisible after the first
+     modal open regardless of this flag */
+  warn.style.display = c.protected_from_me ? 'block' : 'none';
+  if (saveBtn) saveBtn.disabled = !!c.protected_from_me;
 }
 
 function profileIdByName(name){
@@ -6718,7 +6831,7 @@ async function saveRecord(){
         { customerId:Number(id), note, noteDate: el('recDate').value || todayYMD() }, { silent:true });
       closeModal('modalRecord');
       toast('success','Record saved');
-      await Promise.all([refreshCrmViews(), renderDashboard(), refreshOpenInspectors(Number(id))]);
+      await Promise.all([refreshCrmViews(), renderDashboard(), renderProfiles(), refreshOpenInspectors(Number(id))]);
       refreshNotifBadge();
     } catch (e){ toast('error','Record not saved', e.message); }
   });
@@ -6751,10 +6864,18 @@ async function saveAssign(){
   if (!to){ showFieldError('assignSelect','Select an active marketer.'); return; }
   const btn = document.querySelector('#modalAssign .btn-gold');
   await withBusy(btn, 'Assigning…', async () => {
-    await call(window.api.customers.assign, { id:assigningCustomerId, profileId:Number(to) });
+    try {
+      await call(window.api.customers.assign, { id:assigningCustomerId, profileId:Number(to) }, { silent:true });
+    } catch (e) {
+      if (!applyServerError(e, { profileId:'assignSelect' })) toast('error','Guest not assigned', e.message);
+      return;
+    }
     closeModal('modalAssign');
     toast('success','Guest assigned');
-    await Promise.all([refreshCrmViews(), renderDashboard(), refreshOpenInspectors(assigningCustomerId)]);
+    /* current assigned-guest counts move immediately wherever they're
+       shown — Profiles' own count, Customer List/CRM, Dashboard, any open
+       inspector — none of them should need a reload to agree (spec §25) */
+    await Promise.all([refreshCrmViews(), renderDashboard(), renderProfiles(), refreshOpenInspectors(assigningCustomerId)]);
     refreshNotifBadge();
   });
 }
