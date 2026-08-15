@@ -314,16 +314,6 @@ button{ font-family:inherit; }
 .btn-icon[disabled]{ opacity:.35; cursor:not-allowed; }
 .btn-icon[disabled]:hover{ background:transparent; color:var(--ink-3); }
 
-.btn-home{
-  display:none; align-items:center; gap:6px; height:30px; padding:0 12px;
-  border-radius:var(--r-1); background:transparent; border:1px solid var(--line-2);
-  color:var(--ink-2); font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label);
-  cursor:pointer; transition:.14s var(--ease);
-}
-.btn-home.show{ display:inline-flex; }
-.btn-home:hover{ background:var(--s2); color:var(--ink); }
-.btn-home svg{ width:13px; height:13px; }
-
 /* a link-weight control, used inside panel headers */
 .btn-link{
   background:none; border:none; padding:0; cursor:pointer;
@@ -380,7 +370,7 @@ button{ font-family:inherit; }
 
 .page-head{
   display:flex; align-items:flex-end; justify-content:space-between; gap:var(--sp-4);
-  padding-bottom:var(--sp-4); margin-bottom:var(--sp-6);
+  padding-bottom:var(--sp-3); margin-bottom:var(--sp-5);
   border-bottom:1px solid var(--line-2);
 }
 .page-title{
@@ -634,7 +624,7 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 }
 .panel-head{
   display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3);
-  padding:var(--sp-3) var(--sp-5); min-height:46px;
+  padding:10px var(--sp-5); min-height:42px;
   border-bottom:1px solid var(--line); background:var(--s1); flex-shrink:0;
 }
 .panel-title{ font-size:var(--t-md); font-weight:600; margin:0; display:flex; align-items:center; }
@@ -644,7 +634,7 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 
 .list-row{
   display:flex; align-items:center; gap:var(--sp-3);
-  padding:10px var(--sp-5); border-bottom:1px solid var(--line);
+  padding:9px var(--sp-5); border-bottom:1px solid var(--line);
   cursor:pointer; transition:background .1s var(--ease);
 }
 .list-row:last-child{ border-bottom:none; }
@@ -717,14 +707,15 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .detail-edit-btn:hover, .detail-collapse-btn:hover{ background:var(--s2); color:var(--ink); }
 .detail-edit-btn svg, .detail-collapse-btn svg{ width:13px; height:13px; }
 .gc-name{ font-size:var(--t-lg); font-weight:600; letter-spacing:-.3px; }
-.gc-fields{
-  display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-top:var(--sp-4);
-  background:var(--line); border:1px solid var(--line); border-radius:var(--r-1);
-  overflow:hidden; text-align:left;
+/* a record summary, not a spreadsheet — quiet label / scannable value on
+   one line, separated by a hairline rather than a boxed grid cell */
+.gc-field{
+  display:flex; align-items:baseline; justify-content:space-between; gap:var(--sp-4);
+  padding:7px 0; border-bottom:1px solid var(--line); min-width:0;
 }
-.gc-field{ background:var(--s0); padding:9px 11px; min-width:0; }
-.gf-l{ font-size:var(--t-xs); color:var(--ink-3); letter-spacing:var(--tracking-label); text-transform:uppercase; }
-.gf-v{ font-size:var(--t-md); margin-top:2px; overflow-wrap:anywhere; }
+.gc-field:last-child{ border-bottom:none; }
+.gf-l{ font-size:11px; color:var(--ink-3); letter-spacing:var(--tracking-label); text-transform:uppercase; flex-shrink:0; }
+.gf-v{ font-size:var(--t-md); color:var(--ink); text-align:right; overflow-wrap:anywhere; min-width:0; }
 /* plain text actions, not buttons — a rule-separated row consistent with
    the stat-divider pattern used elsewhere (.pd-stat + .pd-stat). Kept to
    one line always: tight enough spacing that up to four actions fit the
@@ -744,11 +735,7 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .gi-action + .gi-action{ border-left:1px solid var(--line); }
 .gi-action:hover{ color:var(--accent); }
 .gi-action:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:2px; }
-.gi-facts{
-  display:grid; grid-template-columns:1fr 1fr; gap:1px;
-  background:var(--line); border:1px solid var(--line); border-radius:var(--r-1);
-  overflow:hidden; text-align:left;
-}
+.gi-facts{ display:flex; flex-direction:column; text-align:left; }
 
 .card-tabs{ display:flex; gap:var(--sp-5); padding:0 var(--sp-5); border-top:1px solid var(--line);
   border-bottom:1px solid var(--line); flex-shrink:0; }
@@ -911,20 +898,20 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
   display:grid; grid-template-columns:repeat(5,1fr);
   background:var(--s0); border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden;
 }
-.stat-cell{ padding:var(--sp-3) var(--sp-5); cursor:pointer; min-width:0; transition:background .12s var(--ease); }
+.stat-cell{ padding:10px var(--sp-5); cursor:pointer; min-width:0; transition:background .12s var(--ease); }
 .stat-cell + .stat-cell{ border-left:1px solid var(--line); }
 .stat-cell:hover, .stat-cell:focus-visible{ background:var(--s1); }
 .stat-cell:focus-visible{ outline-offset:-2px; }
 .sc-l{ font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sc-n{ font-size:22px; font-weight:600; letter-spacing:-.5px; margin-top:5px; line-height:1.15; color:var(--ink); }
-.sc-sub{ font-size:9px; font-weight:600; letter-spacing:.3px; color:var(--ink-4); margin-top:4px; text-transform:uppercase; }
+.sc-n{ font-size:20px; font-weight:600; letter-spacing:-.5px; margin-top:4px; line-height:1.15; color:var(--ink); }
+.sc-sub{ font-size:9px; font-weight:600; letter-spacing:.3px; color:var(--ink-4); margin-top:3px; text-transform:uppercase; }
 .sc-flag{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--warn); margin-left:8px; vertical-align:middle; }
 .kpi-arrow{ display:none; }
 
 /* the working column (attention + pending) leads and runs wider; the
    informational column (notifications + recent activity) trails —
    composition carries the hierarchy, not four equal-weight cards */
-.dash-grid{ display:grid; grid-template-columns:1.32fr 1fr; gap:var(--sp-5); align-items:start; margin-top:var(--sp-6); }
+.dash-grid{ display:grid; grid-template-columns:1.32fr 1fr; gap:var(--sp-5); align-items:start; margin-top:var(--sp-5); }
 /* the Team column only ever holds a short top-6 ranking, so it doesn't
    need — and shouldn't claim — an equal share of the newly-reclaimed
    width; giving Needs You/Activity the room keeps Team from turning
@@ -1001,7 +988,10 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
   display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3);
   padding:var(--sp-4) var(--sp-6); border-bottom:1px solid var(--line); flex-shrink:0; background:var(--s1);
 }
+.modal-head-text{ min-width:0; }
 .modal-title{ font-size:var(--t-lg); font-weight:600; letter-spacing:var(--tracking-tight); margin:0; }
+.modal-subtitle{ font-size:12px; color:var(--ink-3); margin-top:3px; }
+.modal-subtitle .msub-code{ color:var(--ink-4); }
 .modal-close{
   background:transparent; border:none; width:30px; height:30px; border-radius:var(--r-1);
   color:var(--ink-3); font-size:14px; cursor:pointer; line-height:1; flex-shrink:0;
@@ -1015,6 +1005,12 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
   padding:var(--sp-3) var(--sp-6); border-top:1px solid var(--line); background:var(--s1); flex-shrink:0;
 }
 .foot-right{ margin-left:auto; display:flex; gap:var(--sp-2); }
+/* three-tier destructive hierarchy: Save stays the one solid action;
+   Cancel Reservation is a quiet text control (reversible-ish, keeps
+   history); Delete is icon-only and set apart with its own divider so it
+   never reads as equal weight to the normal Save/Cancel workflow */
+.modal-foot-tiered .foot-left{ display:flex; align-items:center; gap:var(--sp-3); }
+.modal-foot-tiered #resDeleteResBtn{ margin-left:var(--sp-2); padding-left:var(--sp-3); border-left:1px solid var(--line-2); border-radius:0; border-top:none; border-bottom:none; border-right:none; }
 
 .form-group{ margin-bottom:var(--sp-6); }
 .form-group:last-child{ margin-bottom:0; }
@@ -1040,6 +1036,12 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .field input::placeholder, .field textarea::placeholder{ color:var(--ink-3); }
 .field-row{ display:flex; gap:var(--sp-3); }
 .field-hint{ font-size:11.5px; color:var(--ink-3); margin-top:6px; }
+/* check-in/check-out read as one paired relationship, not two unrelated
+   date fields — a quiet directional mark between them is enough */
+.stay-dates{ display:flex; align-items:flex-start; gap:var(--sp-3); }
+.stay-dates .field{ flex:1; min-width:0; }
+.stay-dates-arrow{ flex-shrink:0; height:36px; display:grid; place-items:center; margin-top:26px; color:var(--ink-4); }
+.stay-dates-arrow svg{ width:15px; height:15px; }
 .field-row .field{ flex:1; min-width:0; }
 .field-error{ font-size:var(--t-xs); color:var(--danger); margin-top:5px; display:none; }
 .field-error.show{ display:block; }
@@ -1052,15 +1054,24 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .form-hero-fields{ flex:1; min-width:0; }
 .form-hero-fields .field{ margin-bottom:var(--sp-3); }
 .form-hero-fields .field:last-child{ margin-bottom:0; }
+/* the guest's name is the identity anchor of the record — a touch more
+   presence than a routine field, without turning into a hero headline */
+.field-primary input{ font-size:16px; font-weight:600; height:40px; }
+/* a portrait placeholder, not a generic upload dropzone — the shape and
+   icon read as "this is the guest's photograph" before any image is set */
 .photo-drop{
-  width:96px; height:96px; flex-shrink:0; border-radius:var(--r-2);
-  border:1px dashed var(--line-3); background:var(--s2);
+  width:88px; height:88px; flex-shrink:0; border-radius:50%;
+  border:1px solid var(--line-2); background:var(--s2);
   background-size:cover; background-position:center;
   display:grid; place-items:center; cursor:pointer; overflow:hidden;
-  color:var(--ink-3); font-size:var(--t-xs); font-weight:600; letter-spacing:var(--tracking-label);
-  text-align:center; padding:var(--sp-2); transition:.14s var(--ease);
+  color:var(--ink-3); text-align:center; transition:border-color .14s var(--ease);
 }
-.photo-drop:hover{ border-color:var(--accent); color:var(--accent); }
+.photo-drop:hover{ border-color:var(--accent); }
+.photo-drop .pd-empty{ display:flex; flex-direction:column; align-items:center; gap:5px; pointer-events:none; }
+.photo-drop .pd-empty svg{ width:22px; height:22px; opacity:.6; }
+.photo-drop .pd-empty span{ font-size:9px; font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase; opacity:.8; }
+.photo-drop:hover .pd-empty{ color:var(--accent); }
+.photo-drop.has-photo{ border-style:solid; }
 
 .check-row{
   display:flex; align-items:center; gap:var(--sp-3);
@@ -1206,6 +1217,10 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 .setting-row:last-child{ border-bottom:none; }
 .setting-label{ font-size:var(--t-md); font-weight:500; }
 .setting-hint{ font-size:var(--t-sm); color:var(--ink-3); margin-top:3px; }
+.danger-hint{
+  color:var(--danger); background:var(--danger-soft); border:1px solid rgba(138,58,44,.35);
+  border-radius:var(--r-1); padding:var(--sp-3); line-height:1.5;
+}
 .setting-control{ flex-shrink:0; }
 .setting-control select, .setting-control input[type=text]{
   background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-1);
@@ -1304,7 +1319,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
   .stat-cell:nth-child(n+3){ border-top:1px solid var(--line); }
   .pd-stats{ grid-template-columns:1fr; }
   .pd-stat + .pd-stat{ border-left:none; padding-left:0; border-top:1px solid var(--line); }
-  .gc-fields, .gi-facts, .field-row, .shortcut-grid{ grid-template-columns:1fr; flex-direction:column; gap:0; }
+  .field-row, .shortcut-grid{ grid-template-columns:1fr; flex-direction:column; gap:0; }
   .form-hero{ flex-direction:column; align-items:center; }
   .page-head{ flex-wrap:wrap; }
   .search{ flex:1 1 100%; }
@@ -1312,8 +1327,6 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 }
 @media (max-width:480px){
   .brand-text small{ display:none; }
-  .btn-home span{ display:none; }
-  .btn-home{ width:30px; padding:0; }
 }
 
 </style>
@@ -1326,7 +1339,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="login-brand">
       <div class="brand-mark" id="loginFallback">M</div>
       <img class="brand-logo" src="./logo.png" alt=""
-           onload="this.style.display='block'; el('loginFallback').style.display='none'"
+           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
            onerror="this.remove()">
     </div>
     <h1 class="login-title">MERIT MARKETING HUB</h1>
@@ -1347,7 +1360,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <div class="login-brand">
       <div class="brand-mark" id="setupFallback">M</div>
       <img class="brand-logo" src="./logo.png" alt=""
-           onload="this.style.display='block'; el('setupFallback').style.display='none'"
+           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
            onerror="this.remove()">
     </div>
     <h1 class="login-title">Welcome</h1>
@@ -1383,7 +1396,7 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
     <button class="app-menu-trigger" id="appMenuTrigger" onclick="toggleAppMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="appMenu" title="Application menu">
       <div class="brand-mark" id="brandFallback" aria-hidden="true">M</div>
       <img class="brand-logo" src="./logo.png" alt="" aria-hidden="true"
-           onload="this.style.display='block'; el('brandFallback').style.display='none'"
+           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
            onerror="this.remove()">
     </button>
     <div class="brand-text">MERIT MARKETING HUB<small>Casino CRM</small></div>
@@ -1393,10 +1406,6 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <span>Search…</span>
       <kbd>Ctrl K</kbd>
-    </button>
-    <button class="btn-home" id="homeBtn" onclick="switchTab('dashboard')" aria-label="Dashboard">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
-      <span>DASHBOARD</span>
     </button>
     <div class="topbar-session">
       <div class="sc-av" id="sessionAvatar" aria-hidden="true"></div>
@@ -1789,21 +1798,24 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           EXPORT
         </button>
       </div>
-      <div class="table-wrap">
-        <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th scope="col">ID</th>
-            <th scope="col" class="sortable" onclick="sortList('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
-            <th scope="col">PHONE</th>
-            <th scope="col">CREATED BY</th>
-            <th scope="col">ASSIGNED TO</th>
-            <th scope="col">STATUS</th>
-            <th scope="col" class="sortable sorted" onclick="sortList('created')" aria-sort="descending">REGISTERED<span class="sort-arrow">↓</span></th></tr>
-          </thead>
-          <tbody id="listTableBody"></tbody>
-        </table>
+      <div class="customer-layout">
+        <div class="table-wrap">
+          <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">ID</th>
+              <th scope="col" class="sortable" onclick="sortList('name')" aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+              <th scope="col">PHONE</th>
+              <th scope="col">CREATED BY</th>
+              <th scope="col">ASSIGNED TO</th>
+              <th scope="col">STATUS</th>
+              <th scope="col" class="sortable sorted" onclick="sortList('created')" aria-sort="descending">REGISTERED<span class="sort-arrow">↓</span></th></tr>
+            </thead>
+            <tbody id="listTableBody"></tbody>
+          </table>
+          </div>
         </div>
+        <div class="detail-panel empty" id="listDetailPanel">No guest selected</div>
       </div>
     </div>
 
@@ -2003,14 +2015,18 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 <div class="overlay" id="modalReservation" role="dialog" aria-modal="true" aria-labelledby="resModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <h2 class="modal-title" id="resModalTitle">New Reservation</h2>
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="resModalTitle">New Reservation</h2>
+        <div class="modal-subtitle" id="resModalSubtitle">Book a stay for an existing or new guest</div>
+      </div>
       <button class="modal-close" onclick="closeModal('modalReservation')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
+      <div class="form-group first">
         <div class="form-group-title">Guest</div>
         <div class="field">
           <select id="resCustomerSelect" onchange="onResCustomerChange()"><option value=""></option></select>
+          <div class="field-error" id="err-resCustomerSelect" role="alert"></div>
         </div>
         <div class="entity-preview" id="resGuestPreview">
           <div class="avatar lg" id="resGuestAvatar" style="margin:0;"></div>
@@ -2024,34 +2040,55 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
           <div class="field">
             <label for="resNewCustomerId">New Guest ID</label>
             <input type="text" id="resNewCustomerId">
+            <div class="field-error" id="err-resNewCustomerId" role="alert"></div>
           </div>
           <div class="field">
             <label for="resNewCustomerName">Name Surname</label>
             <input type="text" id="resNewCustomerName">
+            <div class="field-error" id="err-resNewCustomerName" role="alert"></div>
           </div>
         </div>
       </div>
 
       <div class="form-group">
-        <div class="form-group-title">Reservation</div>
-        <div class="field-row">
-          <div class="field"><label for="resCheckIn">Check In</label><input type="date" id="resCheckIn"></div>
-          <div class="field"><label for="resCheckOut">Check Out</label><input type="date" id="resCheckOut"></div>
+        <div class="form-group-title">Stay Details</div>
+        <div class="stay-dates">
+          <div class="field"><label for="resCheckIn">Check In</label><input type="date" id="resCheckIn">
+            <div class="field-error" id="err-resCheckIn" role="alert"></div></div>
+          <div class="stay-dates-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+          </div>
+          <div class="field"><label for="resCheckOut">Check Out</label><input type="date" id="resCheckOut">
+            <div class="field-error" id="err-resCheckOut" role="alert"></div></div>
         </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-group-title">Marketing</div>
         <div class="field">
           <label for="resInvitedBy">Invited By</label>
           <input type="text" id="resInvitedBy" list="profileNames">
           <datalist id="profileNames"></datalist>
+          <div class="field-error" id="err-resInvitedBy" role="alert"></div>
           <div class="field-hint" id="resInvitedByLockedHint" style="display:none;">Reservations you create are always attributed to you.</div>
         </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-group-title">Notes</div>
         <div class="field">
-          <label for="resNotes">Reservation Note</label>
-          <textarea id="resNotes"></textarea>
+          <label for="resNotes" class="visually-hidden">Reservation Note</label>
+          <textarea id="resNotes" placeholder="Optional — preferences, special requests, context for the stay"></textarea>
         </div>
       </div>
     </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost btn-sm btn-destructive-ghost" id="resCancelResBtn" style="display:none;" onclick="openCancelReservationModal(editingReservationId)">CANCEL RESERVATION</button>
+    <div class="modal-foot modal-foot-tiered">
+      <div class="foot-left">
+        <button class="btn btn-ghost btn-sm btn-destructive-ghost" id="resCancelResBtn" style="display:none;" onclick="openCancelReservationModal(editingReservationId)">Cancel Reservation</button>
+        <button class="btn-delete-icon" id="resDeleteResBtn" style="display:none;" onclick="openDeleteReservationModal(editingReservationId)" title="Permanently delete this reservation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
       <div class="foot-right">
         <button class="btn btn-ghost btn-sm" onclick="closeModal('modalReservation')">Close</button>
         <button class="btn btn-gold btn-sm" onclick="saveReservation(false)">Save</button>
@@ -2088,6 +2125,29 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
       <div class="foot-right">
         <button class="btn btn-ghost btn-sm" onclick="closeModal('modalCancelReservation')">Back</button>
         <button class="btn btn-gold btn-sm btn-destructive-solid" onclick="confirmCancelReservation()">CANCEL RESERVATION</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: DELETE RESERVATION ================= -->
+<div class="overlay" id="modalDeleteReservation" role="dialog" aria-modal="true" aria-labelledby="deleteResModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="deleteResModalTitle">Delete Reservation</h2>
+      <button class="modal-close" onclick="closeModal('modalDeleteReservation')" aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="danger-hint" style="margin-bottom:var(--sp-4);">
+        This permanently removes the reservation record. Unlike Cancel Reservation, it cannot be undone and no record of the stay is kept.
+      </div>
+      <div class="ep-name" id="deleteResSummary" style="margin-bottom:var(--sp-2);"></div>
+      <div class="setting-hint" id="deleteResStatusLine"></div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modalDeleteReservation')">Back</button>
+        <button class="btn btn-gold btn-sm btn-destructive-solid" onclick="confirmDeleteReservation()">Delete Permanently</button>
       </div>
     </div>
   </div>
@@ -2239,30 +2299,37 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 <div class="overlay" id="modalCustomer" role="dialog" aria-modal="true" aria-labelledby="custModalTitle">
   <div class="modal">
     <div class="modal-head">
-      <h2 class="modal-title" id="custModalTitle">New Customer</h2>
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="custModalTitle">New Customer</h2>
+        <div class="modal-subtitle" id="custModalSubtitle">Create a new guest profile</div>
+      </div>
       <button class="modal-close" onclick="closeModal('modalCustomer')" aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <div class="form-group-title">Identity</div>
+      <div class="form-group first">
+        <div class="form-group-title">Guest Identity</div>
         <div class="form-hero">
-          <div class="photo-drop" id="custPhotoDrop" onclick="pickCustomerPhoto()">PHOTO</div>
+          <div class="photo-drop" id="custPhotoDrop" onclick="pickCustomerPhoto()"></div>
           <div class="form-hero-fields">
-            <div class="field"><label for="custId">ID</label><input type="text" id="custId"></div>
-            <div class="field"><label for="custName">Name Surname</label><input type="text" id="custName"></div>
+            <div class="field field-primary"><label for="custName">Full Name</label><input type="text" id="custName" autocomplete="off">
+              <div class="field-error" id="err-custName" role="alert"></div></div>
+            <div class="field"><label for="custId">Customer ID</label><input type="text" id="custId" autocomplete="off">
+              <div class="field-error" id="err-custId" role="alert"></div></div>
           </div>
         </div>
       </div>
       <div class="form-group">
-        <div class="form-group-title">Contact</div>
+        <div class="form-group-title">Contact &amp; Identification</div>
         <div class="field-row">
-          <div class="field"><label for="custPassport">Passport No</label><input type="text" id="custPassport"></div>
-          <div class="field"><label for="custPhone">Phone</label><input type="text" id="custPhone"></div>
+          <div class="field"><label for="custPhone">Phone</label><input type="text" id="custPhone" autocomplete="off">
+            <div class="field-error" id="err-custPhone" role="alert"></div></div>
+          <div class="field"><label for="custPassport">Passport No</label><input type="text" id="custPassport" autocomplete="off">
+            <div class="field-error" id="err-custPassport" role="alert"></div></div>
         </div>
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-delete-icon" id="custDeleteBtn" style="display:none;" onclick="deleteCustomer()" title="Delete">
+      <button class="btn-delete-icon" id="custDeleteBtn" style="display:none;" onclick="deleteCustomer()" title="Delete guest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
       </button>
       <div class="foot-right">
@@ -2552,7 +2619,7 @@ let session = null;
 const PERMISSIONS = {
   ADMIN: ['*'],
   MANAGER: ['customers.read','customers.create','customers.update','customers.delete','customers.assign',
-    'reservations.read','reservations.create','reservations.update','reservations.delete',
+    'reservations.read','reservations.create','reservations.update',
     'profiles.read','profiles.create','profiles.update',
     'crmNotes.read','crmNotes.create','crmNotes.update','crmNotes.delete',
     'notifications.read','notifications.update','reports.read','dashboard.read','export.run',
@@ -2565,7 +2632,7 @@ const PERMISSIONS = {
 const CONFIGURABLE = {
   'customers.create':'Create guests','customers.update':'Edit guests','customers.delete':'Delete guests',
   'customers.assign':'Assign guests to marketing','reservations.create':'Create reservations',
-  'reservations.update':'Edit reservations','reservations.delete':'Delete reservations',
+  'reservations.update':'Edit reservations',
   'profiles.create':'Create marketing profiles','profiles.update':'Edit marketing profiles',
   'crmNotes.create':'Add CRM notes','crmNotes.update':'Edit CRM notes','crmNotes.delete':'Delete CRM notes',
   'reports.read':'View reports','audit.read':'View audit log','export.run':'Export data',
@@ -3709,7 +3776,7 @@ function resetViewState(){
     hasReservation:'', hasCrm:'', createdFrom:'', createdTo:'' };
   state.audit = { page:1, pageSize:50, total:0 };
   ['resSearch','custSearch','listSearch','norecSearch'].forEach(id => { const n = el(id); if (n) n.value = ''; });
-  ['detailPanel','resDetailPanel'].forEach(id => {
+  ['detailPanel','resDetailPanel','listDetailPanel'].forEach(id => {
     const n = el(id); if (n){ n.classList.add('empty'); n.innerHTML = 'No guest selected'; }
   });
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filtered'));
@@ -3982,7 +4049,6 @@ async function switchTab(page, opts = {}){
   const activeNav = document.querySelector(`.nav-item[data-page="${page}"]`);
   activeNav?.classList.add('active');
   activeNav?.setAttribute('aria-current', 'page');
-  el('homeBtn').classList.toggle('show', page !== 'dashboard');
   closeAppMenu(); closeAllFilterMenus(); closeAllRowMenus(); resetRowCursor();
   renderWorkspaceStrip();
   const forceReload = opts.forceReload ?? (page === 'dashboard' || !wasOpen);
@@ -4427,21 +4493,12 @@ async function renderDashboard(){
         <div class="lr-name">${escapeHtml(a.full_name)}</div>
         <div class="lr-sub">${escapeHtml(a.reason)}${a.marketing_name ? ' · ' + escapeHtml(a.marketing_name) : ''}</div>
       </div>
-      <div class="lr-right">${attentionActionHTML(a)}</div>
     </div>`).join('') : '<div class="panel-empty">Nothing needs attention</div>';
 }
-/* Requires Attention is an action queue, not a feed — every row carries the
-   one action that resolves it, distinct from Notifications' read-only alerts. */
-function attentionActionHTML(a){
-  const stop = 'event.stopPropagation();';
-  if (a.reasonCode === 'no_record' && can1('reservations.create'))
-    return `<button class="btn btn-outline btn-sm" onclick="${stop}openReservationModal(null, ${a.id})">ADD RESERVATION</button>`;
-  if (a.reasonCode === 'missing_contact' && can1('customers.update'))
-    return `<button class="btn btn-outline btn-sm" onclick="${stop}openCustomerModal(${a.id})">EDIT</button>`;
-  if (a.reasonCode === 'cold' && can1('crmNotes.create'))
-    return `<button class="btn btn-outline btn-sm" onclick="${stop}openCrmNoteModal(${a.id})">ADD NOTE</button>`;
-  return '';
-}
+/* Requires Attention identifies what needs a look and opens the guest on
+   click — it is not an action-button wall; the actual actions (add
+   reservation, edit, add note) live in the guest inspector / CRM workflow
+   the row opens into (spec §3). */
 /* The fourth dashboard tile answers a different question for each role:
    a marketer wants a call list, a manager wants to see who is producing. */
 async function renderRolePanel(){
@@ -4496,11 +4553,15 @@ async function goReservationsUpcoming(){
 }
 async function goToGuest(customerId, page){
   await switchTab(page);
-  /* switchTab skips reloading a tab that was already open, so if CRM
-     Panel was left on Customer List or No Record, force it back to
-     Overview — that's the only pane that hosts the inspector */
-  if (page === 'customers') await setCrmView('overview');
-  await showCustomerDetail(customerId, page === 'customers' ? 'detailPanel' : 'resDetailPanel');
+  /* Overview and Customer List both host an inspector now — keep whichever
+     one the guest was already on. No Record still doesn't, so fall back
+     to Overview only in that case. */
+  let panelId = 'resDetailPanel';
+  if (page === 'customers'){
+    if (state.crmView === 'norecord') await setCrmView('overview');
+    panelId = state.crmView === 'customerlist' ? 'listDetailPanel' : 'detailPanel';
+  }
+  await showCustomerDetail(customerId, panelId);
 }
 
 /* ---------------- RESERVATIONS ---------------- */
@@ -4624,10 +4685,12 @@ async function renderReservations(){
 
 /* ---------- cancel reservation (replaces destructive delete in normal use) ---------- */
 let cancellingReservationId = null;
+let cancellingReservationCustomerId = null;
 async function openCancelReservationModal(id){
   cancellingReservationId = id;
   const r = state.res.rows.find(x => x.id === id) || (await call(window.api.reservations.get, { id }, { silent:true }));
   if (!r) return;
+  cancellingReservationCustomerId = r.customer_id;
   el('cancelResSummary').textContent = `${r.customer_name} · ${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}`;
   el('cancelResReason').value = '';
   openModal('modalCancelReservation');
@@ -4640,8 +4703,36 @@ async function confirmCancelReservation(){
     toast('success','Reservation cancelled');
     closeModal('modalCancelReservation');
     if (el('modalReservation').classList.contains('show')) closeModal('modalReservation');
-    cancellingReservationId = null;
-    await Promise.all([renderReservations(), renderDashboard()]);
+    const customerId = cancellingReservationCustomerId;
+    cancellingReservationId = null; cancellingReservationCustomerId = null;
+    await refreshReservationViews(customerId);
+  }
+}
+
+/* ---------- delete reservation (permanent — reservations.delete, ADMIN
+   only; a wholly different action from Cancel, which keeps the record) ---------- */
+let deletingReservationId = null;
+let deletingReservationCustomerId = null;
+async function openDeleteReservationModal(id){
+  if (!id || !can1('reservations.delete')) return;
+  deletingReservationId = id;
+  const r = state.res.rows.find(x => x.id === id) || (await call(window.api.reservations.get, { id }, { silent:true }));
+  if (!r) return;
+  deletingReservationCustomerId = r.customer_id;
+  el('deleteResSummary').textContent = `${r.customer_name} · ${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}`;
+  el('deleteResStatusLine').innerHTML = `Current status: ${statusTagHTML(r.status)}`;
+  openModal('modalDeleteReservation');
+}
+async function confirmDeleteReservation(){
+  if (!deletingReservationId) return;
+  const r = await call(window.api.reservations.delete, { id:deletingReservationId });
+  if (r){
+    toast('success','Reservation permanently deleted');
+    closeModal('modalDeleteReservation');
+    if (el('modalReservation').classList.contains('show')) closeModal('modalReservation');
+    const customerId = deletingReservationCustomerId;
+    deletingReservationId = null; deletingReservationCustomerId = null;
+    await refreshReservationViews(customerId);
   }
 }
 
@@ -4698,6 +4789,17 @@ function clearCustFilters(){
    assignment, or edit made from somewhere else (spec §19/§21). */
 async function refreshCrmViews(){
   await Promise.all([renderCustomers(), renderCustomerList(), renderNoRecord()]);
+}
+/* Every screen that can show a reservation's fingerprint — the Reservations/
+   Cancelled list+counts, Dashboard's KPIs/Recent/Pending, the Action
+   Calendar's day buckets, and any open guest inspector — must move together
+   after a create/edit/cancel/delete, or one of them keeps a ghost row or a
+   stale count until the guest happens to revisit it (spec §22/§28). */
+async function refreshReservationViews(customerId){
+  await Promise.all([
+    renderReservations(), renderDashboard(), renderCalendar(),
+    customerId != null ? refreshOpenInspectors(customerId) : Promise.resolve()
+  ]);
 }
 async function renderCustomers(){
   const s = state.cust;
@@ -4796,7 +4898,7 @@ async function renderCustomerList(){
     { search:q, registeredOnly:true, sort:s.sort, dir:s.dir, pageSize:500, ...listFilterParams() });
   if (!data) return;
   el('listTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" tabindex="0" ondblclick="openCustomerModal(${c.id})" onkeydown="if(event.key==='Enter'){openCustomerModal(${c.id})}" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
+    <tr class="clickable" tabindex="0" data-activatable onclick="showCustomerDetail(${c.id},'listDetailPanel')" ondblclick="openCustomerModal(${c.id})" aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
@@ -4875,8 +4977,9 @@ async function showCustomerDetail(customerId, panelId){
   const panel = el(panelId || 'detailPanel');
   if (!panel) return;
   state.selectedCustomerId = customerId;
+  panel.dataset.customerId = String(customerId);
   const c = await call(window.api.customers.get, { id: customerId });
-  if (!c){ panel.classList.add('empty'); panel.innerHTML = 'Guest not found.'; return; }
+  if (!c){ panel.classList.add('empty'); panel.innerHTML = 'Guest not found.'; delete panel.dataset.customerId; return; }
 
   const [resList, notes] = await Promise.all([
     call(window.api.reservations.list, { pageSize:200, sort:'check_in', dir:'desc' }, { silent:true }),
@@ -4995,6 +5098,17 @@ async function showCustomerDetail(customerId, panelId){
       </div>
       <div class="card-pane" id="${uid}_timeline">${timelineHTML}</div>
     </div>`;
+}
+/* A guest can be open in more than one inspector at once (e.g. Reservation
+   History's rail and Customer List's rail both showing the same person) —
+   after any mutation that changes what an inspector displays, re-render
+   every open panel currently showing that guest rather than only the one
+   the action happened to be triggered from, so none of them go stale. */
+async function refreshOpenInspectors(customerId){
+  const panelIds = ['detailPanel','listDetailPanel','resDetailPanel'];
+  await Promise.all(panelIds
+    .filter(id => el(id)?.dataset.customerId === String(customerId))
+    .map(id => showCustomerDetail(customerId, id)));
 }
 function switchCardTab(uid, name, btn){
   ['overview','stays','notes','timeline'].forEach(n => el(`${uid}_${n}`)?.classList.toggle('active', n === name));
@@ -5685,20 +5799,28 @@ async function openReservationModal(id, presetCustomerId){
     const r = await call(window.api.reservations.get, { id });
     if (!r){ editingReservationId = null; return; }
     el('resModalTitle').textContent = 'Edit Reservation';
+    el('resModalSubtitle').innerHTML =
+      `${escapeHtml(r.customer_name)} <span class="msub-code">· #${escapeHtml(r.customer_code)}</span> · ${statusTagHTML(r.status)}`;
     sel.value = r.customer_id;
     el('resCheckIn').value = r.check_in || '';
     el('resCheckOut').value = r.check_out || '';
     el('resInvitedBy').value = r.invited_by_name || '';
     el('resNotes').value = r.reservation_note || '';
+    /* Cancel keeps history, Delete does not — they're never both hidden or
+       both the only option: an already-cancelled reservation can only be
+       permanently deleted, never cancelled again (spec §16-19). */
     el('resCancelResBtn').style.display = r.status === 'CANCELLED' ? 'none' : 'inline-flex';
+    el('resDeleteResBtn').style.display = can1('reservations.delete') ? 'grid' : 'none';
   } else {
     el('resModalTitle').textContent = 'New Reservation';
+    el('resModalSubtitle').textContent = 'Book a stay for an existing or new guest';
     sel.value = presetCustomerId || '';
     el('resCheckIn').value = '';
     el('resCheckOut').value = '';
     el('resInvitedBy').value = '';
     el('resNotes').value = '';
     el('resCancelResBtn').style.display = 'none';
+    el('resDeleteResBtn').style.display = 'none';
   }
   /* MARKETING is already scoped to their own invited-by profile everywhere
      they can see a reservation, so letting them retype a different name
@@ -5779,7 +5901,7 @@ async function saveReservation(force){
       editingReservationId = null;
       (result?.warnings || []).forEach(w => toast('warning','Heads up', w));
       toast('success', 'Reservation saved');
-      await Promise.all([renderReservations(), renderDashboard()]);
+      await refreshReservationViews(customerId);
       refreshNotifBadge();
     } catch (e) {
       if (e.code === 'CONFLICT'){
@@ -5812,6 +5934,7 @@ async function openCustomerModal(id){
     const c = await call(window.api.customers.get, { id });
     if (!c){ editingCustomerId = null; return; }
     el('custModalTitle').textContent = 'Edit Customer';
+    el('custModalSubtitle').innerHTML = `${escapeHtml(c.full_name)} <span class="msub-code">· #${escapeHtml(c.code)}</span>`;
     el('custId').value = c.code; el('custId').disabled = true;
     el('custName').value = c.full_name || '';
     el('custPassport').value = c.passport_no || '';
@@ -5822,6 +5945,7 @@ async function openCustomerModal(id){
     el('custDeleteBtn').style.display = 'flex';
   } else {
     el('custModalTitle').textContent = 'New Customer';
+    el('custModalSubtitle').textContent = 'Create a new guest profile';
     el('custId').value = ''; el('custId').disabled = false;
     ['custName','custPassport','custPhone'].forEach(f => el(f).value = '');
     setPhotoDrop('custPhotoDrop', null);
@@ -5832,8 +5956,15 @@ async function openCustomerModal(id){
 
 function setPhotoDrop(elId, url){
   const node = el(elId);
-  if (url){ node.style.backgroundImage = `url('${url}')`; node.textContent = ''; }
-  else { node.style.backgroundImage = 'none'; node.textContent = 'PHOTO'; }
+  if (url){
+    node.style.backgroundImage = `url('${url}')`; node.innerHTML = ''; node.classList.add('has-photo');
+  } else {
+    node.style.backgroundImage = 'none'; node.classList.remove('has-photo');
+    node.innerHTML = `<span class="pd-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      <span>Add Photo</span>
+    </span>`;
+  }
 }
 async function saveCustomer(){
   clearFieldErrors(el('modalCustomer'));
@@ -5845,9 +5976,10 @@ async function saveCustomer(){
   const btn = document.querySelector('#modalCustomer .btn-gold');
   await withBusy(btn, 'Saving…', async () => {
     try {
-      if (editingCustomerId !== null){
+      const editedId = editingCustomerId;
+      if (editedId !== null){
         await call(window.api.customers.update,
-          { id:editingCustomerId, fullName, passportNo, phone, photoPath:pendingCustomerPhoto }, { silent:true });
+          { id:editedId, fullName, passportNo, phone, photoPath:pendingCustomerPhoto }, { silent:true });
       } else {
         const code = el('custId').value.trim();
         if (!code){ showFieldError('custId','A unique ID is required.'); return; }
@@ -5857,7 +5989,7 @@ async function saveCustomer(){
       closeModal('modalCustomer');
       editingCustomerId = null;
       toast('success','Customer saved');
-      await Promise.all([refreshCrmViews(), renderDashboard()]);
+      await Promise.all([refreshCrmViews(), renderDashboard(), editedId !== null ? refreshOpenInspectors(editedId) : Promise.resolve()]);
     } catch (e) {
       if (!applyServerError(e, { code:'custId', fullName:'custName', passportNo:'custPassport', email:'custPhone' })){
         toast('error','Customer not saved', e.message);
@@ -5880,7 +6012,7 @@ async function deleteCustomer(){
   closeModal('modalCustomer');
   editingCustomerId = null;
   toast('success','Guest deleted');
-  ['detailPanel','resDetailPanel'].forEach(pid => {
+  ['detailPanel','resDetailPanel','listDetailPanel'].forEach(pid => {
     const p = el(pid);
     if (p){ p.classList.add('empty'); p.innerHTML = 'No guest selected'; }
   });
@@ -6088,7 +6220,7 @@ async function saveCrmNote(){
         { customerId:crmNoteCustomerId, note, noteDate: el('crmNoteDate').value || todayYMD() }, { silent:true });
       closeModal('modalCrmNote');
       toast('success','Note added');
-      await showCustomerDetail(crmNoteCustomerId, document.querySelector('#page-customers.active') ? 'detailPanel' : 'resDetailPanel');
+      await refreshOpenInspectors(crmNoteCustomerId);
       await refreshCrmViews();
     } catch (e){ if (!applyServerError(e, { note:'crmNoteText' })) toast('error','Note not saved', e.message); }
   });
@@ -6143,7 +6275,7 @@ async function saveRecord(){
         { customerId:Number(id), note, noteDate: el('recDate').value || todayYMD() }, { silent:true });
       closeModal('modalRecord');
       toast('success','Record saved');
-      await Promise.all([refreshCrmViews(), renderDashboard()]);
+      await Promise.all([refreshCrmViews(), renderDashboard(), refreshOpenInspectors(Number(id))]);
       refreshNotifBadge();
     } catch (e){ toast('error','Record not saved', e.message); }
   });
@@ -6179,7 +6311,7 @@ async function saveAssign(){
     await call(window.api.customers.assign, { id:assigningCustomerId, profileId:Number(to) });
     closeModal('modalAssign');
     toast('success','Guest assigned');
-    await Promise.all([refreshCrmViews(), renderDashboard()]);
+    await Promise.all([refreshCrmViews(), renderDashboard(), refreshOpenInspectors(assigningCustomerId)]);
     refreshNotifBadge();
   });
 }
