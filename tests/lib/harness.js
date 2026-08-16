@@ -147,8 +147,10 @@ class Suite {
       if (!created.ok) return { error: created.error };
       const id = created.data.id;
       if (s.visitMonthsAgo !== undefined) {
-        const d = new Date();
-        d.setUTCMonth(d.getUTCMonth() - s.visitMonthsAgo);
+        // Whole days back, not setUTCMonth: subtracting a month from the 31st
+        // overflows forward (Mar 31 - 1 month lands in March), which silently
+        // moves a fixture across the threshold it was built to sit on.
+        const d = new Date(Date.now() - s.visitMonthsAgo * 30 * 86400000);
         const ci = d.toISOString().slice(0, 10);
         const co = new Date(d.getTime() + 2 * 86400000).toISOString().slice(0, 10);
         const r = await window.api.reservations.create({

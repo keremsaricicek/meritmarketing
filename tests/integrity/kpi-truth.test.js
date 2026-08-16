@@ -85,12 +85,15 @@ module.exports = async function () {
     const activated = await read();
     await window.api.profiles.update({ id: okanId, inactive: true });
     const deactivated = await read();
-    return { before, activated, deactivated };
+    // Derived, not a magic constant: the KPI counts active MARKETING profiles,
+    // so it can never exceed the number of marketing profiles that exist.
+    const marketingProfiles = (await window.api.profiles.list({})).data.length;
+    return { before, activated, deactivated, marketingProfiles };
   }, ids.okanId);
   s.check('activating a profile raises Active Marketing', profLive.activated === profLive.before + 1, JSON.stringify(profLive));
   s.check('deactivating it lowers Active Marketing again', profLive.deactivated === profLive.before, JSON.stringify(profLive));
-  s.check('Active Marketing never exceeds the real profile count',
-    profLive.activated <= 5, JSON.stringify(profLive));
+  s.check('Active Marketing never exceeds the number of marketing profiles',
+    profLive.activated <= profLive.marketingProfiles, JSON.stringify(profLive));
 
   // ------------------------------------------------- STOCK vs PERIOD semantics
   const period = await s.page.evaluate(async () => {

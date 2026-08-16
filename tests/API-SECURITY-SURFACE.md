@@ -3,12 +3,12 @@
 Every operation exposed on `window.api` in `merit-marketing-hub.html`, with the
 authorization contract each one is required to honour.
 
-**This document is the human-readable rendering. The authoritative, machine-readable
-source is [`tests/api-surface/surface.js`](api-surface/surface.js), and
-[`tests/api-surface/surface.test.js`](api-surface/surface.test.js) enforces it against the
-running application on every test run.** If the two ever disagree, the test fails —
-that is the point. Regenerate this document from `surface.js` rather than editing it
-by hand.
+**Generated from [`tests/api-surface/surface.js`](api-surface/surface.js) — do not edit by
+hand.** Run `npm run surface:doc` after changing the matrix.
+[`tests/api-surface/doc-freshness.test.js`](api-surface/doc-freshness.test.js) fails the
+suite if this file drifts, and
+[`tests/api-surface/surface.test.js`](api-surface/surface.test.js) enforces the matrix
+itself against the running application on every test run.
 
 ## Why this exists
 
@@ -41,6 +41,11 @@ So the contract is recorded per verb, not per screen.
 | `record` | Addresses one record by id. The handler must verify that record is in the caller's scope. |
 | `self` | Acts only on the calling session's own row (own password, own preference, own notification). |
 
+`none` is a real answer, not a gap. `reservations.create` is deliberately unscoped —
+any marketer may book any registered guest, which is exactly how a guest whose
+protection has lapsed changes hands. Recording that as `record` would document a check
+the handler does not have, and the next person to read the matrix would trust it.
+
 ### Two checks, not one
 
 `guard(permission)` answers **"may this ROLE call this verb at all?"** — a capability
@@ -49,9 +54,9 @@ check. It says nothing about *which records* the call may touch.
 `customerInScope(record)` / `reservationInScope(record)` answer **"may this SESSION
 touch THIS record?"** — a record-level check.
 
-A verb marked `record` or `query` needs both. A verb with only the capability check is
-how horizontal escalation happens: the role is allowed to call `customers.get`, so the
-call succeeds — for anybody's guest.
+A verb marked `record` needs both. A verb with only the capability check is how
+horizontal escalation happens: the role is allowed to call `customers.get`, so the call
+succeeds — for anybody's guest.
 
 `scopeProfileId()` returns the caller's profile for MARKETING and `null` (unrestricted)
 for ADMIN/MANAGER. It falls back to `-1` rather than `null` when a MARKETING session has
@@ -60,10 +65,9 @@ and matching everything.
 
 ### Ownership protection is a separate axis again
 
-Four verbs (`customers.assign`, `customers.update`, `reservations.create`,
-`reservations.update`) can transfer a guest between marketers. Each must enforce the
-one-year guest protection rule independently — the rule is not a property of the record,
-it is a property of every route that could move it.
+The verbs marked `protection` can transfer a guest between marketers. Each must enforce
+the one-year guest protection rule independently — the rule is not a property of the
+record, it is a property of every route that could move it.
 
 ## Rules this matrix encodes
 
@@ -81,7 +85,6 @@ it is a property of every route that could move it.
 ---
 
 ## The matrix
-
 
 ### `auth`
 
@@ -122,10 +125,10 @@ it is a property of every route that could move it.
 |---|---|---|---|---|---|---|
 | `reservations.list` | reservations.read | ADMIN, MANAGER, MARKETING | query | no | no | FORBIDDEN |
 | `reservations.get` | reservations.read | ADMIN, MANAGER, MARKETING | record | no | no | FORBIDDEN |
-| `reservations.create` | reservations.create | ADMIN, MANAGER, MARKETING | record | yes | yes | FORBIDDEN |
+| `reservations.create` | reservations.create | ADMIN, MANAGER, MARKETING | none | yes | yes | FORBIDDEN |
 | `reservations.update` | reservations.update | ADMIN, MANAGER, MARKETING | record | yes | yes | FORBIDDEN |
 | `reservations.cancel` | reservations.update | ADMIN, MANAGER, MARKETING | record | no | no | FORBIDDEN |
-| `reservations.delete` | reservations.delete | ADMIN | record | no | yes | FORBIDDEN |
+| `reservations.delete` | reservations.delete | ADMIN | none | no | yes | FORBIDDEN |
 
 ### `profiles`
 
@@ -152,7 +155,7 @@ it is a property of every route that could move it.
 | Verb | Permission | Roles | Scope | Ownership protection | Payload validation | Denial |
 |---|---|---|---|---|---|---|
 | `notifications.list` | notifications.read | ADMIN, MANAGER, MARKETING | self | no | no | FORBIDDEN |
-| `notifications.unreadCount` | — | ADMIN, MANAGER, MARKETING | self | no | no | — |
+| `notifications.unreadCount` | notifications.read | ADMIN, MANAGER, MARKETING | self | no | no | FORBIDDEN |
 | `notifications.markRead` | notifications.update | ADMIN, MANAGER, MARKETING | record | no | no | FORBIDDEN |
 | `notifications.markAllRead` | notifications.update | ADMIN, MANAGER, MARKETING | self | no | no | FORBIDDEN |
 | `notifications.delete` | notifications.update | ADMIN, MANAGER, MARKETING | record | no | no | FORBIDDEN |
@@ -197,7 +200,7 @@ it is a property of every route that could move it.
 
 | Verb | Permission | Roles | Scope | Ownership protection | Payload validation | Denial |
 |---|---|---|---|---|---|---|
-| `photos.pick` | — | ADMIN, MANAGER, MARKETING | none | no | yes | — |
+| `photos.pick` | customers.update | ADMIN, MANAGER, MARKETING | none | no | yes | FORBIDDEN |
 | `photos.read` | customers.read | ADMIN, MANAGER, MARKETING | none | no | no | FORBIDDEN |
 | `photos.save` | customers.update | ADMIN, MANAGER, MARKETING | none | no | no | FORBIDDEN |
 | `photos.remove` | customers.update | ADMIN, MANAGER, MARKETING | none | no | no | FORBIDDEN |
@@ -219,6 +222,12 @@ it is a property of every route that could move it.
 | `export.filtered` | export.run | ADMIN, MANAGER, MARKETING | query | no | no | FORBIDDEN |
 | `export.openFolder` | — | ADMIN, MANAGER, MARKETING | none | no | no | — |
 
+### `(top level)`
+
+| Verb | Permission | Roles | Scope | Ownership protection | Payload validation | Denial |
+|---|---|---|---|---|---|---|
+| `onMenuAction` | — | anon, ADMIN, MANAGER, MARKETING | none | no | no | — |
+
 ### `dialog`
 
 | Verb | Permission | Roles | Scope | Ownership protection | Payload validation | Denial |
@@ -229,27 +238,37 @@ it is a property of every route that could move it.
 
 ## Enforcement
 
-`tests/api-surface/surface.test.js` runs on every `npm test` and does five things:
+`tests/api-surface/surface.test.js` runs on every `npm test`:
 
-1. **Discovers the live surface** by walking `window.api` in the running application and
-   comparing it to this matrix. A newly exposed verb that is not documented here fails
-   the run; so does a documented verb that no longer exists.
-2. **Probes every verb unauthenticated.** Anything marked as requiring a session must
-   refuse before a session exists.
-3. **Probes every verb as MARKETING.** Anything not listing MARKETING in its roles must
+1. **Discovers the live surface** by recursively walking `window.api` in the running
+   application and comparing it to this matrix. A newly exposed verb that is not
+   documented here fails the run; so does a documented verb that no longer exists. The
+   walk is recursive and includes bare top-level functions, because a one-level scan only
+   catches verbs shaped like the ones that already exist.
+2. **Probes every verb unauthenticated.** Anything whose roles omit `anon` must refuse
+   before a session exists.
+3. **Probes every verb as MARKETING and as MANAGER.** Anything not listing that role must
    return its documented denial code.
-4. **Probes record scope.** For each `record`-scoped verb, a call is made against another
-   marketer's record and must be refused.
-5. **Probes crafted payloads.** Filter parameters naming another marketer's profile must
-   narrow the caller's own set, never select a different one.
+4. **Probes record scope, driven by the matrix.** Every verb marked `scope: 'record'` is
+   called against another marketer's record and must be refused. A row claiming `record`
+   with no registered probe fails the suite — so the claim cannot be made without being
+   proved.
+5. **Probes ownership protection, driven by the matrix.** Same contract for every verb
+   marked `protection: true`, and afterwards ownership is re-read to confirm nothing moved.
+6. **Probes crafted payloads.** Filter parameters naming another marketer's profile must
+   narrow the caller's own set, never select a different one. Export checks read the CSV
+   bytes actually written, because the `export.filtered` envelope carries only a row count.
 
 The failure this is designed to catch is not a bug in today's code — it is tomorrow's new
-verb added without a guard. That verb will fail step 1 on the first run after it is written.
+verb added without a guard, or with a row that overstates what the handler does.
 
 ### Adding a verb
 
 1. Write the handler with its `guard()` and, if it addresses records, its scope check.
 2. Add the row to `tests/api-surface/surface.js`.
-3. Run `npm test`. If the matrix and the implementation disagree, fix the **implementation**
-   unless the matrix itself is wrong — amending the matrix to match a permissive handler
-   is how a boundary quietly disappears.
+3. If the row says `scope: 'record'` or `protection: true`, register a probe in
+   `surface.test.js` (`FOREIGN_PROBE` / `PROTECTION_PROBE`). The suite fails until you do.
+4. Run `npm run surface:doc` to regenerate this file.
+5. Run `npm test`. If the matrix and the implementation disagree, fix the
+   **implementation** unless the matrix itself is wrong — amending the matrix to match a
+   permissive handler is how a boundary quietly disappears.

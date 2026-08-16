@@ -27,17 +27,32 @@ module.exports = async function () {
       registered: true, phone: 'SRF-PHONE', passportNo: 'SRF-PASS' })).data;
     await window.api.customers.assign({ id: nv.id, profileId: o.keremId });
 
-    // I1 fixture: assigned long ago, visit long expired -> takeover MUST be allowed.
+    // I1 fixture: explicitly assigned long ago, visit long expired -> takeover
+    // MUST be allowed AND must actually transfer ownership.
+    //
+    // The invite is attributed to ALEYNA so the later assign to KEREM is a REAL
+    // ownership change. Assigning to the profile who already owns the guest
+    // early-returns without writing history, which would leave the rollback
+    // guard untested while the assertions below still passed.
     const old = (await window.api.customers.create({
       code: 'SRF-OLDGUEST', fullName: 'OLD GUEST', registered: true })).data;
     const d = new Date(); d.setUTCFullYear(d.getUTCFullYear() - 3);
     const ci = d.toISOString().slice(0, 10);
     const co = new Date(d.getTime() + 2 * 86400000).toISOString().slice(0, 10);
     await window.api.reservations.create({
-      customerId: old.id, checkIn: ci, checkOut: co, invitedByProfileId: o.keremId });
+      customerId: old.id, checkIn: ci, checkOut: co, invitedByProfileId: o.aleynaId });
     await window.api.customers.assign({ id: old.id, profileId: o.keremId });
-    return { nvId: nv.id, oldId: old.id };
+    const oldAfter = (await window.api.customers.get({ id: old.id })).data;
+    return {
+      nvId: nv.id, oldId: old.id,
+      oldOwner: oldAfter.marketing_name,
+      oldExplicit: (oldAfter.assignment_history || []).filter(h => !h.derived).length,
+    };
   }, ids);
+
+  // The fixture only tests what it claims if the assignment really happened.
+  s.check('I1 fixture: the guest was explicitly reassigned (guard is under test)',
+    fx.oldExplicit === 1 && fx.oldOwner === 'KEREM SARICICEK', JSON.stringify(fx));
 
   // Backdate the OLD guest's assignment anchor so BOTH anchors are expired.
   // Written through the same store the app reads, then reloaded, so the app
@@ -88,15 +103,26 @@ module.exports = async function () {
   // The C1 fix must not strand guests. Once BOTH anchors expire, takeover works
   // and the guest is genuinely usable afterwards — not owned-but-unreadable.
   const i1 = await s.page.evaluate(async (oldId) => {
-    const r = await window.api.reservations.create({ customerId: oldId, checkIn: '2027-11-10', checkOut: '2027-11-12' });
+    const d = new Date(); d.setUTCDate(d.getUTCDate() + 60);
+    const ci = d.toISOString().slice(0, 10);
+    const co = new Date(d.getTime() + 2 * 86400000).toISOString().slice(0, 10);
+    const r = await window.api.reservations.create({ customerId: oldId, checkIn: ci, checkOut: co });
     if (!r.ok) return { book: r.error.message };
     const g = await window.api.customers.get({ id: oldId });
     const n = await window.api.crmNotes.create({ customerId: oldId, note: 'now mine' });
-    return { book: 'ALLOWED', read: g.ok ? g.data.marketing_name : g.error.code, note: n.ok ? 'ok' : n.error.code };
+    const inList = (await window.api.customers.list({ pageSize: 5000 })).data.rows.some(x => x.id === oldId);
+    return {
+      book: 'ALLOWED', read: g.ok ? g.data.marketing_name : g.error.code,
+      note: n.ok ? 'ok' : n.error.code, inList,
+    };
   }, fx.oldId);
   s.check('I1: fully expired protection lets a new marketer take over', i1.book === 'ALLOWED', JSON.stringify(i1));
   s.check('I1: after takeover the guest is actually usable, not stranded',
     i1.read === 'SENA NUR AKMUT' && i1.note === 'ok', JSON.stringify(i1));
+  // The strand this catches: booking succeeds but ownership never moves, so the
+  // marketer holds a reservation for a guest missing from their own book.
+  s.check('I1: the taken-over guest appears in the new owner\'s list',
+    i1.inList === true, JSON.stringify(i1));
 
   // ==================================================================== C2
   // profiles.relatedCustomers returned another profile's whole guest book.
@@ -145,6 +171,10 @@ module.exports = async function () {
     'settings.set': (await window.api.settings.set({ key: 'backup.keep', value: '99' })).error?.code || 'ALLOWED',
     'notifications.markAllRead': (await window.api.notifications.markAllRead({})).error?.code || 'ALLOWED',
     'notifications.unreadCount': (await window.api.notifications.unreadCount({})).error?.code || 'ALLOWED',
+    // photos.pick ends by writing db.photos and calling save(). The enforcement
+    // suite cannot probe it (the native picker blocks), so its guard is checked
+    // here — it must refuse before it ever opens a dialog.
+    'photos.pick': (await window.api.photos.pick({})).error?.code || 'ALLOWED',
   }));
   for (const [verb, code] of Object.entries(anon)) {
     s.check(`unauthenticated ${verb} is refused`, code !== 'ALLOWED', String(code));

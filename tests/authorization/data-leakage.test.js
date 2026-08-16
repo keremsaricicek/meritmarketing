@@ -18,10 +18,20 @@ module.exports = async function () {
 
   // A canary owned by KEREM: if this name appears anywhere in SENA's output,
   // something leaked.
-  await s.makeGuest({
+  const canary = await s.makeGuest({
     code: 'LEAK-CANARY', name: SECRET, phone: 'CANARY-PHONE', passport: 'CANARY-PASSPORT',
     visitMonthsAgo: 1, invitedBy: ids.keremId, assignTo: ids.keremId, note: 'canary note',
   });
+  // Every leak assertion below is `!body.includes(SECRET)`. If the canary was
+  // never created, all of them pass while proving nothing — so establish that
+  // it exists, and is owned by the other marketer, before switching sessions.
+  const canaryState = await s.page.evaluate(async (id) => {
+    const c = await window.api.customers.get({ id });
+    return c.ok ? { name: c.data.full_name, owner: c.data.marketing_name } : { error: c.error.code };
+  }, canary.id);
+  s.check('the leak canary exists and belongs to the other marketer',
+    canaryState.name === SECRET && canaryState.owner === 'KEREM SARICICEK',
+    JSON.stringify({ canary, canaryState }));
   // and one SENA legitimately owns, so "empty results" cannot pass by accident
   await s.makeGuest({
     code: 'LEAK-MINE', name: 'LEAK OWN GUEST',
@@ -103,21 +113,44 @@ module.exports = async function () {
 
   // notifications are addressed to a profile, so the feed is another read path
   // that has to be scoped rather than filtered client-side
-  const notifs = await s.page.evaluate(async (senaId) => {
+  const notifs = await s.page.evaluate(async (o) => {
+    // Plant one addressed to KEREM so "no foreign items" is a real claim rather
+    // than a statement about an empty feed.
+    const KEY = Object.keys(localStorage).find(k => (localStorage.getItem(k) || '').includes('"customers"'));
+    const d = JSON.parse(localStorage.getItem(KEY));
+    d.notifications = d.notifications || [];
+    d.notifications.push({
+      id: Math.max(0, ...d.notifications.map(n => n.id || 0)) + 1,
+      type: 'PROBE', title: 'KEREM ONLY NOTIFICATION', message: o.secret,
+      target_profile_id: o.keremId, read: 0, created_at: new Date().toISOString(),
+    });
+    localStorage.setItem(KEY, JSON.stringify(d));
+    location.reload();
+  }, { keremId: ids.keremId, secret: SECRET });
+  await s.page.waitForTimeout(700);
+  await s.loginSena();
+
+  const feed = await s.page.evaluate(async (senaId) => {
     const r = await window.api.notifications.list({});
     if (!r.ok) return { blocked: r.error.code };
     const rows = r.data.rows || r.data;
+    // The addressing field is target_profile_id. Filtering on a field that does
+    // not exist yields zero every time and asserts nothing.
+    const keys = rows.length ? Object.keys(rows[0]) : [];
     return {
       total: rows.length,
-      foreign: rows.filter(n => n.profile_id !== undefined && n.profile_id !== null && n.profile_id !== senaId).length,
-      body: JSON.stringify(rows).slice(0, 200),
+      hasAddressField: keys.includes('target_profile_id'),
+      foreign: rows.filter(n => n.target_profile_id != null && n.target_profile_id !== senaId).length,
+      body: JSON.stringify(rows).slice(0, 300),
     };
   }, ids.senaId);
-  s.check('the notification feed is readable by a marketer', !notifs.blocked, JSON.stringify(notifs));
+  s.check('the notification feed is readable by a marketer', !feed.blocked, JSON.stringify(feed));
+  s.check('the feed rows carry the addressing field the scope check depends on',
+    feed.hasAddressField, JSON.stringify(feed));
   s.check('the notification feed carries no other profile\'s items',
-    notifs.foreign === 0, JSON.stringify(notifs));
+    feed.foreign === 0, JSON.stringify(feed));
   s.check('the notification feed does not leak another marketer\'s guest',
-    !String(notifs.body).includes(SECRET), String(notifs.body));
+    !String(feed.body).includes(SECRET), String(feed.body));
 
   // other marketers' business metrics stay masked
   const metrics = await s.page.evaluate(async (senaId) => {

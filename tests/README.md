@@ -48,6 +48,8 @@ CHROMIUM_PATH=/path/to/chrome node tests/run-all.js
 | `npm run test:business` | `business/`, `integrity/`. |
 | `npm run test:ui` | `ui/`. |
 | `node tests/run-all.js <filter>…` | Only suites whose path contains a filter. |
+| `npm run surface:doc` | Regenerate `API-SECURITY-SURFACE.md` from `surface.js`. |
+| `npm run surface:check` | Exit non-zero if that document is out of date. |
 
 Filters are plain substrings, so all of these work:
 
@@ -64,7 +66,7 @@ The runner exits non-zero if any assertion fails, so it drops straight into CI.
 
 | Directory | What lives there |
 |---|---|
-| `api-surface/` | The authoritative security contract for every `window.api` verb, plus the test that enforces it against the running app. |
+| `api-surface/` | The authoritative security contract for every `window.api` verb, plus the tests that enforce it against the running app and keep its rendered document in sync. |
 | `authorization/` | Role boundaries, privilege escalation, IDOR, and bulk read-path leakage. Also **legitimate** access — a boundary that blocks everything is broken, not secure. |
 | `business/` | The rules the product is *for*: guest protection, No Record, and the three product decisions. |
 | `integrity/` | Cross-screen agreement. Every displayed number is checked against the dataset a user would get by clicking through. |
@@ -139,13 +141,31 @@ The demo seed ships only one MARKETING account. Cross-marketer tests need two, s
 **Assert the mechanism, not the symptom.** `reservations.create` refusing a protected
 guest is the rule; the button being disabled is not.
 
-**Prove the check is not vacuous.** A scope test that passes because every result was
-empty proves nothing. Where a suite asserts "X is absent", it also asserts the caller's
-*own* data is present.
+**Prove the check is not vacuous.** Before adding an assertion, ask: *what value of the
+input would make this fail?* If there isn't one, it is decoration. Every one of these
+shipped here at some point and passed unconditionally:
+
+| Pattern | Why it always passed |
+|---|---|
+| `s.check(name, typeof x === 'boolean')` | True for every possible value of `x`. |
+| `rows.filter(n => n.profile_id !== senaId)` | The field is `target_profile_id`; the filter always yielded zero. |
+| `JSON.stringify(exportEnvelope).includes(SECRET)` | The envelope is `{ name, rows }` — a count. It never contained guest names. |
+| `String(csv).includes(SECRET)` where the export was refused | `csv` is `null`, and `"null".includes(…)` is `false`. |
+| `!body.includes(SECRET)` where the canary was never created | Nothing to find, so nothing found. |
+
+So: where a suite asserts "X is absent", it must also assert that the caller's *own* data
+is present, that the canary exists, and that the field being filtered on is really there.
 
 **Name a regression after its finding.** `regression/security-review-findings.test.js`
 uses the review's vocabulary (`C1`, `I3`, …) so a future failure is reported in the same
 terms the original defect was.
+
+**A claim in the matrix must come with a probe.** `surface.js` rows marked
+`scope: 'record'` or `protection: true` require a matching entry in `FOREIGN_PROBE` /
+`PROTECTION_PROBE` in `surface.test.js`, and the suite fails until one exists. That is
+deliberate: a hand-kept probe list lets a new row assert a check nothing verifies, and the
+resulting IDOR ships green. Keep `DO_NOT_INVOKE` as small as possible — every entry there
+is a verb whose contract stops being enforced.
 
 **Never amend a test to match a bug.** If a suite fails after a change, the first
 question is whether the behaviour or the expectation is wrong. Editing an assertion to

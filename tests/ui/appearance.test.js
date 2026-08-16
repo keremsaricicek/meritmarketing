@@ -36,13 +36,35 @@ module.exports = async function () {
   s.check('the density control switches the app to compact', controls.compact, JSON.stringify(controls));
   s.check('the theme control switches back to light', controls.backLight, JSON.stringify(controls));
 
+  // -------------------------------- a fresh user inherits the SHARED default
+  // The shared default ships as 'dark'. ADMIN picks 'light' as a PERSONAL
+  // choice, so the two differ and the next assertion can actually distinguish
+  // "inherited the shared default" from "inherited whoever signed in last" —
+  // which is the bug this suite exists to catch.
+  const sharedDefault = await s.page.evaluate(() => {
+    const KEY = Object.keys(localStorage).find(k => (localStorage.getItem(k) || '').includes('"customers"'));
+    return JSON.parse(localStorage.getItem(KEY)).settings['appearance.theme'];
+  });
+  s.check('the shared default theme is readable and is dark',
+    sharedDefault === 'dark', String(sharedDefault));
+
+  await s.loginAdmin();
+  await s.page.evaluate(() => window.applyTheme('light', true));
+  await s.page.waitForTimeout(250);
+  const adminChose = await s.page.evaluate(() => document.body.classList.contains('theme-dark'));
+  s.check('ADMIN\'s personal choice of light took effect', adminChose === false, String(adminChose));
+
+  await s.loginSena();
+  const senaInherited = await s.page.evaluate(() => document.body.classList.contains('theme-dark'));
+  s.check('a user who has not chosen yet gets the shared default, not the previous user\'s choice',
+    senaInherited === true, `senaDark=${senaInherited} adminChose=light sharedDefault=${sharedDefault}`);
+
   // ------------------------------------------------------ per-user isolation
   await s.loginAdmin();
   await s.page.evaluate(() => window.applyTheme('dark', true));
   await s.page.waitForTimeout(250);
 
   await s.loginSena();
-  const senaInherited = await s.page.evaluate(() => document.body.classList.contains('theme-dark'));
   await s.page.evaluate(() => window.applyTheme('light', true));
   await s.page.waitForTimeout(250);
 
@@ -53,23 +75,21 @@ module.exports = async function () {
 
   s.check('ADMIN keeps dark after another user chose light', adminTheme === true, `adminDark=${adminTheme}`);
   s.check('MARKETING keeps light independently', senaTheme === false, `senaDark=${senaTheme}`);
-  s.check('a user who has not chosen yet inherits the shared default, not the last person\'s choice',
-    typeof senaInherited === 'boolean', String(senaInherited));
 
   // density is personal on the same terms
   await s.loginAdmin();
   await s.page.evaluate(() => window.applyDensity('compact', true));
   await s.page.waitForTimeout(250);
   await s.loginSena();
-  const senaDensity = await s.page.evaluate(() => document.body.classList.contains('density-compact'));
   await s.page.evaluate(() => window.applyDensity('comfortable', true));
   await s.page.waitForTimeout(250);
+  const senaDensity = await s.page.evaluate(() => document.body.classList.contains('density-compact'));
   await s.loginAdmin();
   const adminDensity = await s.page.evaluate(() => document.body.classList.contains('density-compact'));
   s.check('ADMIN keeps compact density after another user chose comfortable',
     adminDensity === true, `adminCompact=${adminDensity}`);
-  s.check('the other user\'s density choice was theirs alone',
-    typeof senaDensity === 'boolean', String(senaDensity));
+  s.check('the other user\'s comfortable density stayed theirs alone',
+    senaDensity === false, `senaCompact=${senaDensity}`);
 
   // ---------------------------------------- the preference survives a reload
   await s.page.reload();

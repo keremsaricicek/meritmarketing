@@ -86,19 +86,34 @@ module.exports = async function () {
   s.check('at desktop width the table fits and needs no scroller',
     wide.found && wide.overflowX === 'visible', JSON.stringify(wide));
 
-  // Modals must fit on the shortest supported viewport.
+  // Modals must fit the narrowest supported viewport, in both axes.
+  await s.page.setViewportSize({ width: 1366, height: 768 });
+  await s.page.waitForTimeout(250);
   const modalFit = await s.page.evaluate(async () => {
     await window.openWorkspaceTab('reservations');
     await window.openReservationModal();
     await new Promise(r => setTimeout(r, 350));
     const box = document.querySelector('#modalReservation .modal');
     const r = box.getBoundingClientRect();
-    const fits = r.width <= window.innerWidth && r.left >= 0 && r.right <= window.innerWidth + 1;
+    const fitsWidth = r.left >= 0 && r.right <= window.innerWidth + 1;
+    // Taller than the viewport is fine only if the modal scrolls internally;
+    // otherwise its footer buttons are unreachable.
+    const style = getComputedStyle(box);
+    const scrolls = box.scrollHeight > box.clientHeight
+      ? ['auto', 'scroll'].includes(style.overflowY)
+      : true;
+    const fitsHeight = r.height <= window.innerHeight || scrolls;
     window.closeModal('modalReservation');
-    return { fits, w: Math.round(r.width), vw: window.innerWidth };
+    return {
+      fitsWidth, fitsHeight, scrolls,
+      w: Math.round(r.width), h: Math.round(r.height),
+      vw: window.innerWidth, vh: window.innerHeight,
+    };
   });
-  s.check('the reservation modal fits inside the narrowest supported viewport',
-    modalFit.fits, JSON.stringify(modalFit));
+  s.check('the reservation modal fits the narrowest supported viewport horizontally',
+    modalFit.fitsWidth, JSON.stringify(modalFit));
+  s.check('the reservation modal is reachable vertically (fits, or scrolls internally)',
+    modalFit.fitsHeight, JSON.stringify(modalFit));
 
   await s.close();
   return s.finish();

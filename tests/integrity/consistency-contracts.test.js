@@ -46,24 +46,34 @@ module.exports = async function () {
   s.check('a reservation is never in both Active and Cancelled', split.overlap === 0, JSON.stringify(split));
 
   // --------------------------------- calendar arrival/in-house/departure rules
-  const cal = await s.page.evaluate(async (keremId) => {
+  // Anchored on a stay that starts 100 days out and is entirely inside one
+  // month, rather than on fixed 2027 dates that eventually become the past and
+  // change which bucket each day belongs to.
+  const stay = await s.page.evaluate(() => {
+    const d = new Date(Date.now() + 100 * 86400000);
+    d.setUTCDate(10); // safely mid-month, so a 3-night stay cannot cross into the next
+    const iso = n => new Date(d.getTime() + n * 86400000).toISOString().slice(0, 10);
+    return { days: [iso(0), iso(1), iso(2), iso(3)], year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
+  });
+
+  const cal = await s.page.evaluate(async (o) => {
     const c = (await window.api.customers.create({ code: 'CC-CAL', fullName: 'CALENDAR GUEST', registered: true })).data;
     await window.api.reservations.create({
-      customerId: c.id, checkIn: '2027-08-15', checkOut: '2027-08-18', invitedByProfileId: keremId });
-    const buckets = (await window.api.calendar.month({ year: 2027, month: 8 })).data.buckets;
+      customerId: c.id, checkIn: o.stay.days[0], checkOut: o.stay.days[3], invitedByProfileId: o.keremId });
+    const buckets = (await window.api.calendar.month({ year: o.stay.year, month: o.stay.month })).data.buckets;
     const days = {};
-    for (const d of ['2027-08-15', '2027-08-16', '2027-08-17', '2027-08-18']) {
+    for (const d of o.stay.days) {
       const day = (await window.api.calendar.day({ date: d })).data;
       days[d] = { arrivals: day.arrivals.length, active: day.active.length, departures: day.departures.length };
     }
     return { buckets, days };
-  }, ids.keremId);
+  }, { keremId: ids.keremId, stay });
 
   const expect = {
-    '2027-08-15': { arrivals: 1, active: 0, departures: 0 },
-    '2027-08-16': { arrivals: 0, active: 1, departures: 0 },
-    '2027-08-17': { arrivals: 0, active: 1, departures: 0 },
-    '2027-08-18': { arrivals: 0, active: 0, departures: 1 },
+    [stay.days[0]]: { arrivals: 1, active: 0, departures: 0 },
+    [stay.days[1]]: { arrivals: 0, active: 1, departures: 0 },
+    [stay.days[2]]: { arrivals: 0, active: 1, departures: 0 },
+    [stay.days[3]]: { arrivals: 0, active: 0, departures: 1 },
   };
   for (const [date, want] of Object.entries(expect)) {
     const gotBucket = cal.buckets[date];

@@ -3043,18 +3043,37 @@ function syncMarketing(customerId){
      is just a record of this same mechanism running, and must not freeze
      ownership against future derivation */
   const explicit = hist.filter(h => !h.derived);
-  const lastAssigned = explicit.length ? explicit[explicit.length-1].new_profile_id : null;
+  const lastExplicit = explicit.length ? explicit[explicit.length-1] : null;
   const newest = custRes(customerId).find(x => !x.cancelled_at);
-  if (lastAssigned && newest && newest.invited_by_profile_id !== lastAssigned
-      && c.marketing_profile_id === lastAssigned) return;
-  /* a cancelled reservation never happened — it must not drive automatic
-     marketing attribution any more than it drives Cold status or protection
-     (spec §18); the reservation-creation guard below is what actually stops
-     an unprotected takeover, this just keeps the derived value itself
-     honest about what "most recent" means */
-  const latest = custRes(customerId).find(r => !r.cancelled_at);
-  if (!latest || !latest.invited_by_profile_id) return;
-  const p = profileById(latest.invited_by_profile_id);
+  /* A manager's reassignment overrides the bookings that ALREADY EXISTED when
+     they made it — otherwise the next sync hands the guest straight back to
+     whoever invited them originally, silently undoing the decision.
+
+     It must NOT override bookings made afterwards. Once protection lapses and
+     a different marketer is allowed to book, that booking is precisely the
+     signal ownership should follow. Without the second half of this test the
+     guest is stranded: the new marketer may create the reservation but can
+     never read the record it belongs to, because ownership never moved.
+
+     Comparing booking time against decision time is what separates the two —
+     "is protection live?" cannot, because syncMarketing runs after the new
+     reservation is already in the table, so the new booking would itself be
+     the thing re-establishing the protection window. Missing timestamps keep
+     the guard, which is the conservative direction. */
+  const bookedAfterDecision = !!(lastExplicit && newest
+    && newest.created_at && lastExplicit.changed_at
+    && newest.created_at > lastExplicit.changed_at);
+  if (lastExplicit && newest
+      && newest.invited_by_profile_id !== lastExplicit.new_profile_id
+      && c.marketing_profile_id === lastExplicit.new_profile_id
+      && !bookedAfterDecision) return;
+  /* `newest` above is this same value — a cancelled reservation never happened,
+     so it must not drive automatic marketing attribution any more than it
+     drives Cold status or protection (spec §18). The reservation-creation guard
+     is what actually stops an unprotected takeover; this just keeps the derived
+     value itself honest about what "most recent" means. */
+  if (!newest || !newest.invited_by_profile_id) return;
+  const p = profileById(newest.invited_by_profile_id);
   const next = (!p || p.employment_status === 'inactive') ? null : p.id;
   const previous = c.marketing_profile_id ?? null;
   if (next === previous) return;
@@ -3988,7 +4007,12 @@ const api = {
   },
 
   photos: {
+    /* pick() ends by writing db.photos and calling save(), so it is a mutation
+       and needs the same capability as photos.save — it shipped with no guard
+       at all, which the surface matrix already claimed it had. */
     pick: () => new Promise((resolve) => {
+      try { guard('customers.update'); }
+      catch (e) { return resolve({ ok:false, error:{ code:e.code, message:e.message } }); }
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp';
       input.onchange = () => {
@@ -6194,12 +6218,18 @@ async function markAllNotificationsRead(){
   await renderNotifications();
   refreshNotifBadge();
 }
+/* Called un-awaited from a dozen places, and unreadCount now fails closed
+   rather than answering 0 without a session — so a rejection here would surface
+   as an unhandled promise rejection in the middle of an unrelated action. A
+   badge that cannot be read is simply a badge that does not update. */
 async function refreshNotifBadge(){
   const badge = el('notifBadge');
   if (!badge || !state.session) return;
-  const n = await call(window.api.notifications.unreadCount, {}, { silent:true });
-  badge.textContent = n || 0;
-  badge.classList.toggle('has', (n || 0) > 0);
+  try {
+    const n = await call(window.api.notifications.unreadCount, {}, { silent:true });
+    badge.textContent = n || 0;
+    badge.classList.toggle('has', (n || 0) > 0);
+  } catch (_) { /* leave the badge as it was */ }
 }
 
 /* ---------------- REPORTS — a builder, not a fixed dashboard: pick a

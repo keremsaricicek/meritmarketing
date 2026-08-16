@@ -69,13 +69,17 @@ const SURFACE = {
   'reservations.list':    { permission: 'reservations.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query',  protection: false, validation: false, denial: 'FORBIDDEN',
                             notes: 'Active/Cancelled are two views of one scoped dataset.' },
   'reservations.get':     { permission: 'reservations.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: false, denial: 'FORBIDDEN' },
-  'reservations.create':  { permission: 'reservations.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: true,  validation: true,  denial: 'FORBIDDEN',
-                            notes: 'MARKETING is forced to invitedBy=self and blocked on protected guests.' },
+  'reservations.create':  { permission: 'reservations.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none',   protection: true,  validation: true,  denial: 'FORBIDDEN',
+                            notes: 'Deliberately NOT record-scoped: any marketer may book any registered guest, ' +
+                                   'which is how a guest whose protection has lapsed changes hands. Guest protection ' +
+                                   'is the only gate, and it is the thing that must never be missing here. ' +
+                                   'MARKETING is additionally forced to invitedBy=self.' },
   'reservations.update':  { permission: 'reservations.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: true,  validation: true,  denial: 'FORBIDDEN',
                             notes: 'Retargeting to another customerId re-validates existence, scope and protection.' },
   'reservations.cancel':  { permission: 'reservations.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: false, denial: 'FORBIDDEN' },
-  'reservations.delete':  { permission: 'reservations.delete', roles: ['ADMIN'],                       scope: 'record', protection: false, validation: true,  denial: 'FORBIDDEN',
-                            notes: 'Hard ADMIN check beyond the guard — permanent deletion is not configurable.' },
+  'reservations.delete':  { permission: 'reservations.delete', roles: ['ADMIN'],                       scope: 'none',   protection: false, validation: true,  denial: 'FORBIDDEN',
+                            notes: 'No record check, and none is needed: the hard ADMIN check beyond the guard ' +
+                                   'means the only callers are already unscoped. Permanent deletion is not configurable.' },
 
   // ---------- profiles ----------
   'profiles.list':            { permission: 'profiles.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none',   protection: false, validation: false, denial: 'FORBIDDEN',
@@ -97,8 +101,9 @@ const SURFACE = {
 
   // ---------- notifications ----------
   'notifications.list':        { permission: 'notifications.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: false, denial: 'FORBIDDEN' },
-  'notifications.unreadCount': { permission: null,                   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: false, denial: null,
-                                 notes: 'Returns 0 without a session; reveals only the caller\'s own count.' },
+  'notifications.unreadCount': { permission: 'notifications.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: false, denial: 'FORBIDDEN',
+                                 notes: 'Fails closed rather than returning 0 without a session — an unauthenticated ' +
+                                        'count is still a signal about how much data exists.' },
   'notifications.markRead':    { permission: 'notifications.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: false, denial: 'FORBIDDEN' },
   'notifications.markAllRead': { permission: 'notifications.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self',   protection: false, validation: false, denial: 'FORBIDDEN' },
   'notifications.delete':      { permission: 'notifications.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: false, denial: 'FORBIDDEN',
@@ -124,8 +129,10 @@ const SURFACE = {
                                notes: 'Hard ADMIN check; the matrix cannot be used to grant itself away.' },
 
   // ---------- photos ----------
-  'photos.pick':   { permission: null,                roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true,  denial: null,
-                     notes: 'Opens a local file dialog and returns bytes the caller already had; stores nothing until save.' },
+  'photos.pick':   { permission: 'customers.update',  roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true,  denial: 'FORBIDDEN',
+                     notes: 'Opens a local file dialog, but ends by writing db.photos and saving — so it is a ' +
+                            'mutation and carries the same guard as photos.save. Not probed by the enforcement ' +
+                            'suite (the native picker blocks); its guard is covered in regression/ instead.' },
   'photos.read':   { permission: 'customers.read',    roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: false, denial: 'FORBIDDEN',
                      notes: 'Names are enumerable timestamps, so this must at least require a session.' },
   'photos.save':   { permission: 'customers.update',  roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: false, denial: 'FORBIDDEN' },
@@ -149,6 +156,14 @@ const SURFACE = {
                         notes: 'Desktop-only stub.' },
 
   // ---------- dialog ----------
+  // ---------- top-level shims ----------
+  // Not a namespaced verb — a bare function on window.api. Recorded because the
+  // recursive discovery walk finds it, and because it is the placeholder the
+  // Electron menu bridge will replace: when it becomes a real IPC subscription
+  // it needs a real contract, and an undocumented verb is how that gets missed.
+  'onMenuAction':  { permission: null,                roles: ['anon','ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: false, denial: null,
+                     notes: 'No-op returning a no-op unsubscribe. Touches no data in the browser build.' },
+
   'dialog.confirm': { permission: null, roles: ['anon','ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: false, denial: null,
                       notes: 'Pure UI confirmation; touches no data and grants nothing.' },
 };
@@ -163,6 +178,11 @@ const FORBIDDEN_FOR_MARKETING = Object.entries(SURFACE)
   .filter(([, v]) => !v.roles.includes('MARKETING'))
   .map(([k]) => k);
 
+/** Verbs MANAGER must never successfully call. */
+const FORBIDDEN_FOR_MANAGER = Object.entries(SURFACE)
+  .filter(([, v]) => !v.roles.includes('MANAGER'))
+  .map(([k]) => k);
+
 /** Verbs that must enforce record-level scope. */
 const RECORD_SCOPED = Object.entries(SURFACE)
   .filter(([, v]) => v.scope === 'record')
@@ -173,4 +193,11 @@ const PROTECTION_ENFORCING = Object.entries(SURFACE)
   .filter(([, v]) => v.protection)
   .map(([k]) => k);
 
-module.exports = { SURFACE, REQUIRES_SESSION, FORBIDDEN_FOR_MARKETING, RECORD_SCOPED, PROTECTION_ENFORCING };
+module.exports = {
+  SURFACE,
+  REQUIRES_SESSION,
+  FORBIDDEN_FOR_MARKETING,
+  FORBIDDEN_FOR_MANAGER,
+  RECORD_SCOPED,
+  PROTECTION_ENFORCING,
+};
