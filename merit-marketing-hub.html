@@ -2813,11 +2813,12 @@ let db = load();
 migrateAttribution();
 migrateProfileKind();
 /* accounts saved while the form still offered the retired STAFF value */
-(function migrateRoles(){
+function migrateRoles(){
   let touched = false;
   db.users.forEach(u => { if (!ROLES.includes(u.role)){ u.role = 'MARKETING'; touched = true; } });
   if (touched) save();
-})();
+}
+migrateRoles();
 syncReservationStatuses();
 function load(){
   try { const raw = localStorage.getItem(KEY); if (raw) return Object.assign(blank(), JSON.parse(raw)); }
@@ -2836,7 +2837,7 @@ const PERMISSIONS = {
     'profiles.read','profiles.create','profiles.update',
     'crmNotes.read','crmNotes.create','crmNotes.update','crmNotes.delete',
     'notifications.read','notifications.update','reports.read','dashboard.read','export.run',
-    'audit.read','backup.create','backup.read','settings.read','users.read'],
+    'audit.read','settings.read','users.read'],
   MARKETING: ['customers.read','customers.create','customers.update',
     'reservations.read','reservations.create','reservations.update','profiles.read',
     'crmNotes.read','crmNotes.create','notifications.read','notifications.update',
@@ -2849,7 +2850,9 @@ const CONFIGURABLE = {
   'profiles.create':'Create marketing profiles','profiles.update':'Edit marketing profiles',
   'crmNotes.create':'Add CRM notes','crmNotes.update':'Edit CRM notes','crmNotes.delete':'Delete CRM notes',
   'reports.read':'View reports','audit.read':'View audit log','export.run':'Export data',
-  'users.read':'View user list','backup.create':'Create backups'
+  'users.read':'View user list'
+  /* backup.create is deliberately NOT configurable: a snapshot contains
+     db.users and their credentials, so granting it would be granting ADMIN. */
 };
 function overrides(){ try { return JSON.parse(db.settings['permissions.overrides'] || '{}'); } catch (_) { return {}; } }
 function can(user, perm){
@@ -2937,6 +2940,10 @@ function syncReservationStatuses(){
 function migrateAttribution(){
   let touched = false;
   db.customers.forEach(c => {
+    /* No Record now requires `registered`; rows written before that field
+       existed would read as !!undefined === false and silently vanish from
+       every No Record surface, so backfill them as registered */
+    if (c.registered === undefined){ c.registered = 1; touched = true; }
     if (c.created_by_user_id === undefined){ c.created_by_user_id = null; touched = true; }
     if (c.created_by_profile_id === undefined){ c.created_by_profile_id = null; touched = true; }
     if (!Array.isArray(c.assignment_history)){ c.assignment_history = []; touched = true; }
@@ -3019,14 +3026,18 @@ function decorateReservation(r){
 }
 function syncMarketing(customerId){
   const c = db.customers.find(x => x.id === customerId); if (!c) return;
-  /* An explicit assignment is a management decision and outranks anything
-     derived from reservation history. Without this, deleting or editing an
-     old reservation would silently hand the guest back to whoever invited
-     the next-latest stay — quietly undoing an authorized reassignment
-     nobody asked to reverse. Current ownership and historical attribution
-     are different things; this function may only ever set the former for
-     guests whose ownership was never explicitly decided. */
-  if (Array.isArray(c.assignment_history) && c.assignment_history.length) return;
+  /* An explicit assignment is a management decision, so derivation may
+     confirm or advance ownership but must never ROLL IT BACK to a
+     pre-reassignment owner — otherwise deleting an old reservation quietly
+     undoes a reassignment nobody asked to reverse. Blocking derivation
+     outright (an earlier attempt at this) went too far: it stranded guests
+     permanently un-ownable once protection expired, and orphaned them for
+     good when the owning profile was deactivated. */
+  const hist = Array.isArray(c.assignment_history) ? c.assignment_history : [];
+  const lastAssigned = hist.length ? hist[hist.length-1].new_profile_id : null;
+  const newest = custRes(customerId).find(x => !x.cancelled_at);
+  if (lastAssigned && newest && newest.invited_by_profile_id !== lastAssigned
+      && c.marketing_profile_id === lastAssigned) return;
   /* a cancelled reservation never happened — it must not drive automatic
      marketing attribution any more than it drives Cold status or protection
      (spec §18); the reservation-creation guard below is what actually stops
@@ -3063,11 +3074,27 @@ function effectiveGuestOwner(customerId){
   const r = custRes(customerId).find(x => !x.cancelled_at);
   return r?.invited_by_profile_id || null;
 }
+/* Protection runs for one year from the most recent thing that established
+   this relationship: the latest qualifying visit, OR — for a guest who has
+   been handed to a marketer but hasn't stayed yet — the date of that explicit
+   assignment. Anchoring on the visit alone left every never-visited assigned
+   guest permanently unprotected; anchoring on assignment alone would strand a
+   guest with nobody able to take them over. Whichever is later wins, and it
+   still expires. */
+function lastExplicitAssignmentDate(customerId){
+  const c = db.customers.find(x => x.id === customerId);
+  const h = Array.isArray(c?.assignment_history) ? c.assignment_history : [];
+  if (!h.length) return null;
+  const at = h[h.length-1].changed_at;
+  return at ? String(at).slice(0,10) : null;
+}
 function guestProtectionExpiry(customerId){
   if (!effectiveGuestOwner(customerId)) return null;
-  const last = latestQualifyingVisit(customerId);
-  if (!last) return null;
-  const d = new Date(last + 'T00:00:00Z');
+  const visit = latestQualifyingVisit(customerId);
+  const assigned = lastExplicitAssignmentDate(customerId);
+  const anchor = [visit, assigned].filter(Boolean).sort().pop();
+  if (!anchor) return null;
+  const d = new Date(anchor + 'T00:00:00Z');
   d.setUTCFullYear(d.getUTCFullYear() + 1);
   return d.toISOString().slice(0,10);
 }
@@ -3442,7 +3469,11 @@ const api = {
       /* phone stays searchable (the query above already matches it) but the
          finder displays Last Visit instead — the same qualifying-visit
          definition guest protection is built on (spec §26/§27) */
-      return ok(rows.slice(0, pageSize).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone,
+      /* phone stays SEARCHABLE (the query above still matches it) but must not
+         be RETURNED for guests outside your book — otherwise the finder hands
+         back the contact details customers.summary deliberately withholds */
+      return ok(rows.slice(0, pageSize).map(c => ({ id:c.id, code:c.code, full_name:c.full_name,
+        phone: customerInScope(c) ? c.phone : null,
         last_visit: latestQualifyingVisit(c.id) }))); },
     get: (p) => { try { guard('customers.read'); } catch (e) { return fail(e.code, e.message); }
       const c = db.customers.find(x => x.id === Number(p.id) && !x.deleted_at);
@@ -3609,8 +3640,17 @@ const api = {
       const ci = p.checkIn ?? r.check_in, co = p.checkOut ?? r.check_out;
       if (co < ci) return fail('VALIDATION','Check-out must be on or after check-in.','checkOut');
       const cid = p.customerId ? Number(p.customerId) : r.customer_id;
-      if (cid !== r.customer_id && session?.role === 'MARKETING' && isGuestProtectedFrom(cid, session.profile_id))
-        return fail('FORBIDDEN','Guest protection period has not expired.');
+      if (cid !== r.customer_id){
+        /* create validates its target guest; update did not, so a reservation
+           could be retargeted onto a nonexistent id — filteredReservations
+           then drops it and the row vanishes from every list and count while
+           still sitting in the database — or onto someone else's guest */
+        const target = db.customers.find(x => x.id === cid && !x.deleted_at);
+        if (!target) return fail('VALIDATION','Guest not found.','customerId');
+        if (!customerInScope(target)) return fail('FORBIDDEN', OUT_OF_SCOPE);
+        if (session?.role === 'MARKETING' && isGuestProtectedFrom(cid, session.profile_id))
+          return fail('FORBIDDEN','Guest protection period has not expired.');
+      }
       const conflicts = custRes(cid).filter(x => x.id !== r.id && !x.cancelled_at && x.check_in <= co && x.check_out >= ci)
         .map(x => ({ id:x.id, check_in:x.check_in, check_out:x.check_out }));
       if (conflicts.length && !p.force)
@@ -3688,7 +3728,13 @@ const api = {
       db.users.filter(u => u.profile_id === prof.id && u.role !== 'MARKETING').forEach(u => { u.profile_id = null; });
       audit('PROFILE_DELETE','profile',prof.id,`Archived profile ${prof.full_name}`); save();
       return ok({ ok:true }); },
+    /* profiles.read is granted to MARKETING so name pickers work — but this
+       verb returns fully decorated customer records (phone, passport, notes).
+       Without a record-scope check it is a bulk read of another marketer's
+       entire book in one call. */
     relatedCustomers: (p) => { try { guard('profiles.read'); } catch (e) { return fail(e.code, e.message); }
+      const s = scopeProfileId();
+      if (s !== null && Number(p.id) !== s) return fail('FORBIDDEN', OUT_OF_SCOPE);
       return ok(profileRelatedCustomers(Number(p.id))); }
   },
 
@@ -3719,7 +3765,10 @@ const api = {
       if (!text) return fail('VALIDATION','Note is required.','note');
       n.note = text; if (p.noteDate) n.note_date = p.noteDate; save(); return ok({ id:n.id }); },
     delete: (p) => { try { guard('crmNotes.delete'); } catch (e) { return fail(e.code, e.message); }
-      const n = db.crmNotes.find(x => x.id === Number(p.id)); if (!n) return ok({ ok:true });
+      /* same response shape whether the note is missing or out of scope, so
+         this can't be used to probe which note ids exist */
+      const n = db.crmNotes.find(x => x.id === Number(p.id));
+      if (!n) return fail('FORBIDDEN', OUT_OF_SCOPE);
       if (!customerInScope(db.customers.find(x => x.id === n.customer_id))) return fail('FORBIDDEN', OUT_OF_SCOPE);
       db.crmNotes = db.crmNotes.filter(x => x.id !== Number(p.id)); save(); return ok({ ok:true }); }
   },
@@ -3733,14 +3782,27 @@ const api = {
     unreadCount: () => { if (!session?.profile_id) return ok(0);
       generateNotifications(session.profile_id); save();
       return ok(db.notifications.filter(n => n.target_profile_id === session.profile_id && !n.read && !n.dismissed).length); },
-    markRead: (p) => { const n = db.notifications.find(x => x.id === Number(p.id)); if (n) n.read = 1; save(); return ok({ ok:true }); },
-    markAllRead: () => { db.notifications.filter(n => n.target_profile_id === session?.profile_id).forEach(n => n.read = 1);
+    /* these mutators took an arbitrary id with no guard and no ownership
+       check, so a marketer could silently suppress the manager activity feed
+       raised about their own actions — and they worked while signed out */
+    markRead: (p) => { try { guard('notifications.update'); } catch (e) { return fail(e.code, e.message); }
+      /* identical response whether the notification is missing or someone
+         else's, so this can't be used to probe which ids exist */
+      const n = db.notifications.find(x => x.id === Number(p.id));
+      if (!n || n.target_profile_id !== session?.profile_id) return fail('FORBIDDEN', OUT_OF_SCOPE);
+      n.read = 1; save(); return ok({ ok:true }); },
+    markAllRead: () => { try { guard('notifications.update'); } catch (e) { return fail(e.code, e.message); }
+      db.notifications.filter(n => n.target_profile_id === session?.profile_id).forEach(n => n.read = 1);
       save(); return ok({ ok:true }); },
-    delete: (p) => { const n = db.notifications.find(x => x.id === Number(p.id));
-      if (n){ n.dismissed = 1; n.read = 1; } save(); return ok({ ok:true }); },
-    clearRead: () => { db.notifications.filter(n => n.target_profile_id === session?.profile_id && n.read)
+    delete: (p) => { try { guard('notifications.update'); } catch (e) { return fail(e.code, e.message); }
+      const n = db.notifications.find(x => x.id === Number(p.id));
+      if (!n || n.target_profile_id !== session?.profile_id) return fail('FORBIDDEN', OUT_OF_SCOPE);
+      n.dismissed = 1; n.read = 1; save(); return ok({ ok:true }); },
+    clearRead: () => { try { guard('notifications.update'); } catch (e) { return fail(e.code, e.message); }
+      db.notifications.filter(n => n.target_profile_id === session?.profile_id && n.read)
         .forEach(n => { n.dismissed = 1; }); save(); return ok({ ok:true }); },
-    dismissAll: () => { db.notifications.filter(n => n.target_profile_id === session?.profile_id)
+    dismissAll: () => { try { guard('notifications.update'); } catch (e) { return fail(e.code, e.message); }
+      db.notifications.filter(n => n.target_profile_id === session?.profile_id)
         .forEach(n => { n.dismissed = 1; n.read = 1; }); save(); return ok({ ok:true }); }
   },
 
@@ -3784,12 +3846,16 @@ const api = {
           .map(r => ({ id:r.id, check_in:r.check_in, check_out:r.check_out, status:r.status,
             reservation_note:r.reservation_note, customer_id:r.customer_id, customer_name:r.customer_name,
             photo_path:withPhoto(r), invited_by_name:r.invited_by_name })),
+        /* the reason line goes through the same isNoRecord() predicate as every
+           other No Record surface — deriving it from !last_visit labelled a
+           guest with only a FUTURE booking "Never booked" */
         attention: cs.filter(c => c.status === 'NO_RECORD' || c.status === 'COLD' || !c.phone).slice(0,8)
           .map(c => ({ id:c.id, full_name:c.full_name, photo_path:c.photo_path, phone:c.phone,
             marketing_name:c.marketing_name, last_visit:c.last_visit,
-            reasonCode: !c.last_visit ? 'no_record' : (!c.phone ? 'missing_contact' : 'cold'),
-            reason: !c.last_visit ? 'Never booked' : (!c.phone ? 'Missing contact details'
-                  : `${daysSince(c.last_visit)} days since last visit`) }))
+            reasonCode: isNoRecord(c) ? 'no_record' : (!c.phone ? 'missing_contact' : 'cold'),
+            reason: isNoRecord(c) ? 'No reservations or CRM activity'
+                  : (!c.phone ? 'Missing contact details'
+                  : (c.last_visit ? `${daysSince(c.last_visit)} days since last visit` : 'Upcoming stay booked')) }))
       }); }
   },
 
@@ -3853,15 +3919,19 @@ const api = {
        back to the shared default only until they've picked one themselves
        — never to whatever the last person who touched the app chose
        (spec §32/§36: one user's theme must never leak into another's) */
-    all: () => {
+    all: () => { try { guard('settings.read'); } catch (e) { return fail(e.code, e.message); }
       const personal = ['appearance.theme','appearance.density'];
       const mine = (session && db.userPrefs[session.id]) || {};
       const merged = { ...db.settings };
       personal.forEach(k => { if (mine[k] !== undefined) merged[k] = mine[k]; });
       return ok(merged); },
-    set: (p) => {
+    set: (p) => { try { guard('settings.read'); } catch (e) { return fail(e.code, e.message); }
       const personal = ['appearance.theme','appearance.density'];
-      if (!personal.includes(p.key) && session?.role !== 'ADMIN')
+      /* without an explicit session check an unauthenticated call fell through
+         to the GLOBAL branch, since `session?.role !== 'ADMIN'` is also true
+         when there is no session at all */
+      if (!session) return fail('UNAUTHENTICATED','Not signed in.');
+      if (!personal.includes(p.key) && session.role !== 'ADMIN')
         return fail('FORBIDDEN','Only an administrator can change this setting.');
       if (personal.includes(p.key) && session){
         if (!db.userPrefs[session.id]) db.userPrefs[session.id] = {};
@@ -3870,7 +3940,7 @@ const api = {
         db.settings[p.key] = String(p.value);
       }
       save(); return ok({ ok:true }); },
-    permissions: () => {
+    permissions: () => { try { guard('settings.read'); } catch (e) { return fail(e.code, e.message); }
       const roles = {};
       ['MANAGER','MARKETING'].forEach(role => {
         roles[role] = {};
@@ -3902,12 +3972,17 @@ const api = {
       };
       input.click();
     }),
-    read: (p) => ok(db.photos[p.name] || null),
-    save: (p) => { const name = 'photo_' + Date.now();
+    /* photo names are `photo_<timestamp>` and therefore enumerable — these
+       three shipped with no guard at all and were callable while signed out */
+    read: (p) => { try { guard('customers.read'); } catch (e) { return fail(e.code, e.message); }
+      return ok(db.photos[p.name] || null); },
+    save: (p) => { try { guard('customers.update'); } catch (e) { return fail(e.code, e.message); }
+      const name = 'photo_' + Date.now();
       db.photos[name] = p.dataUrl;
       if (p.replaces && p.replaces !== name) delete db.photos[p.replaces];
       save(); return ok({ name }); },
-    remove: (p) => { delete db.photos[p.name]; save(); return ok({ ok:true }); }
+    remove: (p) => { try { guard('customers.update'); } catch (e) { return fail(e.code, e.message); }
+      delete db.photos[p.name]; save(); return ok({ ok:true }); }
   },
 
   backup: {
@@ -3920,6 +3995,12 @@ const api = {
     list: () => { try { guard('backup.read'); } catch (e) { return fail(e.code, e.message); }
       return ok(db.backups.map(b => ({ name:b.name, size:b.size, created_at:b.created_at }))); },
     create: () => { try { guard('backup.create'); } catch (e) { return fail(e.code, e.message); }
+      /* The snapshot is the whole database, db.users and their credentials
+         included — so creating one is an ADMIN-equivalent capability and must
+         not be reachable by MANAGER or grantable through the permission
+         matrix. The Settings UI already treated this as administrator
+         territory; the handler now agrees with it. */
+      if (session?.role !== 'ADMIN') return fail('FORBIDDEN','Only an administrator can create a backup.');
       const snapshot = JSON.stringify(db);
       const name = `backup_${new Date().toISOString().replace(/[:.]/g,'-').slice(0,19)}.json`;
       db.backups.unshift({ name, size:snapshot.length, created_at:nowISO(), data:snapshot });
@@ -3938,13 +4019,18 @@ const api = {
       if (!b) return fail('VALIDATION','Backup not found.');
       const safety = JSON.stringify(db);
       const safetyName = `backup_pre-restore_${Date.now()}.json`;
-      try { const restored = JSON.parse(b.data);
+      try {
+        /* load() backfills missing TOP-LEVEL collections via Object.assign on a
+           blank db; restore must do the same or a snapshot predating userPrefs,
+           photos or seq restores a db whose absent keys break the very next
+           write. The migrations below fix field shape; this fixes schema shape. */
+        const restored = Object.assign(blank(), JSON.parse(b.data));
         restored.backups = db.backups.concat([{ name:safetyName, size:safety.length, created_at:nowISO(), data:safety }]).slice(0,20);
         db = restored; save();
         /* a snapshot can predate any migration or status derivation this build
            depends on — re-run them so a restore can't quietly reintroduce a
            data shape whose absence breaks scope, status or protection logic */
-        migrateAttribution(); migrateProfileKind(); syncReservationStatuses(); save();
+        migrateAttribution(); migrateProfileKind(); migrateRoles(); syncReservationStatuses(); save();
         audit('BACKUP_RESTORE','setting',null,`Restored ${b.name}`); save();
         return ok({ ok:true, restored:b.name, safetyBackup:safetyName });
       } catch (e){ return fail('VALIDATION','Restore failed and the previous data was kept.'); } },
@@ -3969,6 +4055,10 @@ const api = {
           Nationality:x.nationality || '', Status:x.employment_status,
           'Reservations Invited':x.reservation_count, Guests:x.customer_count, Created:x.created_at }));
       } else if (p.entity === 'audit_logs'){
+        /* every other branch reads through a scoped helper; these two read raw
+           collections, so they need their own capability/scope check — export
+           must never become a side door around audit.read or record scope */
+        try { guard('audit.read'); } catch (e) { return fail(e.code, e.message); }
         rows = db.auditLogs.slice().sort((a,b) => b.created_at.localeCompare(a.created_at))
           .map(a => ({ When:a.created_at, User:a.username || '', Action:a.action,
             Entity:a.entity_type || '', Detail:a.description || '' }));
@@ -3981,6 +4071,8 @@ const api = {
           .map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '', Email:c.email || '',
             Status:c.status, Reservations:c.reservation_count, 'Last Visit':c.last_visit || '', Created:c.created_at }));
       } else if (p.entity === 'profile_customers'){
+        const s = scopeProfileId();
+        if (s !== null && Number(q.profileId) !== s) return fail('FORBIDDEN', OUT_OF_SCOPE);
         rows = profileRelatedCustomers(Number(q.profileId))
           .map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '', Relationship:c.relationship,
             Status:c.status, Reservations:c.reservation_count, Notes:c.note_count, Created:c.created_at }));
@@ -5037,7 +5129,7 @@ async function renderDashboard(){
 
   el('recentResList').innerHTML = d.recent.length ? d.recent.map(r => `
     <div class="list-row" onclick="goToGuest(${r.customer_id},'reservations')">
-      <div class="lr-avatar"${avatarStyle(r.photo_path)}>${photoUrl(r.photo_path) ? '' : initials(r.customer_name)}</div>
+      <div class="lr-avatar"${avatarStyle(r.photo_path)}>${photoUrl(r.photo_path) ? '' : escapeHtml(initials(r.customer_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(r.customer_name)}</div>
         <div class="lr-sub">${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
@@ -5052,7 +5144,7 @@ async function renderDashboard(){
     const tone = r.days_away <= 1 ? ' urgent' : (r.days_away <= 7 ? ' soon' : '');
     return `
     <div class="list-row" onclick="goToGuest(${r.customer_id},'reservations')">
-      <div class="lr-avatar"${avatarStyle(r.photo_path)}>${photoUrl(r.photo_path) ? '' : initials(r.customer_name)}</div>
+      <div class="lr-avatar"${avatarStyle(r.photo_path)}>${photoUrl(r.photo_path) ? '' : escapeHtml(initials(r.customer_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(r.customer_name)}</div>
         <div class="lr-sub">${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
@@ -5065,7 +5157,7 @@ async function renderDashboard(){
 
   el('attentionList').innerHTML = d.attention.length ? d.attention.map(a => `
     <div class="list-row" onclick="goToGuest(${a.id},'customers')">
-      <div class="lr-avatar"${avatarStyle(a.photo_path)}>${photoUrl(a.photo_path) ? '' : initials(a.full_name)}</div>
+      <div class="lr-avatar"${avatarStyle(a.photo_path)}>${photoUrl(a.photo_path) ? '' : escapeHtml(initials(a.full_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(a.full_name)}</div>
         <div class="lr-sub">${escapeHtml(a.reason)}${a.marketing_name ? ' · ' + escapeHtml(a.marketing_name) : ''}</div>
@@ -5128,7 +5220,7 @@ async function renderNewGuestsPanel(){
   await resolvePhotos(rows.map(c => c.photo_path));
   wrap.innerHTML = rows.length ? rows.map(c => `
     <div class="list-row" onclick="goToGuest(${c.id},'customers')">
-      <div class="lr-avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : initials(c.full_name)}</div>
+      <div class="lr-avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : escapeHtml(initials(c.full_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(c.full_name)}</div>
         <div class="lr-sub">#${escapeHtml(c.code)}</div>
@@ -5698,7 +5790,7 @@ async function showCustomerDetail(customerId, panelId){
       <span class="dp-rail-toggle">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
       </span>
-      <div class="avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : initials(c.full_name)}</div>
+      <div class="avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : escapeHtml(initials(c.full_name))}</div>
       <span class="${statusM ? statusM.cls : 'tag-none'}"><span class="dp-rail-status tag-dot"></span></span>
     </button>
     <div class="detail-head">
@@ -5708,7 +5800,7 @@ async function showCustomerDetail(customerId, panelId){
       <button class="detail-edit-btn" onclick="openCustomerModal(${c.id})" title="Edit">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       </button>
-      <div class="avatar xxl"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : initials(c.full_name)}</div>
+      <div class="avatar xxl"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : escapeHtml(initials(c.full_name))}</div>
       <div class="gc-name">${escapeHtml(c.full_name)}</div>
       <div class="setting-hint">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''}</div>
       <div style="margin-top:9px;">${statusTagHTML(c.status)}</div>
@@ -5878,7 +5970,7 @@ async function renderProfiles(){
     return `
     <div class="profile-card${inactive ? ' inactive' : ''}" ondblclick="openProfileDetail(${p.id})" title="Double-click for the full profile">
       <div class="pc-photo${url ? '' : ' no-photo'}">
-        ${url ? `<div class="pc-photo-img" style="background-image:url('${url}')"></div>` : `<div class="pc-initials">${initials(p.full_name)}</div>`}
+        ${url ? `<div class="pc-photo-img" style="background-image:url('${url}')"></div>` : `<div class="pc-initials">${escapeHtml(initials(p.full_name))}</div>`}
         ${inactive ? '<div class="pc-inactive-tag">Inactive</div>' : ''}
       </div>
       <div class="pc-content">
@@ -6434,7 +6526,17 @@ async function openReservationModal(id, presetCustomerId){
   el('resNewCustomerName').value = '';
 
   if (editingReservationId !== null){
-    const r = await call(window.api.reservations.get, { id });
+    /* same hazard class as showCustomerDetail: a reservation id can become
+       unreadable between listing and opening, and an uncaught FORBIDDEN would
+       leave editingReservationId pointing at a record we never loaded */
+    let r = null;
+    try { r = await call(window.api.reservations.get, { id }, { silent:true }); }
+    catch (e){
+      editingReservationId = null;
+      toast('error', e.code === 'FORBIDDEN' ? 'No access' : 'Could not open',
+            e.code === 'FORBIDDEN' ? 'This reservation is no longer yours.' : e.message);
+      return;
+    }
     if (!r){ editingReservationId = null; return; }
     el('resModalTitle').textContent = 'Edit Reservation';
     el('resModalSubtitle').innerHTML =
