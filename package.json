@@ -1,0 +1,20 @@
+{
+  "name": "merit-marketing-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Merit Marketing Hub — casino marketing CRM. Single-file application plus its permanent QA, authorization and regression suite.",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "test:verbose": "node tests/run-all.js --verbose",
+    "test:security": "node tests/run-all.js api-surface authorization regression",
+    "test:business": "node tests/run-all.js business integrity",
+    "test:ui": "node tests/run-all.js ui",
+    "browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

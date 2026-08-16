@@ -2980,20 +2980,24 @@ function decorateCustomer(c){
   const next = future.length ? future[future.length-1].check_in : null;
   const notes = db.crmNotes.filter(n => n.customer_id === c.id);
   const lastNoteDate = notes.length ? notes.reduce((m,n) => n.note_date > m ? n.note_date : m, notes[0].note_date) : null;
-  /* status is derived from EXACTLY the same facts isNoRecord() tests —
-     registered + qualifying activity + notes — so a guest's badge can never
-     say NO RECORD while the KPI and the No Record list disagree. An
-     unregistered lead is not a "No Record guest"; it carries no badge. */
-  const hasActivity = qualifying.length > 0 || notes.length > 0;
+  /* Operational statuses describe a REGISTERED guest's standing with the
+     business. An unregistered lead has no standing yet — it carries no status
+     at all, so it can never appear in a Cold or No Record count while showing
+     a contradictory badge. For registered guests the status is derived from
+     exactly the same facts isNoRecord() tests, so badge, KPI and list can
+     never disagree. */
   let status = null;
-  if (hasActivity){
-    const ref = next || last || lastNoteDate;
-    const d = daysSince(ref);
-    /* only COLD and NO_RECORD are highlighted statuses — anything more
-       recent than the COLD threshold is simply ACTIVE, with no badge */
-    status = d <= 90 ? 'ACTIVE' : 'COLD';
-  } else {
-    status = c.registered ? 'NO_RECORD' : 'ACTIVE';
+  if (c.registered){
+    const hasActivity = qualifying.length > 0 || notes.length > 0;
+    if (hasActivity){
+      const ref = next || last || lastNoteDate;
+      const d = daysSince(ref);
+      /* only COLD and NO_RECORD are highlighted statuses — anything more
+         recent than the COLD threshold is simply ACTIVE, with no badge */
+      status = d <= 90 ? 'ACTIVE' : 'COLD';
+    } else {
+      status = 'NO_RECORD';
+    }
   }
   const mk = profileById(c.marketing_profile_id);
   const creatorUser = c.created_by_user_id ? db.users.find(u => u.id === c.created_by_user_id) : null;
@@ -3033,8 +3037,13 @@ function syncMarketing(customerId){
      outright (an earlier attempt at this) went too far: it stranded guests
      permanently un-ownable once protection expired, and orphaned them for
      good when the owning profile was deactivated. */
-  const hist = Array.isArray(c.assignment_history) ? c.assignment_history : [];
-  const lastAssigned = hist.length ? hist[hist.length-1].new_profile_id : null;
+  if (!Array.isArray(c.assignment_history)) c.assignment_history = [];
+  const hist = c.assignment_history;
+  /* only EXPLICIT assignments outrank derivation — a previous derived event
+     is just a record of this same mechanism running, and must not freeze
+     ownership against future derivation */
+  const explicit = hist.filter(h => !h.derived);
+  const lastAssigned = explicit.length ? explicit[explicit.length-1].new_profile_id : null;
   const newest = custRes(customerId).find(x => !x.cancelled_at);
   if (lastAssigned && newest && newest.invited_by_profile_id !== lastAssigned
       && c.marketing_profile_id === lastAssigned) return;
@@ -3046,8 +3055,21 @@ function syncMarketing(customerId){
   const latest = custRes(customerId).find(r => !r.cancelled_at);
   if (!latest || !latest.invited_by_profile_id) return;
   const p = profileById(latest.invited_by_profile_id);
-  c.marketing_profile_id = (!p || p.employment_status === 'inactive') ? null : p.id;
+  const next = (!p || p.employment_status === 'inactive') ? null : p.id;
+  const previous = c.marketing_profile_id ?? null;
+  if (next === previous) return;
+  /* Ownership is the fact the whole permission model turns on, so EVERY change
+     to it is recorded — derived changes included. `derived:true` distinguishes
+     "the system inferred this from a booking" from "a manager decided this",
+     which is the distinction the rollback guard above depends on. Historical
+     invited_by on past reservations is never touched by any of this. */
+  c.assignment_history.push({ previous_profile_id:previous, new_profile_id:next,
+    changed_at:nowISO(), changed_by:session?.id ?? null, derived:true });
+  c.marketing_profile_id = next;
   c.updated_at = nowISO();
+  const to = next ? (profileById(next)?.full_name || 'a marketing profile') : 'unassigned';
+  audit('CUSTOMER_ASSIGN','customer',c.id,
+    `Ownership derived from reservation attribution: ${c.full_name} → ${to}`);
 }
 /* ---------- guest protection: one authoritative definition (spec §15-24) ----------
    A guest stays protected under their CURRENT marketing relationship for one
@@ -3081,11 +3103,18 @@ function effectiveGuestOwner(customerId){
    guest permanently unprotected; anchoring on assignment alone would strand a
    guest with nobody able to take them over. Whichever is later wins, and it
    still expires. */
+/* Only a DELIBERATE assignment anchors the protection clock. syncMarketing
+   also appends history, marked derived:true, whenever a reservation implies an
+   owner — and it stamps that entry with the moment the record was written, not
+   the date of the stay. Counting those would restart the one-year window on
+   every booking, including one that is immediately cancelled, permanently
+   locking a guest to whoever happened to invite them first. */
 function lastExplicitAssignmentDate(customerId){
   const c = db.customers.find(x => x.id === customerId);
   const h = Array.isArray(c?.assignment_history) ? c.assignment_history : [];
-  if (!h.length) return null;
-  const at = h[h.length-1].changed_at;
+  const explicit = h.filter(x => !x.derived);
+  if (!explicit.length) return null;
+  const at = explicit[explicit.length-1].changed_at;
   return at ? String(at).slice(0,10) : null;
 }
 function guestProtectionExpiry(customerId){
@@ -3779,7 +3808,11 @@ const api = {
       generateNotifications(session.profile_id); save();
       return ok(db.notifications.filter(n => n.target_profile_id === session.profile_id && !n.dismissed)
         .sort((a,b) => (a.read - b.read) || b.created_at.localeCompare(a.created_at)).slice(0,200)); },
-    unreadCount: () => { if (!session?.profile_id) return ok(0);
+    /* fails closed like every other notifications.* verb — returning 0 to an
+       anonymous caller leaked nothing, but "every verb in this namespace needs
+       a session" is a rule worth being able to state without exceptions */
+    unreadCount: () => { try { guard('notifications.read'); } catch (e) { return fail(e.code, e.message); }
+      if (!session?.profile_id) return ok(0);
       generateNotifications(session.profile_id); save();
       return ok(db.notifications.filter(n => n.target_profile_id === session.profile_id && !n.read && !n.dismissed).length); },
     /* these mutators took an arbitrary id with no guard and no ownership
@@ -5103,7 +5136,12 @@ async function renderDashboard(){
   const cells = [
     { l:'Total Guests',     n:s.totalGuests, sub:'ALL TIME',
       go: ['ADMIN','MANAGER'].includes(state.session?.role) ? "goCrmView('customerlist')" : "switchTab('customers')" },
-    ...(isAdmin() ? [{ l:'Active Marketing', n:s.activeMarketing, sub:'CURRENT', go:"switchTab('profiles')" }] : []),
+    /* MANAGER runs the marketing team, so they see the same Active Marketing
+       figure ADMIN does — same authoritative countActiveMarketingProfiles()
+       value from dashboard.load, not a separately derived one. MARKETING has
+       no business reason to see team-wide headcount. */
+    ...(['ADMIN','MANAGER'].includes(state.session?.role)
+      ? [{ l:'Active Marketing', n:s.activeMarketing, sub:'CURRENT', go:"switchTab('profiles')" }] : []),
     { l:'Reservations',     n:s.reservations, sub:periodLabel.toUpperCase(), go:"switchTab('reservations')" },
     { l:'Upcoming Check-ins',  n:s.upcomingIn, sub:'UPCOMING', go:"goReservationsUpcoming()" },
     { l:'Cold Guests',      n:s.cold, sub:'CURRENT', flag:s.cold > 0,        go:"goCustomersFiltered('COLD')" },
