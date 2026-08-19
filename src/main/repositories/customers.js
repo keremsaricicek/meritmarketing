@@ -55,9 +55,12 @@ const SORTABLE = Object.freeze({
 
 function buildFilters(q, scopeId) {
   const where = ['c.deleted_at IS NULL'];
-  const params = { scopeId };
+  /* Only bind what the SQL actually references: the driver rejects an object
+     carrying a parameter the statement never uses, which is a good check —
+     it catches a filter that was bound but silently never applied. */
+  const params = {};
 
-  if (scopeId !== null) where.push('c.marketing_profile_id = @scopeId');
+  if (scopeId !== null) { where.push('c.marketing_profile_id = @scopeId'); params.scopeId = scopeId; }
 
   if (q.search) {
     /* Phone stays searchable — an operator with a number on a sticky note must

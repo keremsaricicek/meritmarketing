@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Merit Marketing Hub</title>
+<link rel="stylesheet" href="./styles/app.css">
+</head>
+<body>
+<div class="login-screen" id="loginScreen">
+  <div class="login-card" id="loginCard">
+    <div class="login-brand">
+      <div class="brand-mark" id="loginFallback">M</div>
+      <img class="brand-logo" src="./logo.png" alt=""
+           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
+           onerror="this.remove()">
+    </div>
+    <h1 class="login-title">MERIT MARKETING HUB</h1>
+    <div class="login-sub">Casino CRM</div>
+    <div class="login-error" id="loginError" role="alert"></div>
+    <div class="field">
+      <label for="loginUser">Username</label>
+      <input type="text" id="loginUser" autocomplete="username" data-act="loginKey" data-on="keydown" data-args='[{"$":"event"}]'>
+    </div>
+    <div class="field">
+      <label for="loginPass">Password</label>
+      <input type="password" id="loginPass" autocomplete="current-password" data-act="loginKey" data-on="keydown" data-args='[{"$":"event"}]'>
+    </div>
+    <button class="btn btn-gold" id="loginBtn" data-act="doLogin" data-on="click" data-args='[]'>SIGN IN</button>
+  </div>
+
+  <div class="login-card" id="setupCard" style="display:none;">
+    <div class="login-brand">
+      <div class="brand-mark" id="setupFallback">M</div>
+      <img class="brand-logo" src="./logo.png" alt=""
+           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
+           onerror="this.remove()">
+    </div>
+    <h1 class="login-title">Welcome</h1>
+    <div class="login-sub">Create the administrator account</div>
+    <div class="setup-steps"><div class="setup-dot active"></div><div class="setup-dot active"></div></div>
+    <div class="login-error" id="setupError" role="alert"></div>
+    <div class="field">
+      <label for="setupName">Full Name</label>
+      <input type="text" id="setupName" data-act="setupKey" data-on="keydown" data-args='[{"$":"event"}]'>
+    </div>
+    <div class="field">
+      <label for="setupUser">Username</label>
+      <input type="text" id="setupUser" data-act="setupKey" data-on="keydown" data-args='[{"$":"event"}]'>
+    </div>
+    <div class="field">
+      <label for="setupPass">Password</label>
+      <input type="password" id="setupPass" data-act="setupKey" data-on="keydown" data-args='[{"$":"event"}]'>
+    </div>
+    <div class="field">
+      <label for="setupPass2">Confirm Password</label>
+      <input type="password" id="setupPass2" data-act="setupKey" data-on="keydown" data-args='[{"$":"event"}]'>
+    </div>
+    <button class="btn btn-gold" id="setupBtn" data-act="doSetup" data-on="click" data-args='[]'>CREATE ACCOUNT</button>
+  </div>
+</div>
+
+<canvas id="starfield"></canvas>
+
+<a class="skip-link" href="#mainContent">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <button class="app-menu-trigger" id="appMenuTrigger" data-act="toggleAppMenu" data-on="click" data-args='[{"$":"event"}]' aria-haspopup="true" aria-expanded="false" aria-controls="appMenu" title="Application menu">
+      <div class="brand-mark" id="brandFallback" aria-hidden="true">M</div>
+      <img class="brand-logo" src="./logo.png" alt="" aria-hidden="true"
+           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
+           onerror="this.remove()">
+    </button>
+    <div class="brand-text">MERIT MARKETING HUB<small>Casino CRM</small></div>
+  </div>
+  <div class="topbar-actions">
+    <button class="topbar-search" id="topbarSearchBtn" data-act="openPalette" data-on="click" data-args='[]' aria-label="Search everything">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <span>Search…</span>
+      <kbd>Ctrl K</kbd>
+    </button>
+    <div class="topbar-session">
+      <div class="sc-av" id="sessionAvatar" aria-hidden="true"></div>
+      <div class="sc-info">
+        <div class="sc-name" id="sessionName"></div>
+        <div class="sc-role" id="sessionRole"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="workspace-strip" id="workspaceStrip" role="tablist" aria-label="Open workspaces"></div>
+
+<div class="app-menu-backdrop" id="appMenuBackdrop" data-act="closeAppMenu" data-on="click" data-args='[]'></div>
+
+<div class="app-menu" id="appMenu" role="menu" aria-label="Application menu">
+  <div class="nav-group">
+    <div class="nav-group-label">Workspace</div>
+    <div class="nav">
+      <div class="nav-item" data-page="dashboard" data-act="openWorkspaceTab" data-on="click" data-args='["dashboard"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></svg>
+        Dashboard
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label" id="navGroupOps">Operations</div>
+    <div class="nav" role="group" aria-labelledby="navGroupOps">
+      <div class="nav-item" data-page="reservations" data-act="openWorkspaceTab" data-on="click" data-args='["reservations"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+        Reservation History
+      </div>
+      <div class="nav-item" data-page="calendar" data-act="openWorkspaceTab" data-on="click" data-args='["calendar"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+        Action Calendar
+      </div>
+      <div class="nav-item has-submenu" data-page="customers" id="appMenuCrmItem" role="menuitem" aria-haspopup="true" tabindex="0" data-activatable
+           data-act="openCrmSubmenu" data-on="click" data-args='[{"$":"event"}]' onmouseenter="scheduleOpenCrmSubmenu()" onmouseleave="scheduleCloseSubmenu()" data-act="arrowRightOpensCrmSubmenu" data-on="keydown" data-args='[{"$":"event"}]'>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v4h4"/><path d="M9 13h6M9 17h6"/></svg>
+        CRM Panel<span class="nav-badge" id="norecBadge">0</span>
+        <span class="nav-item-caret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label" id="navGroupPeople">People</div>
+    <div class="nav" role="group" aria-labelledby="navGroupPeople">
+      <div class="nav-item" data-page="profiles" data-act="openWorkspaceTab" data-on="click" data-args='["profiles"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.3"/><path d="M5.3 20c1-4.2 4-6.3 6.7-6.3s5.7 2.1 6.7 6.3"/></svg>
+        Profiles
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label" id="navGroupInsight">Insight</div>
+    <div class="nav" role="group" aria-labelledby="navGroupInsight">
+      <div class="nav-item" data-page="reports" data-act="openWorkspaceTab" data-on="click" data-args='["reports"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>
+        Reports
+      </div>
+      <div class="nav-item" data-page="audit" data-act="openWorkspaceTab" data-on="click" data-args='["audit"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6h9M9.5 12h9M9.5 18h9"/><path d="M4 6.3l1 1L7.3 5M4 12.3l1 1 2.3-2.3M4 18.3l1 1 2.3-2.3"/></svg>
+        Audit Log
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label" id="navGroupAdmin">Administration</div>
+    <div class="nav" role="group" aria-labelledby="navGroupAdmin">
+      <div class="nav-item" data-page="users" data-act="openWorkspaceTab" data-on="click" data-args='["users"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="3"/><circle cx="16.3" cy="9.8" r="2.4"/><path d="M3 19.5c.8-3.4 3-5.2 5.5-5.2s4.8 1.8 5.6 5.2"/><path d="M14.8 15c1.9.5 3.4 2.1 3.9 4.5"/></svg>
+        Users
+      </div>
+      <div class="nav-item" data-page="settings" data-act="openWorkspaceTab" data-on="click" data-args='["settings"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.4a7.6 7.6 0 0 0 0-2.8l1.9-1.5-2-3.4-2.2.9a7.6 7.6 0 0 0-2.4-1.4L14.3 3H9.7l-.4 2.2a7.6 7.6 0 0 0-2.4 1.4l-2.2-.9-2 3.4L4.6 10.6a7.6 7.6 0 0 0 0 2.8l-1.9 1.5 2 3.4 2.2-.9c.7.6 1.5 1.1 2.4 1.4l.4 2.2h4.6l.4-2.2c.9-.3 1.7-.8 2.4-1.4l2.2.9 2-3.4Z"/></svg>
+        Settings
+      </div>
+    </div>
+  </div>
+
+  <div class="app-menu-footer">
+    <div class="nav-item nav-item-danger" data-act="doLogout" data-on="click" data-args='[]' role="menuitem" tabindex="0" data-activatable>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      Log Out
+    </div>
+  </div>
+</div>
+
+<div class="app-submenu" id="crmSubmenu" role="menu" aria-label="CRM Panel" onmouseenter="cancelCloseSubmenu()" onmouseleave="scheduleCloseSubmenu()">
+  <div class="app-submenu-title">CRM Panel</div>
+  <div class="nav">
+    <div class="nav-item" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","overview"]'>Overview</div>
+    <div class="nav-item" id="crmSubmenuCustomerList" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","customerlist"]'>Customer List</div>
+    <div class="nav-item" id="crmSubmenuNoRecord" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","norecord"]'>No Record<span class="nav-badge" id="norecSubmenuBadge">0</span></div>
+  </div>
+</div>
+
+<main class="main" id="mainContent">
+
+  <!-- ---------- DASHBOARD ---------- -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Dashboard</h1>
+      <div class="head-actions">
+        <div class="split-filter" id="dashPeriodFilter" role="tablist" aria-label="Dashboard period">
+          <button data-act="setDashboardPeriod" data-on="click" data-args='["7"]'>7D</button>
+          <button class="active" data-act="setDashboardPeriod" data-on="click" data-args='["30"]'>30D</button>
+          <button data-act="setDashboardPeriod" data-on="click" data-args='["90"]'>3M</button>
+          <button data-act="setDashboardPeriod" data-on="click" data-args='["180"]'>6M</button>
+          <button data-act="setDashboardPeriod" data-on="click" data-args='["all"]'>ALL</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-band" id="statBand" role="group" aria-label="Key metrics"></div>
+
+    <div class="dash-grid">
+      <div class="dash-col">
+        <div class="dash-section-label">Needs You</div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Requires Attention</h2>
+            <button class="btn-link" data-act="switchTab" data-on="click" data-args='["customers"]'>CRM Panel</button>
+          </div>
+          <div class="panel-body" id="attentionList" style="max-height:250px"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Pending Reservations<span class="count-pill" id="pendingCount">0</span></h2>
+            <button class="btn-link" data-act="goReservationsUpcoming" data-on="click" data-args='[]'>View All</button>
+          </div>
+          <div class="panel-body" id="pendingList"></div>
+        </div>
+      </div>
+      <div class="dash-col">
+        <div class="dash-section-label">Activity</div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Notifications<span class="count-pill" id="notifBadge">0</span></h2>
+            <button class="btn-link" data-act="markAllNotificationsRead" data-on="click" data-args='[]'>Mark All Read</button>
+          </div>
+          <div class="panel-body" id="notifList" style="max-height:290px"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Recent Reservations</h2>
+            <button class="btn-link" data-act="switchTab" data-on="click" data-args='["reservations"]'>View All</button>
+          </div>
+          <div class="panel-body" id="recentResList" style="max-height:250px"></div>
+        </div>
+      </div>
+      <div class="dash-col" id="rankCol" style="display:none;">
+        <div class="dash-section-label">Team</div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title" id="rankPanelTitle">Marketing — Last 30 Days</h2>
+            <button class="btn-link" data-act="switchTab" data-on="click" data-args='["reports"]'>Reports</button>
+          </div>
+          <div class="panel-body" id="rankPanel"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">New Guests</h2>
+            <button class="btn-link" data-act="goCrmView" data-on="click" data-args='["customerlist"]'>Customer List</button>
+          </div>
+          <div class="panel-body" id="newGuestsList" style="max-height:230px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- RESERVATION HISTORY ---------- -->
+  <div class="page" id="page-reservations">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Reservation History</h1>
+      <div class="head-actions">
+        <button class="btn btn-gold btn-sm" data-act="openReservationModal" data-on="click" data-args='[]'>NEW RESERVATION</button>
+      </div>
+    </div>
+    <div class="view-switch" role="tablist" aria-label="Reservation view">
+      <button class="view-switch-tab active" role="tab" aria-selected="true" id="resViewActiveTab" data-act="setResView" data-on="click" data-args='["active"]'>Reservations<span class="count-pill" id="resViewActiveCount">0</span></button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="resViewCancelledTab" data-act="setResView" data-on="click" data-args='["cancelled"]'>Cancelled<span class="count-pill" id="resViewCancelledCount">0</span></button>
+    </div>
+    <div class="toolbar">
+      <label class="visually-hidden" for="resSearch">Search reservations</label>
+      <input class="search" id="resSearch" placeholder="Search" data-act="onResSearch" data-on="input" data-args='[]'>
+      <div class="filter-wrap">
+        <button class="filter-btn" id="resFilterBtn" data-act="toggleFilterMenu" data-on="click" data-args='["resFilterMenu",{"$":"event"}]' title="Filter">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+        </button>
+        <div class="filter-menu wide" id="resFilterMenu" data-act="stopPropagation" data-on="click" data-args='[]'>
+          <div class="fm-title" id="resFStatusLabel">Status</div>
+          <select class="fm-input" id="resFStatus" data-act="applyResFilters" data-on="change" data-args='[]'>
+            <option value="">All statuses</option>
+            <option value="UPCOMING">Upcoming</option>
+            <option value="CHECKED_IN">Checked in</option>
+            <option value="COMPLETED">Completed</option>
+          </select>
+          <div class="fm-title" id="resFInvitedLabel">Invited By</div>
+          <select class="fm-input" id="resFInvited" data-act="applyResFilters" data-on="change" data-args='[]'></select>
+          <div class="fm-title">Check-in Between</div>
+          <div class="fm-row">
+            <input class="fm-input" type="date" id="resFFrom" data-act="applyResFilters" data-on="change" data-args='[]'>
+            <input class="fm-input" type="date" id="resFTo" data-act="applyResFilters" data-on="change" data-args='[]'>
+          </div>
+          <div class="fm-actions">
+            <button class="pager-btn" data-act="clearResFilters" data-on="click" data-args='[]'>Clear</button>
+            <button class="pager-btn" data-act="closeAllFilterMenus" data-on="click" data-args='[]'>Done</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" data-act="exportCurrentView" data-on="click" data-args='["reservations"]' title="Export what is on screen">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        EXPORT
+      </button>
+    </div>
+    <div class="customer-layout">
+      <div class="table-wrap">
+        <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col" class="sortable" data-act="sortReservations" data-on="click" data-args='["customer"]' aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+              <th scope="col" class="sortable sorted" data-act="sortReservations" data-on="click" data-args='["check_in"]' aria-sort="descending">CHECK IN<span class="sort-arrow">↓</span></th>
+              <th scope="col" class="sortable" data-act="sortReservations" data-on="click" data-args='["check_out"]' aria-sort="none">CHECK OUT<span class="sort-arrow"></span></th>
+              <th scope="col">INVITED BY</th><th scope="col">NOTES</th><th scope="col">STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="resTableBody"></tbody>
+        </table>
+        </div>
+        <div class="pager" id="resPager"></div>
+      </div>
+      <div class="detail-panel empty" id="resDetailPanel">No guest selected</div>
+    </div>
+  </div>
+
+  <!-- ---------- ACTION CALENDAR ---------- -->
+  <div class="page" id="page-calendar">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Action Calendar</h1>
+      <div class="head-actions">
+        <div class="cal-nav">
+          <button class="btn-icon" id="calPrevBtn" data-act="calShiftMonth" data-on="click" data-args='[-1]' aria-label="Previous month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="cal-month-label" id="calMonthLabel"></div>
+          <button class="btn-icon" data-act="calShiftMonth" data-on="click" data-args='[1]' aria-label="Next month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <button class="btn btn-outline btn-sm" data-act="calGoToday" data-on="click" data-args='[]'>TODAY</button>
+      </div>
+    </div>
+    <div class="cal-legend">
+      <span><span class="cal-dot arr"></span>Arrivals</span>
+      <span><span class="cal-dot act"></span>In House</span>
+      <span><span class="cal-dot dep"></span>Departures</span>
+    </div>
+    <div class="cal-weekdays">
+      <div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div><div>SUN</div>
+    </div>
+    <div class="cal-grid" id="calGrid" role="grid" aria-label="Reservation calendar"></div>
+  </div>
+
+  <!-- ---------- PROFILES ---------- -->
+  <div class="page" id="page-profiles">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Profiles</h1>
+      <div class="head-actions">
+        <button class="btn btn-gold btn-sm" data-act="openProfileModal" data-on="click" data-args='[]'>NEW PROFILE</button>
+      </div>
+    </div>
+    <div class="profile-grid" id="profileGrid"></div>
+  </div>
+
+  <!-- ---------- CRM PANEL ---------- -->
+  <div class="page" id="page-customers">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">CRM Panel</h1>
+      <div class="head-actions">
+        <div class="crm-action" id="crmAction_overview">
+          <button class="btn btn-gold btn-sm" data-act="openRecordModal" data-on="click" data-args='[]'>NEW RECORD</button>
+        </div>
+        <div class="crm-action hidden" id="crmAction_customerlist">
+          <button class="btn btn-gold btn-sm" data-act="openCustomerModal" data-on="click" data-args='[]'>NEW CUSTOMER</button>
+        </div>
+        <div class="crm-action hidden" id="crmAction_norecord">
+          <button class="btn btn-outline btn-sm" data-act="exportCurrentView" data-on="click" data-args='["norecord"]'>EXPORT</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist" aria-label="CRM Panel view" id="crmViewTabs">
+      <button class="view-switch-tab active" role="tab" aria-selected="true" data-act="setCrmView" data-on="click" data-args='["overview",{"$":"this"}]'>Overview</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="crmTabCustomerList" data-act="setCrmView" data-on="click" data-args='["customerlist",{"$":"this"}]'>Customer List</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="crmTabNoRecord" data-act="setCrmView" data-on="click" data-args='["norecord",{"$":"this"}]'>No Record<span class="count-pill" id="norecTabBadge">0</span></button>
+    </div>
+
+    <div class="tab-pane active" id="crmPane_overview">
+      <div class="toolbar">
+        <label class="visually-hidden" for="custSearch">Search guests</label>
+        <input class="search" id="custSearch" placeholder="Search" data-act="onCustSearch" data-on="input" data-args='[]'>
+        <div class="filter-wrap">
+          <button class="filter-btn" id="custFilterBtn" data-act="toggleFilterMenu" data-on="click" data-args='["custFilterMenu",{"$":"event"}]' aria-label="Filter" aria-haspopup="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+          </button>
+          <div class="filter-menu" id="custFilterMenu" role="menu">
+            <div class="filter-opt active" data-val="" data-act="setCustFilter" data-on="click" data-args='["",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="true" data-activatable>ALL</div>
+            <div class="filter-opt" data-val="COLD" data-act="setCustFilter" data-on="click" data-args='["COLD",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--cold)"></span>COLD</div>
+            <div class="filter-opt" data-val="NO_RECORD" data-act="setCustFilter" data-on="click" data-args='["NO_RECORD",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ink-4)"></span>NO RECORD</div>
+            <div class="fm-sep"></div>
+            <div class="fm-title">Marketing</div>
+            <select class="fm-input" id="custFMarketing" data-act="applyCustFilters" data-on="change" data-args='[]' data-act="stopPropagation" data-on="click" data-args='[]'></select>
+            <div class="fm-actions"><button class="pager-btn" data-act="clearCustFilters" data-on="click" data-args='[]'>Clear</button></div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" data-act="exportCurrentView" data-on="click" data-args='["customers"]' title="Export what is on screen">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+          EXPORT
+        </button>
+      </div>
+      <div class="customer-layout">
+        <div class="table-wrap">
+          <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">ID</th>
+                  <th scope="col" class="sortable" data-act="sortCustomers" data-on="click" data-args='["name"]' aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+                  <th scope="col">MARKETING</th><th scope="col">CRM NOTE</th><th scope="col">STATUS</th>
+                  <th scope="col" class="sortable sorted" data-act="sortCustomers" data-on="click" data-args='["updated"]' aria-sort="descending">LAST MODIFIED<span class="sort-arrow">↓</span></th></tr>
+            </thead>
+            <tbody id="custTableBody"></tbody>
+          </table>
+          </div>
+          <div class="pager" id="custPager"></div>
+        </div>
+        <div class="detail-panel empty" id="detailPanel">No guest selected</div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="crmPane_customerlist">
+      <div class="toolbar">
+        <label class="visually-hidden" for="listSearch">Search customer list</label>
+        <input class="search" id="listSearch" placeholder="Search" data-act="onListSearch" data-on="input" data-args='[]'>
+        <div class="filter-wrap">
+          <button class="filter-btn" id="listFilterBtn" data-act="toggleFilterMenu" data-on="click" data-args='["listFilterMenu",{"$":"event"}]' aria-label="Filter" aria-haspopup="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+          </button>
+          <div class="filter-menu wide" id="listFilterMenu" data-act="stopPropagation" data-on="click" data-args='[]'>
+            <div class="fm-title">Status</div>
+            <select class="fm-input" id="listFStatus" data-act="applyListFilters" data-on="change" data-args='[]'>
+              <option value="">All statuses</option>
+              <option value="COLD">Cold</option>
+              <option value="NO_RECORD">No record</option>
+            </select>
+            <div id="listFCreatedByWrap">
+              <div class="fm-title">Created By</div>
+              <select class="fm-input" id="listFCreatedBy" data-act="applyListFilters" data-on="change" data-args='[]'></select>
+            </div>
+            <div class="fm-title">Assigned To</div>
+            <select class="fm-input" id="listFAssignedTo" data-act="applyListFilters" data-on="change" data-args='[]'></select>
+            <div class="fm-title">Reservations</div>
+            <select class="fm-input" id="listFHasRes" data-act="applyListFilters" data-on="change" data-args='[]'>
+              <option value="">Any</option>
+              <option value="yes">Has reservation</option>
+              <option value="no">No reservation</option>
+            </select>
+            <div class="fm-title">CRM Activity</div>
+            <select class="fm-input" id="listFHasCrm" data-act="applyListFilters" data-on="change" data-args='[]'>
+              <option value="">Any</option>
+              <option value="yes">Has CRM activity</option>
+              <option value="no">No CRM activity</option>
+            </select>
+            <div class="fm-title">Created Between</div>
+            <div class="fm-row">
+              <input class="fm-input" type="date" id="listFCreatedFrom" data-act="applyListFilters" data-on="change" data-args='[]'>
+              <input class="fm-input" type="date" id="listFCreatedTo" data-act="applyListFilters" data-on="change" data-args='[]'>
+            </div>
+            <div class="fm-actions">
+              <button class="pager-btn" data-act="clearListFilters" data-on="click" data-args='[]'>Clear</button>
+              <button class="pager-btn" data-act="closeAllFilterMenus" data-on="click" data-args='[]'>Done</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" data-act="exportCurrentView" data-on="click" data-args='["customerlist"]' title="Export what is on screen">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+          EXPORT
+        </button>
+      </div>
+      <div class="customer-layout">
+        <div class="table-wrap">
+          <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">ID</th>
+              <th scope="col" class="sortable" data-act="sortList" data-on="click" data-args='["name"]' aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
+              <th scope="col">CREATED BY</th>
+              <th scope="col">ASSIGNED TO</th>
+              <th scope="col">STATUS</th>
+              <th scope="col" class="sortable sorted" data-act="sortList" data-on="click" data-args='["created"]' aria-sort="descending">REGISTERED<span class="sort-arrow">↓</span></th></tr>
+            </thead>
+            <tbody id="listTableBody"></tbody>
+          </table>
+          </div>
+        </div>
+        <div class="detail-panel empty" id="listDetailPanel">No guest selected</div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="crmPane_norecord">
+      <div class="setting-hint" style="margin-bottom:var(--sp-3)">Registered guests with no reservation and no CRM note.</div>
+      <div class="toolbar">
+        <label class="visually-hidden" for="norecSearch">Search no-record guests</label>
+        <input class="search" id="norecSearch" placeholder="Search" data-act="onNorecSearch" data-on="input" data-args='[]'>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th scope="col">ID</th><th scope="col">NAME SURNAME</th><th scope="col">PHONE</th><th scope="col">PASSPORT NO</th><th scope="col">REGISTERED</th><th scope="col">MARKETING</th></tr></thead>
+          <tbody id="norecTableBody"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- REPORTS ---------- -->
+  <div class="page" id="page-reports">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title" tabindex="-1">Reports</h1>
+        <div class="setting-hint" id="reportScope"></div>
+      </div>
+    </div>
+    <div class="view-switch" role="tablist" aria-label="Report type" id="reportTypeTabs">
+      <button class="view-switch-tab active" role="tab" aria-selected="true" data-act="setReportType" data-on="click" data-args='["reservations",{"$":"this"}]'>Reservations</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setReportType" data-on="click" data-args='["guests",{"$":"this"}]'>Guest Activity</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" id="reportMarketingTab" data-act="setReportType" data-on="click" data-args='["marketing",{"$":"this"}]'>Marketing Performance</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setReportType" data-on="click" data-args='["cold",{"$":"this"}]'>Cold Guests</button>
+      <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setReportType" data-on="click" data-args='["norecord",{"$":"this"}]'>No Record</button>
+    </div>
+    <div class="panel" style="margin-bottom:var(--sp-5)">
+      <div class="panel-body" id="reportFilters" style="padding:var(--sp-5)"></div>
+      <div class="report-filter-actions">
+        <button class="btn btn-gold btn-sm" id="reportGenerateBtn" data-act="runReport" data-on="click" data-args='[]'>GENERATE REPORT</button>
+      </div>
+    </div>
+    <div id="reportResultsWrap" style="display:none;">
+      <div class="pane-head">
+        <div class="pane-title" id="reportResultCount"></div>
+        <button class="btn btn-outline btn-sm" data-act="exportReportResults" data-on="click" data-args='[]'>EXPORT</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table><thead id="reportResultsHead"></thead><tbody id="reportResultsBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div id="reportEmptyWrap"></div>
+  </div>
+
+  <!-- ---------- USERS ---------- -->
+  <div class="page" id="page-users">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Users</h1>
+      <div class="head-actions">
+        <button class="btn btn-gold btn-sm" data-act="openUserModal" data-on="click" data-args='[]'>NEW USER</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th scope="col">USERNAME</th><th scope="col">NAME</th><th scope="col">ROLE</th><th scope="col">STATUS</th><th scope="col">LAST LOGIN</th></tr></thead>
+        <tbody id="usersTableBody"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- AUDIT LOG ---------- -->
+  <div class="page" id="page-audit">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Audit Log</h1>
+      <div class="head-actions">
+        <button class="btn btn-outline btn-sm" data-act="exportEntity" data-on="click" data-args='["audit_logs"]'>EXPORT</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th scope="col">WHEN</th><th scope="col">USER</th><th scope="col">ACTION</th><th scope="col">ENTITY</th><th scope="col">DETAIL</th></tr></thead>
+        <tbody id="auditTableBody"></tbody>
+      </table>
+      </div>
+      <div class="pager" id="auditPager"></div>
+    </div>
+  </div>
+
+  <!-- ---------- SETTINGS ---------- -->
+  <div class="page" id="page-settings">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Settings</h1>
+    </div>
+    <div class="settings-plain">
+
+      <div class="settings-section">
+        <h2 class="settings-section-title">Appearance</h2>
+        <div class="setting-row">
+          <div><div class="setting-label">Theme</div></div>
+          <div class="setting-control">
+            <select id="setTheme" data-act="applyTheme" data-on="change" data-args='[{"$":"value"},true]'>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Row density</div></div>
+          <div class="setting-control">
+            <select id="setDensity" data-act="applyDensity" data-on="change" data-args='[{"$":"value"},true]'>
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h2 class="settings-section-title">Security</h2>
+        <div class="setting-row">
+          <div><div class="setting-label">Password</div>
+               <div class="setting-hint" id="settingsWhoAmI"></div></div>
+          <div class="setting-control">
+            <button class="btn btn-outline btn-sm" data-act="openPasswordModal" data-on="click" data-args='[]'>CHANGE PASSWORD</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section" id="permissionsSection" style="display:none;">
+        <h2 class="settings-section-title">Permissions</h2>
+        <div class="perm-grid" id="permGrid"></div>
+      </div>
+
+      <div class="settings-section" id="backupSection" style="display:none;">
+        <h2 class="settings-section-title">Database</h2>
+        <div class="setting-row">
+          <div><div class="setting-label">Automatic backup</div>
+               <div class="setting-hint">Taken when the application starts</div></div>
+          <div class="setting-control">
+            <label class="switch"><input type="checkbox" id="setAutoBackup" data-act="saveSetting" data-on="change" data-args='["backup.auto_enabled",{"$":"checked"}]'>
+              <span class="track"><span class="knob"></span></span></label>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Frequency</div></div>
+          <div class="setting-control">
+            <select id="setBackupFreq" data-act="saveSetting" data-on="change" data-args='["backup.frequency",{"$":"value"}]'>
+              <option value="startup">Every startup</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Backups to keep</div></div>
+          <div class="setting-control">
+            <select id="setBackupKeep" data-act="saveSetting" data-on="change" data-args='["backup.keep",{"$":"value"}]'>
+              <option>5</option><option>10</option><option>20</option><option>50</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Manager activity feed</div>
+               <div class="setting-hint">Notify managers of every operation</div></div>
+          <div class="setting-control">
+            <label class="switch"><input type="checkbox" id="setManagerFeed" data-act="saveSetting" data-on="change" data-args='["notifications.manager_feed",{"$":"checked"}]'>
+              <span class="track"><span class="knob"></span></span></label>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Backup now</div>
+               <div class="setting-hint">Everything you enter is saved automatically; this makes a restore point</div></div>
+          <div class="setting-control" style="display:flex; gap:7px;">
+            <button class="btn btn-gold btn-sm" id="backupNowBtn" data-act="doBackupNow" data-on="click" data-args='[]'>BACKUP</button>
+            <button class="btn btn-outline btn-sm" data-act="openDataFolder" data-on="click" data-args='[]'>DATA FOLDER</button>
+          </div>
+        </div>
+        <div class="setting-row" style="align-items:flex-start;">
+          <div><div class="setting-label">Restore</div>
+               <div class="setting-hint">A safety copy is taken before restoring</div></div>
+          <div class="setting-control" style="width:340px; max-width:100%;">
+            <div class="notif-list" id="backupList" style="max-height:210px; overflow-y:auto;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<!-- ================= MODAL: RESERVATION ================= -->
+<div class="overlay" id="modalReservation" role="dialog" aria-modal="true" aria-labelledby="resModalTitle">
+  <div class="modal modal-md">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="resModalTitle">New Reservation</h2>
+        <div class="modal-subtitle" id="resModalSubtitle">Book a stay for an existing or new guest</div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalReservation"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group first">
+        <div class="form-group-title">Guest</div>
+        <div class="field" id="resGuestFinderField">
+          <input type="hidden" id="resCustomerSelect" value="">
+          <button type="button" class="finder-trigger" id="resGuestFinderBtn"
+                  data-act="openReservationGuestFinder" data-on="click" data-args='[]'>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <span id="resGuestFinderLabel">Find guest by ID, name or phone…</span>
+          </button>
+          <div class="field-error" id="err-resCustomerSelect" role="alert"></div>
+          <a class="btn-link guest-new-link" id="resNewGuestLink" href="javascript:void(0)" data-act="setResNewGuest" data-on="click" data-args='[true]'>+ New guest (not yet registered)</a>
+        </div>
+        <div class="entity-preview" id="resGuestPreview">
+          <div class="avatar lg" id="resGuestAvatar" style="margin:0;"></div>
+          <div class="ep-info">
+            <div class="ep-name" id="resGuestName"></div>
+            <div class="ep-meta" id="resGuestMeta"></div>
+            <div class="ep-pills" id="resGuestPills"></div>
+          </div>
+          <button type="button" class="btn-link ep-change" data-act="openReservationGuestFinder" data-on="click" data-args='[]'>Change</button>
+        </div>
+        <div class="field-error" id="resGuestProtectedWarning" style="display:none;">Guest protection period has not expired.</div>
+        <div class="field-row" id="resNewCustomerField" style="display:none;">
+          <div class="field">
+            <label for="resNewCustomerId">New Guest ID</label>
+            <input type="text" id="resNewCustomerId">
+            <div class="field-error" id="err-resNewCustomerId" role="alert"></div>
+          </div>
+          <div class="field">
+            <label for="resNewCustomerName">Name Surname</label>
+            <input type="text" id="resNewCustomerName">
+            <div class="field-error" id="err-resNewCustomerName" role="alert"></div>
+          </div>
+          <a class="btn-link guest-new-link" href="javascript:void(0)" data-act="setResNewGuest" data-on="click" data-args='[false]'>Choose an existing guest instead</a>
+        </div>
+      </div>
+
+      <div class="form-row-split" style="margin-bottom:var(--sp-6);">
+        <div class="form-group">
+          <div class="form-group-title">Stay Details</div>
+          <div class="stay-dates">
+            <div class="field"><label for="resCheckIn">Check In</label><input type="date" id="resCheckIn">
+              <div class="field-error" id="err-resCheckIn" role="alert"></div></div>
+            <div class="stay-dates-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+            </div>
+            <div class="field"><label for="resCheckOut">Check Out</label><input type="date" id="resCheckOut">
+              <div class="field-error" id="err-resCheckOut" role="alert"></div></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-group-title">Marketing</div>
+          <div class="field">
+            <label for="resInvitedBy">Invited By</label>
+            <div class="field-input-row">
+              <input type="text" id="resInvitedBy" list="profileNames">
+              <datalist id="profileNames"></datalist>
+              <button type="button" class="btn-icon field-input-btn" id="resInvitedByFinderBtn" title="Search marketing profiles"
+                      data-act="openReservationInvitedByFinder" data-on="click" data-args='[]'>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              </button>
+            </div>
+            <div class="field-error" id="err-resInvitedBy" role="alert"></div>
+            <div class="field-hint" id="resInvitedByLockedHint" style="display:none;">Reservations you create are always attributed to you.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-group-title">Notes</div>
+        <div class="field">
+          <label for="resNotes" class="visually-hidden">Reservation Note</label>
+          <textarea id="resNotes" placeholder="Optional — preferences, special requests, context for the stay"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot modal-foot-tiered">
+      <div class="foot-left">
+        <button class="btn btn-ghost btn-sm btn-destructive-ghost" id="resCancelResBtn" style="display:none;" data-act="cancelEditingReservation" data-on="click" data-args='[]'>Cancel Reservation</button>
+        <button class="btn-delete-icon" id="resDeleteResBtn" style="display:none;" data-act="deleteEditingReservation" data-on="click" data-args='[]' title="Permanently delete this reservation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalReservation"]'>Close</button>
+        <button class="btn btn-gold btn-sm" data-act="saveReservation" data-on="click" data-args='[false]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: CANCEL RESERVATION ================= -->
+<div class="overlay" id="modalCancelReservation" role="dialog" aria-modal="true" aria-labelledby="cancelResModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="cancelResModalTitle">Cancel Reservation</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalCancelReservation"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="setting-hint" style="margin-bottom:var(--sp-4);">
+        The reservation is preserved and remains visible in the Cancelled view — this does not delete any history.
+      </div>
+      <div class="ep-name" id="cancelResSummary" style="margin-bottom:var(--sp-4);"></div>
+      <div class="field">
+        <label for="cancelResReason">Reason <span class="muted">(optional)</span></label>
+        <select id="cancelResReason" data-act="onCancelReasonChange" data-on="change" data-args='[]'>
+          <option value=""></option>
+          <option value="Guest request">Guest request</option>
+          <option value="Duplicate">Duplicate</option>
+          <option value="Dates changed">Dates changed</option>
+          <option value="Operational">Operational</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field" id="cancelResOtherField" style="display:none;">
+        <label for="cancelResOtherText">Reason details</label>
+        <input type="text" id="cancelResOtherText" placeholder="Describe the reason">
+        <div class="field-error" id="err-cancelResOtherText" role="alert"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalCancelReservation"]'>Back</button>
+        <button class="btn btn-gold btn-sm btn-destructive-solid" data-act="confirmCancelReservation" data-on="click" data-args='[]'>CANCEL RESERVATION</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: DELETE RESERVATION ================= -->
+<div class="overlay" id="modalDeleteReservation" role="dialog" aria-modal="true" aria-labelledby="deleteResModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="deleteResModalTitle">Delete Reservation</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalDeleteReservation"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="danger-hint" style="margin-bottom:var(--sp-4);">
+        This permanently removes the reservation record. Unlike Cancel Reservation, it cannot be undone and no record of the stay is kept.
+      </div>
+      <div class="ep-name" id="deleteResSummary" style="margin-bottom:var(--sp-2);"></div>
+      <div class="setting-hint" id="deleteResStatusLine"></div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalDeleteReservation"]'>Back</button>
+        <button class="btn btn-gold btn-sm btn-destructive-solid" data-act="confirmDeleteReservation" data-on="click" data-args='[]'>Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: CALENDAR DAY INSPECTOR ================= -->
+<div class="overlay" id="modalCalDay" role="dialog" aria-modal="true" aria-labelledby="calDayModalTitle">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h2 class="modal-title" id="calDayModalTitle">Day</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalCalDay"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="split-grid cols-3">
+        <div class="split-col">
+          <div class="split-col-title">Arrivals <span class="count-pill" id="calDayArrCount">0</span></div>
+          <div class="split-list" id="calDayArrList"></div>
+        </div>
+        <div class="split-col">
+          <div class="split-col-title">In House <span class="count-pill" id="calDayActCount">0</span></div>
+          <div class="split-list" id="calDayActList"></div>
+        </div>
+        <div class="split-col">
+          <div class="split-col-title">Departures <span class="count-pill" id="calDayDepCount">0</span></div>
+          <div class="split-list" id="calDayDepList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: PROFILE ================= -->
+<div class="overlay" id="modalProfile" role="dialog" aria-modal="true" aria-labelledby="profModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="profModalTitle">New Profile</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalProfile"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <div class="form-group-title">Identity</div>
+        <div class="form-hero">
+          <div class="photo-drop" id="profPhotoDrop" data-act="pickProfilePhoto" data-on="click" data-args='[]'>PHOTO</div>
+          <div class="form-hero-fields">
+            <div class="field"><label for="profName">Name Surname</label><input type="text" id="profName"></div>
+            <div class="field"><label for="profNationality">Nationality</label><input type="text" id="profNationality"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-group-title">Contact</div>
+        <div class="field-row">
+          <div class="field"><label for="profPassport">Passport No</label><input type="text" id="profPassport"></div>
+          <div class="field"><label for="profPhone">Phone</label><input type="text" id="profPhone"></div>
+        </div>
+      </div>
+
+      <div class="form-group" id="profStatusSection" style="display:none;">
+        <div class="form-group-title">Employment</div>
+        <label class="check-row">
+          <input type="checkbox" id="profInactive">
+          <div class="cr-text">No longer with the company</div>
+        </label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-delete-icon" id="profDeleteBtn" style="display:none;" data-act="deleteProfile" data-on="click" data-args='[]' title="Delete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalProfile"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" data-act="saveProfile" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: PROFILE DETAIL ================= -->
+<div class="overlay" id="modalProfileDetail" role="dialog" aria-modal="true" aria-labelledby="profileDetailTitle">
+  <div class="modal modal-xl">
+    <div class="modal-head">
+      <h2 class="modal-title" id="profileDetailTitle">Profile</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalProfileDetail"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="pd-hero">
+        <div class="pd-hero-inner">
+          <div class="pd-photo" id="pdAvatar"></div>
+          <div class="pd-hero-info">
+            <div class="pd-kicker">Marketing Profile</div>
+            <div class="pd-hero-name" id="pdName"></div>
+            <div class="pd-chips" id="pdChips"></div>
+          </div>
+          <div class="pd-actions">
+            <button class="btn btn-outline btn-sm" data-act="editProfileFromDetail" data-on="click" data-args='[]'>EDIT</button>
+          </div>
+        </div>
+      </div>
+      <div class="pd-body">
+        <div class="view-switch" role="tablist" aria-label="Profile view" id="pdViewTabs">
+          <button class="view-switch-tab active" role="tab" aria-selected="true" data-act="setPdView" data-on="click" data-args='["overview",{"$":"this"}]'>Overview</button>
+          <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setPdView" data-on="click" data-args='["invited",{"$":"this"}]'>Reservations Invited<span class="count-pill" id="pdInvitedCount">0</span></button>
+          <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setPdView" data-on="click" data-args='["guests",{"$":"this"}]'>Assigned Guests<span class="count-pill" id="pdGuestCount">0</span></button>
+          <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setPdView" data-on="click" data-args='["customers",{"$":"this"}]'>Customer List<span class="count-pill" id="pdCustCount">0</span></button>
+        </div>
+
+        <div class="tab-pane active" id="pdPane_overview">
+          <div class="pd-stats" id="pdStats"></div>
+          <div class="pane-title">Recent Invitations</div>
+          <div class="split-list" id="pdRecentInvited"></div>
+        </div>
+
+        <div class="tab-pane" id="pdPane_invited">
+          <div class="split-col-head">
+            <div class="split-col-title">Reservations Invited</div>
+            <button class="btn-link" data-act="exportProfileSection" data-on="click" data-args='["invited"]'>Export</button>
+          </div>
+          <div class="split-filter" id="pdInvitedFilter" role="tablist" aria-label="Period">
+            <button class="active" data-act="setPdInvitedPeriod" data-on="click" data-args='["30"]'>30D</button>
+            <button data-act="setPdInvitedPeriod" data-on="click" data-args='["90"]'>3M</button>
+            <button data-act="setPdInvitedPeriod" data-on="click" data-args='["180"]'>6M</button>
+            <button data-act="setPdInvitedPeriod" data-on="click" data-args='["all"]'>ALL</button>
+          </div>
+          <div class="split-list" id="pdInvitedList"></div>
+        </div>
+
+        <div class="tab-pane" id="pdPane_guests">
+          <div class="split-col-head">
+            <div class="split-col-title">Assigned Guests</div>
+            <button class="btn-link" data-act="exportProfileSection" data-on="click" data-args='["guests"]'>Export</button>
+          </div>
+          <div class="setting-hint" style="margin-bottom:var(--sp-3)">Guests currently assigned to this profile.</div>
+          <div class="split-list" id="pdGuestList"></div>
+        </div>
+
+        <div class="tab-pane" id="pdPane_customers">
+          <div class="split-col-head">
+            <div class="split-col-title">Customer List</div>
+            <button class="btn-link" data-act="exportProfileSection" data-on="click" data-args='["customers"]'>Export</button>
+          </div>
+          <div class="setting-hint" style="margin-bottom:var(--sp-3)">Every guest this profile has created, invited, or is assigned to.</div>
+          <div class="split-list" id="pdCustList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: CUSTOMER ================= -->
+<div class="overlay" id="modalCustomer" role="dialog" aria-modal="true" aria-labelledby="custModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="custModalTitle">New Customer</h2>
+        <div class="modal-subtitle" id="custModalSubtitle">Create a new guest profile</div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalCustomer"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group first">
+        <div class="form-group-title">Guest Identity</div>
+        <div class="form-hero">
+          <div class="photo-drop" id="custPhotoDrop" data-act="pickCustomerPhoto" data-on="click" data-args='[]'></div>
+          <div class="form-hero-fields">
+            <div class="field field-primary"><label for="custName">Full Name</label><input type="text" id="custName" autocomplete="off">
+              <div class="field-error" id="err-custName" role="alert"></div></div>
+            <div class="field"><label for="custId">Customer ID</label><input type="text" id="custId" autocomplete="off">
+              <div class="field-error" id="err-custId" role="alert"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-group-title">Contact &amp; Identification</div>
+        <div class="field-row">
+          <div class="field"><label for="custPhone">Phone</label><input type="text" id="custPhone" autocomplete="off">
+            <div class="field-error" id="err-custPhone" role="alert"></div></div>
+          <div class="field"><label for="custPassport">Passport No</label><input type="text" id="custPassport" autocomplete="off">
+            <div class="field-error" id="err-custPassport" role="alert"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-delete-icon" id="custDeleteBtn" style="display:none;" data-act="deleteCustomer" data-on="click" data-args='[]' title="Delete guest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalCustomer"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" data-act="saveCustomer" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: RECORD ================= -->
+<div class="overlay" id="modalRecord" role="dialog" aria-modal="true" aria-labelledby="recordModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="recordModalTitle">New Record</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalRecord"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <div class="form-group-title">Guest</div>
+        <div class="field" id="recGuestFinderField">
+          <input type="hidden" id="recCustomerSelect" value="">
+          <button type="button" class="finder-trigger" id="recGuestFinderBtn"
+                  data-act="openRecordGuestFinder" data-on="click" data-args='[]'>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <span>Find guest by ID, name or phone…</span>
+          </button>
+          <div class="field-error" id="err-recCustomerSelect" role="alert"></div>
+        </div>
+        <div class="entity-preview" id="recPreview">
+          <div class="avatar lg" id="recPreviewAvatar" style="margin:0;"></div>
+          <div class="ep-info">
+            <div class="ep-name" id="recPreviewName"></div>
+            <div class="ep-meta" id="recPreviewMeta"></div>
+            <div class="ep-pills" id="recPreviewPills"></div>
+          </div>
+          <button type="button" class="btn-link ep-change" data-act="onRecordChangeGuestClick" data-on="click" data-args='[]'>Change</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-group-title">Record</div>
+        <div class="field-row">
+          <div class="field"><label for="recDate">Record Date</label><input type="date" id="recDate"></div>
+          <div class="field">
+            <label for="recMarketing">Marketing</label>
+            <div class="field-input-row">
+              <select id="recMarketing"></select>
+              <button type="button" class="btn-icon field-input-btn" title="Search marketing profiles"
+                      data-act="openRecordMarketingFinder" data-on="click" data-args='[]'>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="field"><label for="recNote">CRM Note</label><textarea id="recNote"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalRecord"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" data-act="saveRecord" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: CRM NOTE ================= -->
+<div class="overlay" id="modalCrmNote" role="dialog" aria-modal="true" aria-labelledby="crmNoteModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="crmNoteModalTitle">New CRM Note</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalCrmNote"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label for="crmNoteDate">Date</label><input type="date" id="crmNoteDate"></div>
+      <div class="field"><label for="crmNoteText">Note</label><textarea id="crmNoteText"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalCrmNote"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" data-act="saveCrmNote" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: ASSIGN ================= -->
+<div class="overlay" id="modalAssign" role="dialog" aria-modal="true" aria-labelledby="assignModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="assignModalTitle">Assign Guest</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalAssign"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="entity-preview show" id="assignPreview">
+        <div class="avatar lg" id="assignAvatar" style="margin:0;"></div>
+        <div class="ep-info">
+          <div class="ep-name" id="assignName"></div>
+          <div class="ep-meta" id="assignMeta"></div>
+          <div class="ep-pills" id="assignPills"></div>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:20px;">
+        <div class="form-group-title">Assign To</div>
+        <div class="field"><select id="assignSelect"></select></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalAssign"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" data-act="saveAssign" data-on="click" data-args='[]'>Assign</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: USER ================= -->
+<div class="overlay" id="modalUser" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="userModalTitle">New User</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalUser"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group first">
+        <div class="form-group-title">Account</div>
+        <div class="field-row">
+          <div class="field"><label for="userUsername">Username</label><input type="text" id="userUsername">
+            <div class="field-error" id="err-userUsername" role="alert"></div></div>
+          <div class="field"><label for="userPassword">Password</label><input type="password" id="userPassword">
+            <div class="field-error" id="err-userPassword" role="alert"></div></div>
+        </div>
+        <div class="field"><label for="userRole">Role</label>
+          <select id="userRole">
+            <option value="MARKETING">Marketing — only their own guests</option>
+            <option value="MANAGER">Manager — all records, no role changes</option>
+            <option value="ADMIN">Administrator — full access</option>
+          </select>
+        </div>
+        <div class="field"><label for="userProfile">Linked Profile</label><select id="userProfile"></select>
+          <div class="field-error" id="err-userProfile" role="alert"></div></div>
+        <label class="check-row"><input type="checkbox" id="userActive" checked>
+          <div class="cr-text">Account active</div></label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-delete-icon" id="userDeleteBtn" style="display:none;" data-act="deleteUser" data-on="click" data-args='[]' title="Delete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalUser"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="userSaveBtn" data-act="saveUser" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: CHANGE PASSWORD ================= -->
+<div class="overlay" id="modalPassword" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="passwordModalTitle">Change Password</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalPassword"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label for="pwCurrent">Current Password</label><input type="password" id="pwCurrent">
+        <div class="field-error" id="err-pwCurrent" role="alert"></div></div>
+      <div class="field"><label for="pwNew">New Password</label><input type="password" id="pwNew">
+        <div class="field-error" id="err-pwNew" role="alert"></div></div>
+      <div class="field"><label for="pwConfirm">Confirm New Password</label><input type="password" id="pwConfirm">
+        <div class="field-error" id="err-pwConfirm" role="alert"></div></div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalPassword"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="pwSaveBtn" data-act="savePassword" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: PHOTO CROP ================= -->
+<div class="overlay" id="modalCrop" role="dialog" aria-modal="true" aria-labelledby="cropModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="cropModalTitle">Adjust Photo</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalCrop"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="crop-stage" id="cropStage">
+        <canvas id="cropCanvas" width="320" height="320"></canvas>
+        <div class="crop-ring"></div>
+      </div>
+      <div class="crop-controls">
+        <label for="cropZoom">Zoom</label>
+        <input type="range" id="cropZoom" min="100" max="300" value="100" data-act="drawCrop" data-on="input" data-args='[]'>
+      </div>
+      <div class="setting-hint" style="text-align:center;">Drag the picture to choose what shows</div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalCrop"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" data-act="applyCrop" data-on="click" data-args='[]'>Use Photo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FINDER (customer / profile search, shared) ================= -->
+<div class="overlay finder-overlay" id="modalFinder" role="dialog" aria-modal="true" aria-labelledby="finderTitle" data-act="finderKeydown" data-on="keydown" data-args='[{"$":"event"}]'>
+  <div class="modal finder-modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="finderTitle">Find Guest</h2>
+        <div class="modal-subtitle" id="finderSubtitle">Search by ID, name or phone</div>
+      </div>
+      <button class="modal-close" data-act="closeFinder" data-on="click" data-args='[]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="finder-search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="text" class="finder-search" id="finderInput" placeholder="Start typing to search…" autocomplete="off" spellcheck="false" data-act="onFinderInput" data-on="input" data-args='[]'>
+    </div>
+    <div class="finder-cols" id="finderCols"></div>
+    <div class="finder-results" id="finderResults" role="listbox" aria-label="Search results"></div>
+    <div class="finder-foot" id="finderFoot"></div>
+  </div>
+</div>
+
+<!-- ================= COMMAND PALETTE ================= -->
+<div class="palette-overlay" id="palette">
+  <div class="palette" role="dialog" aria-modal="true" aria-label="Search">
+    <input class="palette-input" id="paletteInput" placeholder="Search guests, reservations, people — or type a command"
+           autocomplete="off" spellcheck="false" data-act="onPaletteInput" data-on="input" data-args='[]' data-act="onPaletteKey" data-on="keydown" data-args='[{"$":"event"}]'>
+    <div class="palette-list" id="paletteList"></div>
+    <div class="palette-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
+      <span><kbd>↵</kbd> open</span>
+      <span><kbd>esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SHORTCUTS ================= -->
+<div class="overlay" id="modalShortcuts" role="dialog" aria-modal="true" aria-labelledby="shortcutsModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="shortcutsModalTitle">Keyboard Shortcuts</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalShortcuts"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="shortcut-grid">
+        <div class="shortcut-row"><span>Search everything</span><kbd>Ctrl K</kbd></div>
+        <div class="shortcut-row"><span>Focus the search box</span><kbd>/</kbd></div>
+        <div class="shortcut-row"><span>Move down the list</span><kbd>J</kbd></div>
+        <div class="shortcut-row"><span>Move up the list</span><kbd>K</kbd></div>
+        <div class="shortcut-row"><span>Open the selected row</span><kbd>↵</kbd></div>
+        <div class="shortcut-row"><span>Edit the selected row</span><kbd>E</kbd></div>
+        <div class="shortcut-row"><span>New record on this page</span><kbd>N</kbd></div>
+        <div class="shortcut-row"><span>Close panel or dialog</span><kbd>Esc</kbd></div>
+        <div class="shortcut-row"><span>This list</span><kbd>?</kbd></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack" role="status" aria-live="polite" aria-atomic="false"></div>
+  <script src="./scripts/bridge.js"></script>
+  <script src="./scripts/actions.js"></script>
+  <script src="./scripts/core.js"></script>
+  <script src="./scripts/views.js"></script>
+  <script src="./scripts/screens.js"></script>
+</body>
+</html>

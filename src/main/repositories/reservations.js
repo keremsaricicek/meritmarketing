@@ -120,8 +120,9 @@ function overlapping(db, customerId, checkIn, checkOut, excludeId = null) {
 function calendarMonth(db, year, month, scopeId = null) {
   const first = `${year}-${String(month).padStart(2, '0')}-01`;
   const last = `${year}-${String(month).padStart(2, '0')}-31`;
-  const params = { first, last, scopeId };
+  const params = { first, last };
   const scope = scopeId === null ? '' : ' AND r.invited_by_profile_id = @scopeId';
+  if (scopeId !== null) params.scopeId = scopeId;
   const rows = db.prepare(`
     SELECT r.check_in, r.check_out FROM reservations r
     WHERE r.deleted_at IS NULL AND r.cancelled_at IS NULL
@@ -146,9 +147,10 @@ function calendarMonth(db, year, month, scopeId = null) {
 
 function calendarDay(db, date, scopeId = null) {
   const scope = scopeId === null ? '' : ' AND r.invited_by_profile_id = @scopeId';
+  const bind = scopeId === null ? { date } : { date, scopeId };
   const q = (predicate) => db.prepare(
     `${SELECT} WHERE r.deleted_at IS NULL AND r.cancelled_at IS NULL AND ${predicate}${scope}
-     ORDER BY c.full_name COLLATE NOCASE`).all({ date, scopeId });
+     ORDER BY c.full_name COLLATE NOCASE`).all(bind);
   return {
     arrivals: q('r.check_in = @date'),
     departures: q('r.check_out = @date'),
