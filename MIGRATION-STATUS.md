@@ -10,7 +10,7 @@ continue deterministically. Delete when the migration is fully complete.
 | Baseline commit | `fb49302` |
 | Baseline tag | `pre-electron-baseline` (local only — blocker B1) |
 | Baseline tests | 529 assertions, 18 suites |
-| Current | **932 assertions, 26 suites, 0 failing** |
+| Current | **1016 assertions, 29 suites, 0 failing** |
 | Branch | `claude/plugin-marketplace-ui-ux-pro-max-91h8kg` |
 
 ## Checkpoints
@@ -24,8 +24,9 @@ continue deterministically. Delete when the migration is fully complete.
 | 5 | Renderer extraction, main process, app launches | **done** |
 | 6 | IPC enforcement + adversarial attack suites | **done** |
 | 7 | Release, recovery, CI, documentation | **done** |
-| 8 | Performance at scale | **done** |
-| 9 | Independent code review | **running** |
+| 8 | Performance at scale, clean-start workflow, offline | **done** |
+| 9 | Independent code review | **running** — two reviewers: backend/data, Electron/release |
+| 10 | Scorecard and final report | pending review findings |
 
 ## External blockers
 
