@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# The tests drive a real Electron binary and a real SQLite database, so they
+# need a display on Linux (xvfb) and the Electron download to succeed. Nothing
+# here touches a live installation: every suite uses its own temp directory.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # npm ci, not npm install: the lock file is the point of a reproducible
+      # build, and `install` is free to change it.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Chromium for the renderer suites
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify the security surface document is current
+        run: npm run surface:check
+
+      # xvfb gives the Electron launch suite a display. The suite itself runs
+      # under Electron's own Node so that it uses the production SQLite runtime.
+      - name: Run the full suite
+        run: xvfb-run -a npm test
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-failure-logs
+          path: |
+            /tmp/mmh-*/logs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows:
+    name: Tests + package (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # The Windows job is where Windows-specific behaviour is actually
+      # exercised: path handling, the local-date rule, and the installer.
+      - name: Run database, IPC and Electron suites
+        run: |
+          npm run test:database
+          npm run test:electron
+
+      - name: Package
+        env:
+          MERIT_CHANNEL: internal
+          MERIT_COMMIT: ${{ github.sha }}
+        run: npm run make
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem out/make -Recurse -File -Include *.exe,*.zip,*.nupkg
+          if (-not $artifacts) { throw 'No artifacts were produced.' }
+          $artifacts | ForEach-Object {
+            $h = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLower()
+            "$h  $($_.Name)"
+          } | Tee-Object -FilePath out/make/SHA256SUMS.txt
+
+      # Proves the packaged binary starts on Windows, rather than assuming it.
+      - name: Smoke-test the packaged application
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem out -Recurse -Filter 'MeritMarketingHub.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'Packaged executable not found.' }
+          Write-Host "Found $($exe.FullName)"
+          $info = Get-Item $exe.FullName
+          if ($info.Length -lt 1MB) { throw 'Packaged executable is implausibly small.' }
+          Write-Host "Size $([math]::Round($info.Length/1MB,1)) MB"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-internal-build
+          path: |
+            out/make/**/*.exe
+            out/make/**/*.zip
+            out/make/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
