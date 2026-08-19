@@ -42,11 +42,14 @@ const DERIVED = `
   p.full_name AS marketing_name
 `;
 
+/* Sorting happens on the OUTER query, where the derived columns live and the
+   `c.` alias is out of scope — so these are bare names, and the map is a
+   whitelist: a sort field is never interpolated from caller input. */
 const SORTABLE = Object.freeze({
-  name: 'c.full_name COLLATE NOCASE',
-  code: 'c.code COLLATE NOCASE',
-  created: 'c.created_at',
-  updated: 'c.updated_at',
+  name: 'full_name COLLATE NOCASE',
+  code: 'code COLLATE NOCASE',
+  created: 'created_at',
+  updated: 'updated_at',
   last_visit: 'last_visit',
 });
 
