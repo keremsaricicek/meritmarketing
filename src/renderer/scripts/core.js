@@ -11,7 +11,13 @@ function escapeHtml(str){
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-function jsAttr(str){ return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+/* Escape a value for embedding inside JSON that itself sits inside a
+   single-quoted HTML attribute. JSON.stringify handles the quoting and control
+   characters; the apostrophe would otherwise close the attribute early. */
+function jsonAttr(value){
+  return JSON.stringify(String(value)).slice(1, -1).replace(/'/g, '&#39;');
+}
 function el(id){ return document.getElementById(id); }
 /* Renderer-side mirror of the main process's local-date rule (spec §14) —
    the local calendar date of the machine running the app, never a UTC

@@ -79,6 +79,28 @@ const LITERAL_HANDLERS = [
   ['onclick="event.stopPropagation()"', `data-act="stopPropagation" data-on="click" data-args='[]'`],
 ];
 
+
+/* Corrections applied after the handler rewrite.
+ *
+ * jsAttr() escaped a value for a single-quoted JavaScript string — the context
+ * it was written for. After the rewrite the same values sit inside JSON in a
+ * data-args attribute, where its output is not merely wrong but invalid: an
+ * apostrophe becomes \' which JSON.parse rejects, so the control silently does
+ * nothing. Replaced with a JSON-body escaper. */
+const POST_FIXES = [
+  [/jsAttr\(/g, 'jsonAttr('],
+  [/function jsonAttr\(str\)\{[^}]*\}/g, ''],
+];
+
+const JSON_ATTR_HELPER = `
+/* Escape a value for embedding inside JSON that itself sits inside a
+   single-quoted HTML attribute. JSON.stringify handles the quoting and control
+   characters; the apostrophe would otherwise close the attribute early. */
+function jsonAttr(value){
+  return JSON.stringify(String(value)).slice(1, -1).replace(/'/g, '&#39;');
+}
+`;
+
 function splitSource() {
   const text = fs.readFileSync(SOURCE, 'utf8');
   const styleStart = text.indexOf('<style>');
@@ -221,7 +243,14 @@ function main() {
   const written = [];
   rendererScripts.forEach((code, i) => {
     const name = names[i] || `part-${i}.js`;
-    fs.writeFileSync(path.join(OUT, 'scripts', name), transformHandlers(code, report).trim() + '\n');
+    let out = transformHandlers(code, report);
+    for (const [pattern, replacement] of POST_FIXES) out = out.replace(pattern, replacement);
+    /* The helper lives beside the other DOM helpers in the first script. */
+    if (name === 'core.js') {
+      out = out.replace(/function el\(id\)\{ return document\.getElementById\(id\); \}/,
+        (m) => `${JSON_ATTR_HELPER.trim()}\n${m}`);
+    }
+    fs.writeFileSync(path.join(OUT, 'scripts', name), out.trim() + '\n');
     written.push(name);
   });
 

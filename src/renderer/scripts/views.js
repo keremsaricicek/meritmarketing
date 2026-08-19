@@ -1358,7 +1358,7 @@ async function renderPermissionMatrix(){
         <div class="perm-cell">
           <label class="switch">
             <input type="checkbox" ${m.roles[role][key] ? 'checked' : ''}
-                   data-act="togglePermission" data-on="change" data-args='["${role}","${jsAttr(key)}",{"$":"checked"}]'>
+                   data-act="togglePermission" data-on="change" data-args='["${role}","${jsonAttr(key)}",{"$":"checked"}]'>
             <span class="track"><span class="knob"></span></span>
           </label>
         </div>`).join('')}
@@ -1390,7 +1390,7 @@ async function loadBackups(){
         <div class="lr-name">${escapeHtml(b.name)}</div>
         <div class="lr-sub">${fmtDateTime(b.created_at)} · ${(b.size/1024).toFixed(0)} KB</div>
       </div>
-      <button class="pager-btn" data-act="doRestore" data-on="click" data-args='["${jsAttr(b.name)}"]'>Restore</button>
+      <button class="pager-btn" data-act="doRestore" data-on="click" data-args='["${jsonAttr(b.name)}"]'>Restore</button>
     </div>`).join('') : '<div class="panel-empty">No backups yet</div>';
 }
 async function doBackupNow(){
