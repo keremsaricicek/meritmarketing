@@ -1,55 +1,64 @@
 # Electron / SQLite Production Migration — Status
 
-**This file is the durable handoff record.** It is updated at every checkpoint so
-that a new session can continue deterministically. It is deleted when the
-migration is complete.
+**Durable handoff record.** Updated at every checkpoint so a new session can
+continue deterministically. Delete when the migration is fully complete.
 
 ## Baseline
 
 | | |
 |---|---|
-| Baseline commit | `fb49302bead56212adf768227a225d126e29ab57` |
-| Baseline tag | `pre-electron-baseline` (local only — see blocker B1) |
-| Baseline tests | 529 assertions, 18 suites, 529 passed, 0 failed |
+| Baseline commit | `fb49302` |
+| Baseline tag | `pre-electron-baseline` (local only — blocker B1) |
+| Baseline tests | 529 assertions, 18 suites |
+| Current | **932 assertions, 26 suites, 0 failing** |
 | Branch | `claude/plugin-marketplace-ui-ux-pro-max-91h8kg` |
-
-The pre-migration application is the single file `merit-marketing-hub.html`. Its
-behaviour is the canonical reference; the migration must not change it except
-where this plan explicitly says so.
-
-## External blockers found at Phase 0
-
-| ID | Blocker | Impact | Status |
-|---|---|---|---|
-| B1 | `git push` of **tags** returns HTTP 403 (branch pushes succeed) | `pre-electron-baseline` exists locally only | Local tag preserved; recovery tooling in `scripts/recovery/` |
-| B2 | `crm.ico` **does not exist** anywhere in the repo or workspace | Windows icon/installer identity cannot use the owner's real icon | Build wired to `assets/crm.ico`; packaging reports the gap rather than inventing an icon |
-| B3 | `logo.png` is referenced 3× by the renderer but is **not in the repo** | In-app brand mark is a broken reference today | Renderer handles the missing file gracefully; owner must supply |
-| B4 | No Windows host available in this container | Windows installer + Squirrel update cannot be executed here | Windows CI job performs it; local Linux Electron smoke tests run under xvfb |
-| B5 | No code-signing certificate | Artifacts are unsigned | Signing hooks configured, driven by CI secrets |
-| B6 | No update-host credentials | Update feed not published | Provider abstraction complete and configurable |
-
-## Environment verified
-
-- Node v22.22.2, npm 10.9.7
-- npm registry reachable; `better-sqlite3` compiles and enforces `foreign_keys`
-- Electron 43.x, Electron Forge 7.x, `@node-rs/argon2` 2.x, `electron-updater` 6.x available
-- `xvfb-run` present, so real Electron **can** be launched headlessly on Linux here
 
 ## Checkpoints
 
 | # | Checkpoint | Status |
 |---|---|---|
-| 1 | Production Electron scaffold + security hardening | folders + deps installed; main/preload pending |
-| 2 | SQLite schema, migrations, repositories | schema + migrations done; repositories for customers/reservations done |
-| 3 | Auth (Argon2id), session, IPC authorization boundary | auth + session done; IPC pending |
-| 4 | Domain services — business rules ported from the baseline | pending |
-| 5 | Deleted Reservations (new required feature) | pending |
-| 6 | Backup / restore / managed photos | pending |
-| 7 | Updater, release pipeline, CI, owner scripts | pending |
-| 8 | QA, security attack pass, code review, docs | pending |
+| 1 | Schema, migrations, domain rules | **done** |
+| 2 | Repositories, Argon2id auth, session | **done** |
+| 3 | Customer/reservation services, soft delete | **done** |
+| 4 | IPC boundary, preload, photos, export, backup | **done** |
+| 5 | Renderer extraction, main process, app launches | **done** |
+| 6 | IPC enforcement + adversarial attack suites | **done** |
+| 7 | Release, recovery, CI, documentation | **done** |
+| 8 | Performance at scale | **done** |
+| 9 | Independent code review | **running** |
+
+## External blockers
+
+| ID | Blocker | Effect | State |
+|---|---|---|---|
+| B1 | `git push` of **tags** returns HTTP 403 (branches push fine) | `pre-electron-baseline` is local only | Recovery tooling written **and verified** — a generated bundle was fetched into a fresh clone and all commits arrived |
+| B2 | `assets/crm.ico` does not exist anywhere in the repo or workspace | Windows build uses the default Electron icon | Build wired to the path; Forge warns loudly; the release script **blocks a stable release** without it. No icon was invented. |
+| B3 | `logo.png` is referenced 3× by the renderer but is not in the repo | In-app brand mark is a broken reference | Owner must supply |
+| B4 | No Windows host in this container | Installer and Squirrel update not executed here | Windows CI job packages and smoke-tests; end-to-end update still needs one manual run |
+| B5 | No code-signing certificate | Artifacts unsigned; SmartScreen will warn | Hooks configured, driven by CI secrets; `release.json` records `signed:false` honestly |
+| B6 | No update-host credentials | Feed not published | Provider abstraction complete, configured by `MERIT_UPDATE_URL` |
+| B7 | `www.electronjs.org` is policy-blocked by the proxy | `electron-rebuild` cannot fetch headers | **Resolved by design change**: switched to `node:sqlite`, so there is no native module to rebuild |
+
+## Environment notes for the next session
+
+- Tests **must** run on Electron's Node, not system Node:
+  `ELECTRON_RUN_AS_NODE=1 ./node_modules/electron/dist/electron tests/run-all.js`
+  (`npm test` does this.) System Node 22 has `node:sqlite` only behind an
+  experimental flag; production uses Electron's Node 24.
+- The Electron launch suite spawns the binary and must **delete**
+  `ELECTRON_RUN_AS_NODE` from the child env, or Electron starts as bare Node.
+- `xvfb-run` is present, so the real GUI app can be launched headlessly.
+
+## What is NOT done
+
+| Item | Notes |
+|---|---|
+| Windows installer executed | Requires the Windows CI job to run, or a Windows machine |
+| End-to-end Squirrel update between two versions | Needs a published feed (B6) and a Windows host (B4) |
+| Browser regression suites ported to Electron | The 529 baseline assertions still run against `merit-marketing-hub.html` as a behavioural reference. The security-critical ones are re-proved against the new architecture (283 new assertions); the UI-interaction ones still exercise the legacy file. |
+| `logo.png` / `crm.ico` | Owner-supplied (B2, B3) |
 
 ## Next action
 
-Build the remaining services (customers, reservations incl. soft delete,
-profiles, users, dashboard, calendar, settings, notifications, export), then the
-IPC registry and preload bridge, then extract the renderer for a strict CSP.
+Act on the code review findings when the agent reports, then produce the final
+report and scorecard.
