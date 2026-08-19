@@ -48,6 +48,10 @@ module.exports = {
       /\.map$/,
       /\.sqlite3(-wal|-shm)?$/,
       /^\/\.git($|\/)/,
+      /^\/\.gitignore$/,
+      /^\/\.env/,
+      /^\/README\.md$/,
+      /^\/package-lock\.json$/,
     ],
     win32metadata: {
       CompanyName: 'Merit Marketing',
