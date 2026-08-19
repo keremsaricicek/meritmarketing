@@ -39,9 +39,9 @@ where this plan explicitly says so.
 
 | # | Checkpoint | Status |
 |---|---|---|
-| 1 | Production Electron scaffold + security hardening | pending |
-| 2 | SQLite schema, migrations, repositories | pending |
-| 3 | Auth (Argon2id), session, IPC authorization boundary | pending |
+| 1 | Production Electron scaffold + security hardening | folders + deps installed; main/preload pending |
+| 2 | SQLite schema, migrations, repositories | schema + migrations done; repositories for customers/reservations done |
+| 3 | Auth (Argon2id), session, IPC authorization boundary | auth + session done; IPC pending |
 | 4 | Domain services — business rules ported from the baseline | pending |
 | 5 | Deleted Reservations (new required feature) | pending |
 | 6 | Backup / restore / managed photos | pending |
@@ -50,5 +50,6 @@ where this plan explicitly says so.
 
 ## Next action
 
-Checkpoint 1 — scaffold `src/{main,preload,renderer,shared}`, install pinned
-dependencies, stand up a hardened `BrowserWindow`.
+Build the remaining services (customers, reservations incl. soft delete,
+profiles, users, dashboard, calendar, settings, notifications, export), then the
+IPC registry and preload bridge, then extract the renderer for a strict CSP.
