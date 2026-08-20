@@ -96,9 +96,9 @@ async function onResCustomerChange(){
 
   const c = await call(window.api.customers.summary, { id: Number(v) }, { silent:true }).catch(() => null);
   if (!c){ prev.classList.remove('show'); warn.style.display = 'none'; if (saveBtn) saveBtn.disabled = false; return; }
-  await resolvePhotos([c.photo_path]);
+  await resolvePhotos([c.photo_name]);
   const av = el('resGuestAvatar');
-  const url = photoUrl(c.photo_path);
+  const url = photoUrl(c.photo_name);
   if (url){ av.style.backgroundImage = `url('${url}')`; av.textContent=''; }
   else { av.style.backgroundImage='none'; av.textContent = initials(c.full_name); }
   el('resGuestName').textContent = c.full_name;
@@ -212,9 +212,9 @@ async function openCustomerModal(id){
     el('custName').value = c.full_name || '';
     el('custPassport').value = c.passport_no || '';
     el('custPhone').value = c.phone || '';
-    pendingCustomerPhoto = c.photo_path || null;
-    await resolvePhotos([c.photo_path]);
-    setPhotoDrop('custPhotoDrop', photoUrl(c.photo_path));
+    pendingCustomerPhoto = c.photo_name || null;
+    await resolvePhotos([c.photo_name]);
+    setPhotoDrop('custPhotoDrop', photoUrl(c.photo_name));
     el('custDeleteBtn').style.display = 'flex';
   } else {
     el('custModalTitle').textContent = 'New Customer';
@@ -252,7 +252,7 @@ async function saveCustomer(){
       const editedId = editingCustomerId;
       if (editedId !== null){
         await call(window.api.customers.update,
-          { id:editedId, fullName, passportNo, phone, photoPath:pendingCustomerPhoto }, { silent:true });
+          { id:editedId, fullName, passportNo, phone, photoName:pendingCustomerPhoto }, { silent:true });
       } else {
         const code = el('custId').value.trim();
         if (!code){ showFieldError('custId','A unique ID is required.'); return; }
@@ -262,7 +262,7 @@ async function saveCustomer(){
            for reservations' Invited By (spec §3) */
         const marketingProfileId = state.session?.role === 'MARKETING' ? state.session.profile_id : undefined;
         await call(window.api.customers.create,
-          { code, fullName, passportNo, phone, photoPath:pendingCustomerPhoto, registered:true, marketingProfileId }, { silent:true });
+          { code, fullName, passportNo, phone, photoName:pendingCustomerPhoto, registered:true, marketingProfileId }, { silent:true });
       }
       closeModal('modalCustomer');
       editingCustomerId = null;
@@ -280,16 +280,22 @@ async function deleteCustomer(){
   if (editingCustomerId === null) return;
   const c = await call(window.api.customers.get, { id: editingCustomerId });
   const n = c?.reservation_count || 0;
+  /* This is a soft archive: the guest leaves the active views and every
+     reservation and CRM note is retained. The dialog used to promise that the
+     reservations would be removed and that it could not be undone — neither of
+     which the backend does. */
   if (!await confirmDialog({
-    title:'Delete guest',
-    message:`Delete ${c?.full_name || 'this guest'}?`,
-    detail: n ? `${n} reservation(s) will be removed as well. This cannot be undone.` : 'This cannot be undone.',
-    confirmLabel:'Delete' })) return;
+    title:'Archive guest',
+    message:`Archive ${c?.full_name || 'this guest'}?`,
+    detail: n
+      ? `They will be removed from the active guest views. Their ${n} reservation(s) and CRM history are retained.`
+      : 'They will be removed from the active guest views. Their CRM history is retained.',
+    confirmLabel:'Archive' })) return;
 
   await call(window.api.customers.delete, { id: editingCustomerId });
   closeModal('modalCustomer');
   editingCustomerId = null;
-  toast('success','Guest deleted');
+  toast('success','Guest archived');
   ['detailPanel','resDetailPanel','listDetailPanel'].forEach(pid => {
     const p = el(pid);
     if (p){ p.classList.add('empty'); p.innerHTML = 'No guest selected'; }
@@ -317,8 +323,9 @@ async function pickPhotoFor(target){
   };
   img.src = r.dataUrl;
 }
-const pickCustomerPhoto = () => pickPhotoFor('customer');
-const pickProfilePhoto  = () => pickPhotoFor('profile');
+/* Reachable by name from the delegated action table. A top-level `const` is
+   not a window property, so the dispatcher could never find these. */
+window.pickPhotoFor = pickPhotoFor;
 
 /**
  * One piece of geometry drives both the preview and the saved file, so what the
@@ -380,22 +387,28 @@ function initCropDrag(){
 
 async function applyCrop(){
   if (!crop.img) return closeModal('modalCrop');
-  /* Rendered from the source at full resolution using the same rectangle the
-     preview used — no rescaling of an already-scaled canvas, and left square so
-     the circular mask stays a presentation choice. */
-  const OUT = 512;
-  const out = document.createElement('canvas');
-  out.width = OUT; out.height = OUT;
-  const ctx = out.getContext('2d');
-  ctx.fillStyle = '#0b0e1c';
-  ctx.fillRect(0, 0, OUT, OUT);
-  const r = cropRect(el('cropCanvas').width);
-  ctx.drawImage(crop.img, r.sx, r.sy, r.size, r.size, 0, 0, OUT, OUT);
+  /* The renderer computes the RECTANGLE and nothing else. The trusted process
+     owns the pixels: it re-reads the managed source, clamps the rectangle to
+     the real image, crops with Electron's nativeImage and stores a new managed
+     photo. Image bytes never cross the boundary.
 
-  const dataUrl = out.toDataURL('image/jpeg', 0.92);
-  const saved = await call(window.api.photos.save, { dataUrl, replaces: crop.sourceName }, { silent:true })
-    .catch(() => null);
-  const name = saved?.name || crop.sourceName;
+     This used to crop on a canvas and call a `photos.save` that always failed,
+     then silently keep the ORIGINAL name while caching the cropped data URL in
+     memory — so the crop survived exactly until the next launch. */
+  const r = cropRect(el('cropCanvas').width);
+  const saved = await call(window.api.photos.crop, {
+    name: crop.sourceName,
+    x: Math.max(0, Math.round(r.sx)),
+    y: Math.max(0, Math.round(r.sy)),
+    size: Math.max(16, Math.round(r.size)),
+  }, { silent:true }).catch(() => null);
+
+  if (!saved){
+    toast('error','Crop not applied','The image could not be cropped. The original photo is unchanged.');
+    return closeModal('modalCrop');
+  }
+  const name = saved.name;
+  const dataUrl = saved.dataUrl;
   state.photoCache.set(name, dataUrl);
   if (crop.target === 'profile'){ pendingProfilePhoto = name; setPhotoDrop('profPhotoDrop', dataUrl); }
   else { pendingCustomerPhoto = name; setPhotoDrop('custPhotoDrop', dataUrl); }
@@ -420,8 +433,8 @@ async function openProfileModal(id){
     el('profPassport').value = p.passport_no || '';
     el('profPhone').value = p.phone || '';
     el('profInactive').checked = p.employment_status === 'inactive';
-    pendingProfilePhoto = p.photo_path || null;
-    setPhotoDrop('profPhotoDrop', photoUrl(p.photo_path));
+    pendingProfilePhoto = p.photo_name || null;
+    setPhotoDrop('profPhotoDrop', photoUrl(p.photo_name));
     el('profStatusSection').style.display = 'block';
     el('profDeleteBtn').style.display = isAdmin() ? 'flex' : 'none';
   } else {
@@ -445,14 +458,19 @@ async function saveProfile(){
     nationality: el('profNationality').value.trim(),
     passportNo: el('profPassport').value.trim(),
     phone: el('profPhone').value.trim(),
-    photoPath: pendingProfilePhoto,
-    inactive: el('profInactive').checked
+    photoName: pendingProfilePhoto,
   };
   const btn = document.querySelector('#modalProfile .btn-gold');
   await withBusy(btn, 'Saving…', async () => {
     try {
-      if (editingProfileId !== null) await call(window.api.profiles.update, { id:editingProfileId, ...payload }, { silent:true });
-      else await call(window.api.profiles.create, payload, { silent:true });
+      /* Employment status is an EDIT concern: a profile being created is
+         active by definition, and `profiles:create` does not accept the flag. */
+      if (editingProfileId !== null){
+        await call(window.api.profiles.update,
+          { id:editingProfileId, ...payload, inactive: el('profInactive').checked }, { silent:true });
+      } else {
+        await call(window.api.profiles.create, payload, { silent:true });
+      }
       closeModal('modalProfile');
       editingProfileId = null;
       toast('success','Profile saved');
@@ -532,9 +550,9 @@ async function onRecordCustomerChange(){
   if (!v){ prev.classList.remove('show'); return; }
   const c = await call(window.api.customers.summary, { id: Number(v) }, { silent:true }).catch(() => null);
   if (!c){ prev.classList.remove('show'); return; }
-  await resolvePhotos([c.photo_path]);
+  await resolvePhotos([c.photo_name]);
   const av = el('recPreviewAvatar');
-  const url = photoUrl(c.photo_path);
+  const url = photoUrl(c.photo_name);
   if (url){ av.style.backgroundImage = `url('${url}')`; av.textContent=''; }
   else { av.style.backgroundImage='none'; av.textContent = initials(c.full_name); }
   el('recPreviewName').textContent = c.full_name;
@@ -577,9 +595,9 @@ async function openAssignModal(customerId, ev){
   const c = await call(window.api.customers.get, { id: customerId });
   if (!c) return;
   assigningCustomerId = customerId;
-  await resolvePhotos([c.photo_path]);
+  await resolvePhotos([c.photo_name]);
   const av = el('assignAvatar');
-  const url = photoUrl(c.photo_path);
+  const url = photoUrl(c.photo_name);
   if (url){ av.style.backgroundImage = `url('${url}')`; av.textContent=''; }
   else { av.style.backgroundImage='none'; av.textContent = initials(c.full_name); }
   el('assignName').textContent = c.full_name;
@@ -654,7 +672,7 @@ async function openUserModal(id){
     el('userUsername').value = '';
     el('userPassword').value = '';
     el('userPassword').placeholder = '';
-    el('userRole').value = 'STAFF';
+    el('userRole').value = 'MARKETING';
     el('userProfile').value = '';
     el('userActive').checked = true;
     el('userDeleteBtn').style.display = 'none';
@@ -672,8 +690,10 @@ async function saveUser(){
 
   if (!username){ showFieldError('userUsername','Username is required.'); return; }
   if (editingUserId === null && !password){ showFieldError('userPassword','Password is required.'); return; }
-  if (role === 'STAFF' && !profileId){
-    showFieldError('userUsername','Staff accounts must be linked to a marketing profile.'); return;
+  /* There is no STAFF account role — ADMIN, MANAGER, MARKETING. A marketer
+     without a linked profile has no scope, which the schema also refuses. */
+  if (role === 'MARKETING' && !profileId){
+    showFieldError('userProfile','A marketing account must be linked to a marketing profile.'); return;
   }
 
   await withBusy(el('userSaveBtn'), 'Saving…', async () => {

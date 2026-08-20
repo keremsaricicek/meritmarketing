@@ -153,6 +153,61 @@ module.exports = async function () {
       return used.length > 0 && used.every((name) => allow.has(name));
     })(), 'a palette entry names a command the allowlist does not contain');
 
+  // ============================== no legacy onclick READS either
+  /* Removing inline handlers is only half of it: code that still asks an
+     element for its `onclick` attribute is reading something that is now always
+     null, so the "which control is active" lookups silently matched nothing. */
+  for (const rel of SOURCES) {
+    const code = stripComments(rel.endsWith('.html') ? stripHtmlComments(files[rel]) : files[rel]);
+    const hits = [...code.matchAll(/getAttribute\(\s*['"`]on[a-z]+['"`]\s*\)/gi)]
+      .map((m) => `line ${line(code, m.index)}: ${m[0]}`);
+    s.check(`${rel} never reads an inline handler attribute`, hits.length === 0, hits.join(' | '));
+  }
+
+  // ================= no duplicate attribute of ANY name in one start tag
+  /* Generalised from the action attributes to every attribute, because the
+     same silent-drop bit two `class` attributes on generated markup — HTML kept
+     the first and the element never got its second class. */
+  const DUP_ATTRS = ['class', 'id', 'data-act', 'data-on', 'data-args', 'href', 'src', 'type', 'name'];
+  for (const rel of SOURCES) {
+    const code = rel.endsWith('.html') ? stripHtmlComments(files[rel]) : files[rel];
+    const dupes = [];
+    for (const m of code.matchAll(TAG)) {
+      const tag = m[0];
+      /* A template ternary emits ONE of two attribute sets, so it is not a
+         duplicate in the rendered output. */
+      if (/\?[\s\S]*`|`[\s\S]*:/.test(tag)) continue;
+      for (const attr of DUP_ATTRS) {
+        if ([...tag.matchAll(new RegExp(`\\b${attr}=`, 'g'))].length > 1) {
+          dupes.push(`line ${line(code, m.index)}: ${attr}`);
+          break;
+        }
+      }
+    }
+    s.check(`${rel} has no tag carrying the same attribute twice`, dupes.length === 0, dupes.join(' | '));
+  }
+
+  // ============================ every literal data-act resolves to something
+  /* A `data-act` naming a handler nobody defined is a dead control. The photo
+     buttons were exactly that: declared as top-level `const` arrows, which are
+     global bindings but NOT window properties, so the dispatcher's lookup found
+     nothing and clicking did nothing at all. */
+  const declared = new Set();
+  for (const rel of SOURCES.filter((r) => r.endsWith('.js'))) {
+    for (const m of files[rel].matchAll(/^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) declared.add(m[1]);
+    for (const m of files[rel].matchAll(/^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/gm)) declared.add(m[1]);
+    for (const m of files[rel].matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) declared.add(m[1]);
+    /* Entries of the NAMED action table: `name() {` or `name(args) {`. */
+    for (const m of files[rel].matchAll(/^\s{4}([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/gm)) declared.add(m[1]);
+  }
+  const actionNames = new Set();
+  for (const rel of SOURCES) {
+    for (const m of files[rel].matchAll(/data-act(?:-[a-z]+)?="([^"$]+)"/g)) actionNames.add(m[1]);
+  }
+  const unresolved = [...actionNames].filter((n) => !declared.has(n));
+  s.check(`every literal data-act names something the renderer defines (${actionNames.size} actions)`,
+    unresolved.length === 0, `unresolved: ${unresolved.join(', ')}`);
+
   // ================== the delegated dispatcher refuses to invoke built-ins
   const actions = files['scripts/actions.js'];
   s.check('the dispatcher refuses to invoke native built-ins by name',

@@ -201,6 +201,26 @@ if ($certConfigured -and -not $signed) {
   Block 'A certificate was configured but the artifacts are not validly signed.' (
     'Signature status: ' + (($signatureReport | ForEach-Object { "$($_.artifact)=$($_.status)" }) -join ', '))
 }
+
+# UNSIGNED = INTERNAL / QA ONLY. STABLE = A VALID SIGNATURE, ALWAYS.
+#
+# This check has to be here — AFTER the artifacts exist and Windows has been
+# asked about them — and BEFORE release.json is written or BUILD COMPLETE is
+# printed. Previously a stable build with no certificate configured at all
+# simply warned and carried on to a successful exit, which meant the honest
+# `signed:false` was recorded on an artifact the script had just called a
+# stable release. A warning is not a gate.
+if ($Channel -eq 'stable' -and -not $signed) {
+  $why = if (-not $certConfigured) {
+    'No signing certificate is configured (set WINDOWS_CERT_FILE and WINDOWS_CERT_PASSWORD).'
+  } elseif ($signable.Count -eq 0) {
+    'No signable artifact (.exe/.nupkg) was produced.'
+  } else {
+    'Signature status: ' + (($signatureReport | ForEach-Object { "$($_.artifact)=$($_.status)" }) -join ', ')
+  }
+  Block 'A stable release requires validly signed artifacts.' (
+    "$why`n`nBuild with -Channel internal for an unsigned QA artifact.")
+}
 $checksums = foreach ($a in $artifacts) {
   $hash = (Get-FileHash -Algorithm SHA256 $a.FullName).Hash.ToLower()
   "$hash  $($a.Name)"

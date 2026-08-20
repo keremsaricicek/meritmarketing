@@ -28,7 +28,38 @@ const STATES = Object.freeze({
   UNAVAILABLE: 'unavailable',
 });
 
+/* v1 SHIPS WITH AUTOMATIC UPDATES OFF, IN CODE.
+ *
+ * Documentation saying updates are disabled is not the same as code that
+ * disables them: setting MERIT_UPDATE_URL was enough to arm the whole flow.
+ * Until the installer is signature-verified (B8) and the maker matches the
+ * update client (B9), whoever controls a feed controls the operator's machine.
+ *
+ * So the switch lives here, above the environment. The structure below is kept
+ * intact for the future updater project; nothing can reach it while this is on. */
+const V1_UPDATES_DISABLED = true;
+
 function build({ autoUpdater, backup, getContext, log = () => {}, notify = () => {}, feedConfigured = false, channel = 'stable' }) {
+  if (V1_UPDATES_DISABLED) {
+    /* No listeners are attached, so no download can be triggered by the
+       updater's own events either. */
+    return {
+      STATES,
+      V1_DISABLED: true,
+      status() {
+        return { state: STATES.UNAVAILABLE, channel, version: null, feedConfigured: false,
+          disabled: true, lastError: null };
+      },
+      async check() {
+        return { state: STATES.UNAVAILABLE, channel, feedConfigured: false, disabled: true,
+          message: 'Automatic updates are turned off in this version. Update by running the new installer.' };
+      },
+      async install() {
+        throw new AppError(CODES.UPDATE_FAILED,
+          'Automatic updates are turned off in this version. Update by running the new installer.');
+      },
+    };
+  }
   let state = STATES.IDLE;
   let lastError = null;
   let pendingVersion = null;

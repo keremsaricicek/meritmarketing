@@ -24,7 +24,7 @@ const DASH_PERIOD_LABEL = { '7':'7 Days', '30':'30 Days', '90':'3 Months', '180'
 async function setDashboardPeriod(period){
   state.dashPeriod = period;
   el('dashPeriodFilter')?.querySelectorAll('button').forEach(b =>
-    b.classList.toggle('active', b.getAttribute('onclick') === `setDashboardPeriod('${period}')`));
+    b.classList.toggle('active', actionArgMatches(b, period)));
   await renderDashboard();
 }
 async function renderDashboard(){
@@ -34,8 +34,12 @@ async function renderDashboard(){
   const periodLabel = DASH_PERIOD_LABEL[state.dashPeriod] || '30 Days';
 
   const cells = [
+    /* Every other KPI card uses act/actArgs; this one still carried a `go:`
+       string the template never reads, so the card navigated nowhere. */
     { l:'Total Guests',     n:s.totalGuests, sub:'ALL TIME',
-      go: ['ADMIN','MANAGER'].includes(state.session?.role) ? "goCrmView('customerlist')" : "switchTab('customers')" },
+      ...(['ADMIN','MANAGER'].includes(state.session?.role)
+        ? { act:'goCrmView', actArgs:['customerlist'] }
+        : { act:'switchTab', actArgs:['customers'] }) },
     /* MANAGER runs the marketing team, so they see the same Active Marketing
        figure ADMIN does — same authoritative countActiveMarketingProfiles()
        value from dashboard.load, not a separately derived one. MARKETING has
@@ -63,11 +67,11 @@ async function renderDashboard(){
   const norecTabBadge = el('norecTabBadge'); if (norecTabBadge) norecTabBadge.textContent = s.noRecord;
   const norecSubmenuBadge = el('norecSubmenuBadge'); if (norecSubmenuBadge) norecSubmenuBadge.textContent = s.noRecord;
 
-  await resolvePhotos([...d.recent.map(r => r.photo_path), ...d.attention.map(a => a.photo_path)]);
+  await resolvePhotos([...d.recent.map(r => r.photo_name), ...d.attention.map(a => a.photo_name)]);
 
   el('recentResList').innerHTML = d.recent.length ? d.recent.map(r => `
     <div class="list-row" data-act="goToGuest" data-on="click" data-args='[${r.customer_id},"reservations"]'>
-      <div class="lr-avatar"${avatarStyle(r.photo_path)}>${photoUrl(r.photo_path) ? '' : escapeHtml(initials(r.customer_name))}</div>
+      <div class="lr-avatar"${avatarStyle(r.photo_name)}>${photoUrl(r.photo_name) ? '' : escapeHtml(initials(r.customer_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(r.customer_name)}</div>
         <div class="lr-sub">${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
@@ -76,13 +80,13 @@ async function renderDashboard(){
     </div>`).join('') : '<div class="panel-empty">No reservations yet</div>';
 
   el('pendingCount').textContent = s.pending ?? 0;
-  await resolvePhotos(d.pending.map(r => r.photo_path));
+  await resolvePhotos(d.pending.map(r => r.photo_name));
   el('pendingList').innerHTML = d.pending.length ? d.pending.map(r => {
     const due = r.days_away === 0 ? 'today' : (r.days_away === 1 ? 'tomorrow' : 'in ' + r.days_away + 'd');
     const tone = r.days_away <= 1 ? ' urgent' : (r.days_away <= 7 ? ' soon' : '');
     return `
     <div class="list-row" data-act="goToGuest" data-on="click" data-args='[${r.customer_id},"reservations"]'>
-      <div class="lr-avatar"${avatarStyle(r.photo_path)}>${photoUrl(r.photo_path) ? '' : escapeHtml(initials(r.customer_name))}</div>
+      <div class="lr-avatar"${avatarStyle(r.photo_name)}>${photoUrl(r.photo_name) ? '' : escapeHtml(initials(r.customer_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(r.customer_name)}</div>
         <div class="lr-sub">${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
@@ -95,7 +99,7 @@ async function renderDashboard(){
 
   el('attentionList').innerHTML = d.attention.length ? d.attention.map(a => `
     <div class="list-row" data-act="goToGuest" data-on="click" data-args='[${a.id},"customers"]'>
-      <div class="lr-avatar"${avatarStyle(a.photo_path)}>${photoUrl(a.photo_path) ? '' : escapeHtml(initials(a.full_name))}</div>
+      <div class="lr-avatar"${avatarStyle(a.photo_name)}>${photoUrl(a.photo_name) ? '' : escapeHtml(initials(a.full_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(a.full_name)}</div>
         <div class="lr-sub">${escapeHtml(a.reason)}${a.marketing_name ? ' · ' + escapeHtml(a.marketing_name) : ''}</div>
@@ -155,10 +159,10 @@ async function renderNewGuestsPanel(){
   if (!wrap) return;
   const data = await call(window.api.customers.list, { sort:'created', dir:'desc', pageSize:8 }, { silent:true });
   const rows = data?.rows || [];
-  await resolvePhotos(rows.map(c => c.photo_path));
+  await resolvePhotos(rows.map(c => c.photo_name));
   wrap.innerHTML = rows.length ? rows.map(c => `
     <div class="list-row" data-act="goToGuest" data-on="click" data-args='[${c.id},"customers"]'>
-      <div class="lr-avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : escapeHtml(initials(c.full_name))}</div>
+      <div class="lr-avatar"${avatarStyle(c.photo_name)}>${photoUrl(c.photo_name) ? '' : escapeHtml(initials(c.full_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(c.full_name)}</div>
         <div class="lr-sub">#${escapeHtml(c.code)}</div>
@@ -204,7 +208,7 @@ function sortReservations(col){
     th.classList.remove('sorted'); const a = th.querySelector('.sort-arrow'); if (a) a.textContent = '';
   });
   const th = [...document.querySelectorAll('#page-reservations th.sortable')]
-    .find(t => t.getAttribute('onclick')?.includes(`'${col}'`));
+    .find(t => actionArgMatches(t, col));
   if (th){ th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = s.dir === 'desc' ? '↓' : '↑'; }
   renderReservations();
 }
@@ -493,7 +497,7 @@ function sortCustomers(col){
     th.classList.remove('sorted'); const a = th.querySelector('.sort-arrow'); if (a) a.textContent = '';
   });
   const th = [...document.querySelectorAll('#crmPane_overview th.sortable')]
-    .find(t => t.getAttribute('onclick')?.includes(`'${col}'`));
+    .find(t => actionArgMatches(t, col));
   if (th){ th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = s.dir === 'desc' ? '↓' : '↑'; }
   renderCustomers();
 }
@@ -601,7 +605,7 @@ function sortList(col){
     th.classList.remove('sorted'); const a = th.querySelector('.sort-arrow'); if (a) a.textContent = '';
   });
   const th = [...document.querySelectorAll('#crmPane_customerlist th.sortable')]
-    .find(t => t.getAttribute('onclick')?.includes(`'${col}'`));
+    .find(t => actionArgMatches(t, col));
   if (th){ th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = s.dir === 'desc' ? '↓' : '↑'; }
   renderCustomerList();
 }
@@ -633,8 +637,8 @@ function clearListFilters(){
 }
 function listFilterParams(){
   const s = state.list;
-  return { status:s.status, createdBy:s.createdBy, assignedTo:s.assignedTo,
-    hasReservation:s.hasReservation, hasCrm:s.hasCrm, createdFrom:s.createdFrom, createdTo:s.createdTo };
+  return omitBlank({ status:s.status, createdBy:s.createdBy, assignedTo:s.assignedTo,
+    hasReservation:s.hasReservation, hasCrm:s.hasCrm, createdFrom:s.createdFrom, createdTo:s.createdTo });
 }
 async function renderCustomerList(){
   const q = el('listSearch')?.value.trim() || '';
@@ -750,7 +754,7 @@ async function showCustomerDetail(customerId, panelId){
     .filter(r => r.customer_id === c.id)
     .sort((a,b) => b.check_in.localeCompare(a.check_in));
   const noteList = notes || [];
-  await resolvePhotos([c.photo_path]);
+  await resolvePhotos([c.photo_name]);
   const uid = 'gc' + (++expandSeq);
 
   const staysHTML = stays.length ? stays.map(r => `
@@ -829,7 +833,7 @@ async function showCustomerDetail(customerId, panelId){
       <span class="dp-rail-toggle">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
       </span>
-      <div class="avatar"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : escapeHtml(initials(c.full_name))}</div>
+      <div class="avatar"${avatarStyle(c.photo_name)}>${photoUrl(c.photo_name) ? '' : escapeHtml(initials(c.full_name))}</div>
       <span class="${statusM ? statusM.cls : 'tag-none'}"><span class="dp-rail-status tag-dot"></span></span>
     </button>
     <div class="detail-head">
@@ -839,7 +843,7 @@ async function showCustomerDetail(customerId, panelId){
       <button class="detail-edit-btn" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]' title="Edit">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       </button>
-      <div class="avatar xxl"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : escapeHtml(initials(c.full_name))}</div>
+      <div class="avatar xxl"${avatarStyle(c.photo_name)}>${photoUrl(c.photo_name) ? '' : escapeHtml(initials(c.full_name))}</div>
       <div class="gc-name">${escapeHtml(c.full_name)}</div>
       <div class="setting-hint">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''}</div>
       <div class="mt-9">${statusTagHTML(c.status)}</div>
@@ -955,7 +959,7 @@ async function openCalDay(dateStr){
   const data = await call(window.api.calendar.day, { date:dateStr });
   if (!data) return;
   const row = (r) => `
-    <div class="mini-card" data-act="calDayGoToGuest" data-on="click" data-args='[${r.customer_id}]' class="clickable">
+    <div class="mini-card clickable" data-act="calDayGoToGuest" data-on="click" data-args='[${r.customer_id}]'>
       <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
       <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
     </div>`;
@@ -1005,7 +1009,7 @@ async function renderProfiles(){
     const recent = mine.filter(r => Date.parse(r.check_in) >= cutoff).length;
     const last = mine.length ? fmtDate(mine[0].check_in) : '—';
     const inactive = p.employment_status === 'inactive';
-    const url = photoUrl(p.photo_path);
+    const url = photoUrl(p.photo_name);
     return `
     <div class="profile-card${inactive ? ' inactive' : ''}" data-act="openProfileDetail" data-on="dblclick" data-args='[${p.id}]' title="Double-click for the full profile">
       <div class="pc-photo${url ? '' : ' no-photo'}">
@@ -1047,7 +1051,7 @@ async function openProfileDetail(id){
   setPdView('overview', el('pdViewTabs').children[0]);
   const inactive = p.employment_status === 'inactive';
 
-  const url = photoUrl(p.photo_path);
+  const url = photoUrl(p.photo_name);
   const av = el('pdAvatar');
   if (url){ av.style.backgroundImage = `url('${url}')`; av.textContent=''; }
   else { av.style.backgroundImage='none'; av.textContent = initials(p.full_name); }
@@ -1127,7 +1131,7 @@ async function refreshPdInvited(){
 }
 async function setPdInvitedPeriod(period){
   pdInvitedPeriod = period;
-  [...el('pdInvitedFilter').children].forEach(b => b.classList.toggle('active', b.getAttribute('onclick') === `setPdInvitedPeriod('${period}')`));
+  [...el('pdInvitedFilter').children].forEach(b => b.classList.toggle('active', actionArgMatches(b, period)));
   await refreshPdInvited();
 }
 async function exportProfileSection(section){
@@ -1159,8 +1163,8 @@ async function renderNotifications(){
     refreshNotifBadge(); return;
   }
   node.innerHTML = list.map(n => `
-    <div class="notif-item${n.read ? '' : ' unread'}"
-         ${n.related_customer_id ? `data-act="openNotification" data-on="click" data-args='[${n.id},${n.related_customer_id}]' class="clickable"` : `data-act="markNotificationRead" data-on="click" data-args='[${n.id}]'`}>
+    <div class="notif-item${n.read ? '' : ' unread'}${n.related_customer_id ? ' clickable' : ''}"
+         ${n.related_customer_id ? `data-act="openNotification" data-on="click" data-args='[${n.id},${n.related_customer_id}]'` : `data-act="markNotificationRead" data-on="click" data-args='[${n.id}]'`}>
       <div class="notif-icon t-${NOTIF_TONE[n.type] || 'assign'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${NOTIF_ICONS[n.type] || NOTIF_ICONS.assignment}</svg>
       </div>
@@ -1272,7 +1276,7 @@ function fillProfileSelect(id){
 function setReportPeriod(period){
   reportPeriod = period;
   el('rptMarketingPeriod')?.querySelectorAll('button').forEach(b =>
-    b.classList.toggle('active', b.getAttribute('onclick') === `setReportPeriod('${period}')`));
+    b.classList.toggle('active', actionArgMatches(b, period)));
 }
 function renderReportFilters(){
   const wrap = el('reportFilters');
@@ -1328,18 +1332,18 @@ function renderReportFilters(){
 async function runReport(){
   await withBusy(el('reportGenerateBtn'), 'GENERATING…', async () => {
     if (reportType === 'reservations'){
-      const params = { status: el('rptResStatus').value, invitedBy: el('rptResInvited').value,
-        from: el('rptResFrom').value, to: el('rptResTo').value, pageSize:1000, sort:'check_in', dir:'desc' };
+      const params = omitBlank({ status: el('rptResStatus').value, invitedBy: el('rptResInvited').value,
+        from: el('rptResFrom').value, to: el('rptResTo').value, pageSize:1000, sort:'check_in', dir:'desc' });
       const data = await call(window.api.reservations.list, params, { silent:true });
       reportRows = (data?.rows || []).map(r => ({ Guest:r.customer_name, 'Check In':fmtDate(r.check_in),
         'Check Out':fmtDate(r.check_out), Status:r.status, 'Invited By':r.invited_by_name || '—',
         Note:r.reservation_note || '—' }));
       reportExportEntity = 'reservations';
-      reportExportParams = { status:params.status, invitedBy:params.invitedBy, from:params.from, to:params.to };
+      reportExportParams = omitBlank({ status:params.status, invitedBy:params.invitedBy, from:params.from, to:params.to });
     } else if (reportType === 'guests'){
-      const params = { status: el('rptGStatus').value,
+      const params = omitBlank({ status: el('rptGStatus').value,
         assignedTo: el('rptGAssignedTo').value, createdFrom: el('rptGFrom').value, createdTo: el('rptGTo').value,
-        registeredOnly:true, pageSize:1000 };
+        registeredOnly:true, pageSize:1000 });
       const data = await call(window.api.customers.list, params, { silent:true });
       reportRows = (data?.rows || []).map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '—',
         Status:c.status, 'Assigned To':c.marketing_name || '—',
@@ -1348,23 +1352,25 @@ async function runReport(){
     } else if (reportType === 'marketing'){
       const from = reportPeriod === 'all' ? '' : daysAgoYMD(Number(reportPeriod));
       const periodLabel = DASH_PERIOD_LABEL[reportPeriod] || '30 Days';
-      const data = await call(window.api.reservations.list, { from, pageSize:1000 }, { silent:true });
+      /* "ALL" means no lower bound, so the field is omitted rather than sent
+         as an empty string the date schema cannot accept. */
+      const data = await call(window.api.reservations.list, omitBlank({ from, pageSize:1000 }), { silent:true });
       const tally = {};
       (data?.rows || []).forEach(r => { if (r.invited_by_profile_id) tally[r.invited_by_profile_id] = (tally[r.invited_by_profile_id] || 0) + 1; });
       const col = `Reservations (${periodLabel})`;
       reportRows = state.profiles.map(p => ({ Profile:p.full_name, Status:p.employment_status,
         [col]: tally[p.id] || 0, 'Guests Assigned':p.customer_count, 'Total Reservations Invited':p.reservation_count }))
         .sort((a,b) => b[col] - a[col]);
-      reportExportEntity = 'report_marketing'; reportExportParams = { from, periodLabel };
+      reportExportEntity = 'report_marketing'; reportExportParams = omitBlank({ from });
     } else if (reportType === 'cold'){
-      const params = { status:'COLD', assignedTo: el('rptColdAssignedTo').value, registeredOnly:true, pageSize:1000 };
+      const params = omitBlank({ status:'COLD', assignedTo: el('rptColdAssignedTo').value, registeredOnly:true, pageSize:1000 });
       const data = await call(window.api.customers.list, params, { silent:true });
       reportRows = (data?.rows || []).map(c => ({ Name:c.full_name, Phone:c.phone || '—',
         'Assigned To':c.marketing_name || '—', 'Last Visit':c.last_visit ? fmtDate(c.last_visit) : '—',
         'Days Since Visit':c.last_visit ? daysBetween(c.last_visit, todayYMD()) : '—' }));
       reportExportEntity = 'customerlist'; reportExportParams = params;
     } else if (reportType === 'norecord'){
-      const params = { noRecord:true, registeredOnly:true, createdFrom: el('rptNRFrom').value, createdTo: el('rptNRTo').value, pageSize:1000 };
+      const params = omitBlank({ noRecord:true, registeredOnly:true, createdFrom: el('rptNRFrom').value, createdTo: el('rptNRTo').value, pageSize:1000 });
       const data = await call(window.api.customers.list, params, { silent:true });
       reportRows = (data?.rows || []).map(c => ({ ID:c.code, Name:c.full_name,
         'Created By':c.created_by_label, Registered:fmtDate(c.created_at) }));

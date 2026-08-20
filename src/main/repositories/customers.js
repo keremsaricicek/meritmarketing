@@ -78,6 +78,17 @@ function buildFilters(q, scopeId) {
     where.push('c.created_by = @createdBy');
     params.createdBy = Number(q.createdBy);
   }
+  /* `created_at` is a UTC instant; these filters are business dates chosen from
+     a date picker. Converting to local time here is what keeps a guest created
+     at 01:00 in Turkey inside "created today" rather than yesterday. */
+  if (q.createdFrom) {
+    where.push("date(c.created_at,'localtime') >= @createdFrom");
+    params.createdFrom = q.createdFrom;
+  }
+  if (q.createdTo) {
+    where.push("date(c.created_at,'localtime') <= @createdTo");
+    params.createdTo = q.createdTo;
+  }
   return { where, params };
 }
 
@@ -136,6 +147,12 @@ function list(db, q = {}, scopeId = null) {
     WHERE ${whereSql}`;
 
   const outerWhere = [];
+  /* Derived counts live on the outer query, so "has a booking" and "has a note"
+     are filtered there rather than recomputed per row. */
+  if (q.hasReservation === true) outerWhere.push('reservation_count > 0');
+  if (q.hasReservation === false) outerWhere.push('reservation_count = 0');
+  if (q.hasCrm === true) outerWhere.push('note_count > 0');
+  if (q.hasCrm === false) outerWhere.push('note_count = 0');
   if (q.noRecord) outerWhere.push('registered = 1 AND qualifying_reservation_count = 0 AND note_count = 0');
   if (q.status === 'NO_RECORD') outerWhere.push('registered = 1 AND qualifying_reservation_count = 0 AND note_count = 0');
   if (q.status === 'COLD') {

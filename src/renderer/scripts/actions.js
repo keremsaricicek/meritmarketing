@@ -43,6 +43,15 @@
   const NAMED = {
     stopPropagation() { /* the dispatcher already stopped it */ },
 
+    /* These are declared as top-level `const` arrow functions in screens.js.
+       Unlike a `function` declaration, a top-level `const` in a classic script
+       creates a global BINDING but NOT a property of `window` — so the
+       dispatcher's `window[name]` fallback resolved undefined and both photo
+       buttons did nothing at all. Registering them by name is the fix that does
+       not depend on how the file happens to declare them. */
+    pickCustomerPhoto() { window.pickPhotoFor('customer'); },
+    pickProfilePhoto() { window.pickPhotoFor('profile'); },
+
     calDayGoToGuest(customerId) {
       window.closeModal('modalCalDay');
       window.goToGuest(customerId, 'reservations');

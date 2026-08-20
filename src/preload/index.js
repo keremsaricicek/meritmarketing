@@ -23,6 +23,7 @@ const api = {
   app: {
     info: call('app:info'),
     needsSetup: call('app:needsSetup'),
+    openDataFolder: call('app:openDataFolder'),
   },
   auth: {
     setup: call('auth:setup'),
@@ -91,6 +92,7 @@ const api = {
   export: { run: call('export:run') },
   photos: {
     import: call('photos:import'),
+    crop: call('photos:crop'),
     read: call('photos:read'),
     remove: call('photos:remove'),
   },

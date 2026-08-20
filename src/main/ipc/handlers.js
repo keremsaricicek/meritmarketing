@@ -11,12 +11,27 @@ const customers = require('../services/customer-service');
 const reservations = require('../services/reservation-service');
 const authService = require('../services/auth-service');
 const support = require('../services/support-services');
+const guard = require('../services/guard');
 const { CONFIGURABLE } = require('../../shared/contracts/roles');
+const { validation } = require('../../shared/errors');
 
 function build({ app, backup, photos, updates, exporter }) {
   return {
     'app:info': (ctx) => app.info(ctx),
     'app:needsSetup': (ctx) => authService.needsSetup(ctx.db),
+    /* No argument, so there is no path to sanitise: the folder is the
+       application's own, resolved in the main process. shell.openPath hands a
+       directory to the OS file manager — it is not a shell command and cannot
+       execute anything. */
+    'app:openDataFolder': async (ctx) => {
+      guard.requireCapability(ctx, 'backup.read');
+      const { shell } = require('electron');
+      const target = ctx.paths.root;
+      const problem = await shell.openPath(target);
+      if (problem) throw validation('The data folder could not be opened.');
+      ctx.audit({ action: 'DATA_FOLDER_OPEN', entity_type: 'app', description: 'Opened the application data folder' });
+      return { ok: true };
+    },
 
     'auth:setup': (ctx, p) => authService.setup(ctx.db, p, ctx),
     'auth:login': async (ctx, p) => {
@@ -84,6 +99,7 @@ function build({ app, backup, photos, updates, exporter }) {
     'export:run': (ctx, p) => exporter.run(ctx, p),
 
     'photos:import': (ctx) => photos.importPhoto(ctx),
+    'photos:crop': (ctx, p) => photos.crop(ctx, p),
     'photos:read': (ctx, p) => photos.read(ctx, p),
     'photos:remove': (ctx, p) => photos.remove(ctx, p),
 

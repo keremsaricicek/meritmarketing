@@ -40,6 +40,9 @@ const byId = z.object({ id: idLike }).strict();
 const SCHEMAS = {
   'app:info': empty,
   'app:needsSetup': empty,
+  /* Deliberately `empty`: a path from the renderer is the whole risk, so there
+     is no parameter to supply one. */
+  'app:openDataFolder': empty,
 
   'auth:setup': z.object({
     username: text(64),
@@ -64,6 +67,14 @@ const SCHEMAS = {
     unregisteredOnly: z.boolean().optional(),
     assignedTo: profileRef,
     createdBy: profileRef,
+    /* The Reports and Customer List screens have always shown these four
+       controls. They were never in the contract, so every report that used one
+       failed validation — a visible filter that did nothing. Implemented rather
+       than removed: the operator asked for the filter by using it. */
+    createdFrom: businessDate.optional(),
+    createdTo: businessDate.optional(),
+    hasReservation: z.boolean().optional(),
+    hasCrm: z.boolean().optional(),
   }).strict(),
   'customers:get': byId,
   'customers:history': byId,
@@ -145,6 +156,11 @@ const SCHEMAS = {
   'profiles:list': z.object({ includeStaff: z.boolean().optional() }).strict(),
   'profiles:get': byId,
   'profiles:related': byId,
+  /* `photoName` is a MANAGED name produced by photos:import in the main
+     process — never a filesystem path from the renderer. The customer schemas
+     have always used that name; the profile ones did not, and the profile form
+     sent `photoPath`, so a strict schema refused every profile save that
+     carried a photo. One canonical name across both. */
   'profiles:create': z.object({
     fullName: text(160),
     kind: z.enum(['marketing', 'staff']).optional(),
@@ -153,6 +169,7 @@ const SCHEMAS = {
     nationality: optionalText(80),
     email: optionalText(160),
     notes: optionalText(4000),
+    photoName: optionalText(120),
   }).strict(),
   'profiles:update': z.object({
     id: idLike,
@@ -162,6 +179,7 @@ const SCHEMAS = {
     nationality: optionalText(80),
     email: optionalText(160),
     notes: optionalText(4000),
+    photoName: optionalText(120),
     inactive: z.boolean().optional(),
   }).strict(),
   'profiles:delete': byId,
@@ -246,6 +264,15 @@ const SCHEMAS = {
 
   'photos:import': empty,
   'photos:read': z.object({ name: z.string().max(120) }).strict(),
+  /* A managed name and a rectangle in SOURCE pixel coordinates. The service
+     clamps the rectangle to the real image, so these bounds are a sanity limit,
+     not the security boundary. */
+  'photos:crop': z.object({
+    name: z.string().max(120),
+    x: z.number().int().min(0).max(100000),
+    y: z.number().int().min(0).max(100000),
+    size: z.number().int().min(16).max(100000),
+  }).strict(),
   'photos:remove': z.object({ name: z.string().max(120) }).strict(),
 
   'backup:list': empty,

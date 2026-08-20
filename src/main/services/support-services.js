@@ -129,13 +129,13 @@ const profiles = {
     const now = nowIso();
     const id = ctx.db.prepare(`
       INSERT INTO profiles (full_name, kind, employment_status, passport_no, phone, nationality, email, notes,
-                            created_at, created_by, updated_at, updated_by)
+                            photo_name, created_at, created_by, updated_at, updated_by)
       VALUES (@full_name, @kind, 'active', @passport_no, @phone, @nationality, @email, @notes,
-              @now, @by, @now, @by)`).run({
+              @photo_name, @now, @by, @now, @by)`).run({
       full_name: name, kind: params.kind === 'staff' ? 'staff' : 'marketing',
       passport_no: params.passportNo || null, phone: params.phone || null,
       nationality: params.nationality || null, email: params.email || null,
-      notes: params.notes || null, now, by: session.id,
+      notes: params.notes || null, photo_name: params.photoName || null, now, by: session.id,
     }).lastInsertRowid;
     ctx.audit({ action: 'PROFILE_CREATE', entity_type: 'profile', entity_id: id, description: `Created profile ${name}` });
     return { id };
@@ -153,6 +153,7 @@ const profiles = {
     }
     for (const [input, column] of Object.entries({
       passportNo: 'passport_no', phone: 'phone', nationality: 'nationality', email: 'email', notes: 'notes',
+      photoName: 'photo_name',
     })) if (params[input] !== undefined) patch[column] = params[input] || null;
     if (params.inactive !== undefined) patch.employment_status = params.inactive ? 'inactive' : 'active';
     if (!Object.keys(patch).length) return { id: row.id };

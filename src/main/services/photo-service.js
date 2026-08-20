@@ -13,6 +13,7 @@
 
 const fs = require('fs');
 const crypto = require('crypto');
+const { nativeImage } = require('electron');
 const { safeJoin } = require('../paths');
 const guard = require('./guard');
 const domain = require('./domain');
@@ -73,6 +74,59 @@ function build({ dialog, paths, getWindow }) {
       ctx.audit({ action: 'PHOTO_IMPORT', entity_type: 'photo', description: `Imported ${kind.mime} image` });
 
       return { name, mimeType: kind.mime, byteSize: buffer.length, dataUrl: `data:${kind.mime};base64,${buffer.toString('base64')}` };
+    },
+
+    /* Crop a photo that is ALREADY managed.
+     *
+     * The renderer sends a managed name and a rectangle — never a filesystem
+     * path and never image bytes. Everything else happens here: the source is
+     * resolved inside the photos directory, the rectangle is clamped to the
+     * real image, and the crop is performed with Electron's own nativeImage,
+     * so there is no new dependency and no decoder written by hand.
+     *
+     * The previous behaviour was worse than missing. The renderer cropped on a
+     * canvas, called a `photos.save` that always returned VALIDATION, silently
+     * fell back to the ORIGINAL photo's name, and put the cropped data URL into
+     * the in-memory cache — so the crop looked applied until the next launch,
+     * when the uncropped original came back. A feature that appears to work and
+     * silently does not is the worst of the three options. */
+    crop(ctx, { name, x, y, size }) {
+      const session = guard.requireCapability(ctx, 'customers.update');
+      const row = ctx.db.prepare('SELECT * FROM photos WHERE name = ?').get(String(name));
+      if (!row) throw notFound('Photo not found.');
+      const source = safeJoin(paths.photos, row.name);
+      if (!source || !fs.existsSync(source)) throw notFound('Photo not found.');
+
+      const image = nativeImage.createFromBuffer(fs.readFileSync(source));
+      if (image.isEmpty()) throw validation('That image could not be read.');
+      const { width, height } = image.getSize();
+
+      /* Clamp rather than trust. A rectangle from the renderer is caller input;
+         out-of-bounds values must become a valid crop, not an exception or a
+         read past the image. */
+      const side = Math.max(16, Math.min(Math.round(Number(size) || 0) || Math.min(width, height),
+        Math.min(width, height)));
+      const left = Math.max(0, Math.min(Math.round(Number(x) || 0), width - side));
+      const top = Math.max(0, Math.min(Math.round(Number(y) || 0), height - side));
+
+      const cropped = image.crop({ x: left, y: top, width: side, height: side });
+      if (cropped.isEmpty()) throw validation('That crop could not be applied.');
+      const buffer = cropped.toJPEG(92);
+      if (!buffer.length) throw validation('That crop could not be applied.');
+
+      const newName = `photo_${Date.now()}_${crypto.randomBytes(6).toString('hex')}.jpg`;
+      const target = safeJoin(paths.photos, newName);
+      if (!target || fs.existsSync(target)) throw validation('Could not store that image.');
+      fs.writeFileSync(target, buffer, { flag: 'wx' });
+
+      const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+      ctx.db.prepare(`INSERT INTO photos (name, mime_type, byte_size, sha256, created_at, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)`).run(newName, 'image/jpeg', buffer.length, sha256, nowIso(), session.id);
+      ctx.audit({ action: 'PHOTO_CROP', entity_type: 'photo',
+        description: `Cropped image ${row.name} → ${newName}` });
+
+      return { name: newName, mimeType: 'image/jpeg', byteSize: buffer.length,
+        dataUrl: `data:image/jpeg;base64,${buffer.toString('base64')}` };
     },
 
     /* Reading resolves strictly inside the managed directory. `safeJoin`

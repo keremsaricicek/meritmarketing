@@ -1,4 +1,20 @@
 <!DOCTYPE html>
+<!--
+  ============================================================================
+  THIS IS NOT THE MERIT MARKETING HUB APPLICATION.
+
+  This is the PRE-ELECTRON BROWSER PROTOTYPE, kept only as the behavioural
+  baseline the migration was verified against. It stores data in localStorage,
+  seeds demo guests and demo passwords, and has none of the security of the
+  real product.
+
+  The production application is the Electron app built from src/.
+  Its renderer entry point is src/renderer/index.html, which does NOT run
+  standalone in a browser — it needs the main process.
+
+  Package hygiene tests fail if this file ever ships.
+  ============================================================================
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1480,6 +1496,22 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 </style>
 </head>
 <body>
+<div id="legacyPrototypeBanner" role="alert">
+  <strong>THIS IS NOT THE APPLICATION.</strong>
+  This is the old browser prototype, kept as the behavioural baseline. It uses
+  demo data and has none of the real product's security. The real Merit
+  Marketing Hub is the installed Windows application.
+</div>
+<style>
+  #legacyPrototypeBanner{
+    position:sticky; top:0; z-index:2147483647;
+    background:#7f1d1d; color:#fff;
+    font:600 13px/1.5 system-ui, sans-serif;
+    padding:10px 16px; text-align:center;
+    border-bottom:2px solid #fca5a5;
+  }
+  #legacyPrototypeBanner strong{ letter-spacing:.04em; }
+</style>
 
 
 <div class="login-screen" id="loginScreen">

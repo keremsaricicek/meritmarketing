@@ -23,6 +23,7 @@ const auditSink = require('./services/audit-sink');
 const { registerAll, makeSenderValidator } = require('./ipc/registry');
 const handlerFactory = require('./ipc/handlers');
 const backupFactory = require('./backup/backup-service');
+const autoBackup = require('./backup/auto-backup');
 const photoFactory = require('./services/photo-service');
 const exportFactory = require('./services/export-service');
 const updateFactory = require('./updates/update-service');
@@ -167,7 +168,22 @@ async function start() {
   logger.info('startup.database-ready', { schema: currentVersion(db), target: targetVersion(), uncleanShutdown });
 
   sessions.setPermissionOverrides(supportServices.settings.overrides(db));
-  backup.prune({ keepAutomatic: 10 });
+
+  /* Automatic backup, driven by the Settings screen's own preferences. Runs
+     once per launch, through the same backup service the manual button uses,
+     and never throws — a failure here is logged, not a reason the operator
+     cannot start work. Retention only ever removes automatic backups. */
+  try {
+    const outcome = await autoBackup.runAtStartup({
+      db, backup, ctx: getContext(), logger: undefined,
+      log: (level, event, data) => logger[level] ? logger[level](event, data) : logger.info(event, data),
+    });
+    logger.info('startup.auto-backup', outcome.ran
+      ? { created: outcome.created, pruned: outcome.pruned.length }
+      : { skipped: outcome.reason });
+  } catch (err) {
+    logger.error('startup.auto-backup-failed', { message: String(err && err.message).slice(0, 200) });
+  }
 
   const photos = photoFactory.build({ dialog, paths, getWindow: () => win });
   const exporter = exportFactory.build({ dialog, getWindow: () => win });

@@ -19,6 +19,40 @@ function jsonAttr(value){
   return JSON.stringify(String(value)).slice(1, -1).replace(/'/g, '&#39;');
 }
 function el(id){ return document.getElementById(id); }
+
+/* Which control in a group is the active one?
+   These lookups used to read getAttribute('onclick') and string-match the
+   generated source — browser-era residue that kept working only by accident
+   after the inline handlers were removed, and stopped identifying anything
+   once they were gone. The delegated system already carries the answer as
+   structured data, so ask that instead of parsing code. */
+/* A blank form control means "no filter", not "filter by empty string".
+   The boundary schemas are strict and typed: `status:''` is not a status and
+   `from:''` is not a date, so sending them made the whole call fail validation
+   and the screen rendered nothing rather than rendering unfiltered. Every
+   filter payload goes through here.
+
+   `false` and `0` are kept — they are real values a filter may legitimately
+   carry; only null, undefined and the empty string are dropped. */
+function omitBlank(payload){
+  const out = {};
+  for (const [key, value] of Object.entries(payload)){
+    if (value === undefined || value === null || value === '') continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function actionArgMatches(node, value){
+  const raw = node.getAttribute('data-args')
+    || node.getAttribute('data-args-click')
+    || node.getAttribute('data-args-change');
+  if (!raw) return false;
+  try {
+    const args = JSON.parse(raw);
+    return Array.isArray(args) && args.some(a => String(a) === String(value));
+  } catch (_) { return false; }
+}
 /* Renderer-side mirror of the main process's local-date rule (spec §14) —
    the local calendar date of the machine running the app, never a UTC
    conversion. Keep this the ONLY "what day is it" helper on this side. */
@@ -357,8 +391,8 @@ async function applyRoleToChrome(){
   el('listFCreatedByWrap')?.classList.toggle('hidden', marketingScoped);
   if (marketingScoped && state.list) state.list.createdBy = '';
   const av = el('sessionAvatar');
-  await resolvePhotos([state.session?.photo_path]).catch(() => {});
-  const url = photoUrl(state.session?.photo_path);
+  await resolvePhotos([state.session?.photo_name]).catch(() => {});
+  const url = photoUrl(state.session?.photo_name);
   if (url){ av.style.backgroundImage = `url('${url}')`; av.textContent = ''; }
   else { av.style.backgroundImage = 'none'; av.textContent = initials(state.session?.full_name || state.session?.username || '?'); }
   el('sessionName').textContent = state.session?.full_name || state.session?.username || '';
@@ -369,7 +403,7 @@ async function applyRoleToChrome(){
 
 async function refreshProfiles(){
   state.profiles = (await call(window.api.profiles.list, {})) || [];
-  await resolvePhotos([state.session?.photo_path, ...state.profiles.map(p => p.photo_path)]);
+  await resolvePhotos([state.session?.photo_name, ...state.profiles.map(p => p.photo_name)]);
   const opts = state.profiles.map(p => `<option value="${escapeHtml(p.full_name)}"></option>`).join('');
   const dl = el('profileNames'); if (dl) dl.innerHTML = opts;
 }
@@ -518,7 +552,7 @@ async function setCrmView(view, btn){
   });
   const tabs = [...el('crmViewTabs').children];
   tabs.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-  const activeBtn = btn || tabs.find(b => b.getAttribute('onclick')?.includes(`'${view}'`));
+  const activeBtn = btn || tabs.find(b => actionArgMatches(b, view));
   if (activeBtn){ activeBtn.classList.add('active'); activeBtn.setAttribute('aria-selected','true'); }
   if (view === 'overview') await renderCustomers();
   else if (view === 'customerlist') await renderCustomerList();

@@ -40,8 +40,10 @@
       /* Import now does what pick+save used to do in two steps, so the file
          never round-trips through the renderer as a base64 string. */
       pick: () => bridge.photos.import(),
-      save: async ({ dataUrl }) => ({ ok: false, error: { code: 'VALIDATION',
-        message: 'Photos are imported through the application, not uploaded.' } }),
+      /* Cropping sends the managed name and a rectangle; the trusted process
+         does the work and returns a NEW managed name. Image bytes never cross
+         the boundary in either direction. */
+      crop: ({ name, x, y, size }) => bridge.photos.crop({ name, x, y, size }),
       read: ({ name }) => bridge.photos.read({ name }),
       remove: ({ name }) => bridge.photos.remove({ name }),
     },
@@ -64,11 +66,12 @@
 
     backup: {
       ...bridge.backup,
-      /* Opening a folder would need shell.openExternal, which is deliberately
-         not bridged: a path that reaches the shell is a command waiting to
-         happen. The screen shows the location as text instead. */
-      openFolder: async () => ({ ok: false, error: { code: 'VALIDATION',
-        message: 'Backups are stored in the application data folder.' } }),
+      /* Opens the application's OWN data folder through a no-argument verb.
+         The renderer supplies no path, so there is nothing to traverse and
+         nothing reaches a shell — the main process resolves the fixed location
+         and hands it to the OS file manager. This used to be a stub that always
+         returned VALIDATION, so the button in Settings could only ever fail. */
+      openFolder: () => bridge.app.openDataFolder(),
     },
 
     dialog: {

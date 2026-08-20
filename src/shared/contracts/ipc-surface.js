@@ -140,6 +140,12 @@ const SURFACE = {
   // ------------------------------------------------------------- photos
   'photos:import':       { auth: 'required', capability: 'customers.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',
                            notes: 'Opens a native picker in the main process; validates type, signature and size.' },
+  'app:openDataFolder':  { auth: 'required', capability: 'backup.read',      roles: ['ADMIN','MANAGER'], scope: 'none', protection: false, validation: true, destructive: false, audit: true,
+                           denial: 'FORBIDDEN',
+                           notes: 'Opens the FIXED application data folder. Takes no arguments: the renderer supplies no path, so there is nothing to traverse. Uses shell.openPath, never a shell command or a URL.' },
+  'photos:crop':         { auth: 'required', capability: 'customers.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true, destructive: false, audit: true,
+                           denial: 'FORBIDDEN',
+                           notes: 'Crops an ALREADY-MANAGED photo by name plus a rectangle. No filesystem path and no image bytes cross the boundary; the rectangle is clamped to the real image.' },
   'photos:read':         { auth: 'required', capability: 'customers.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
                            notes: 'Resolves inside the managed photo directory only; traversal is refused.' },
   'photos:remove':       { auth: 'required', capability: 'customers.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true, destructive: true, audit: true, denial: 'FORBIDDEN' },

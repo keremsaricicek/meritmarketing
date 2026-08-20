@@ -100,3 +100,29 @@ Also corrected: the CI step commented "Proves the packaged binary starts on
 Windows" only checked that an .exe existed and was over 1 MB. It is now named
 `Validate the packaged artifact (does not launch it)` and says so in its output.
 Windows startup remains unverified.
+
+## Final source-closure pass (post-ab25a77)
+
+A third independent inspection of the source ZIP found the real operator
+workflow still broken in ways every previous gate missed, because the tests
+called services directly instead of pressing the buttons.
+
+| Finding | What was actually wrong | Fix |
+|---|---|---|
+| Customer save | The form sent `photoPath`; the strict contract accepts `photoName` | One canonical name across renderer, schema, service |
+| Profile save | Sent `photoPath` and `inactive` on create; `photo_name` was never persisted at all | `photoName` added to schema, service and INSERT; `inactive` is an edit-only concern |
+| **Every photo in the app** | The renderer read `photo_name` as `photo_path` in 25 places — a column that exists nowhere | Renamed; avatars, inspector, profile cards and reservation preview now show photos |
+| STAFF role | Renderer still defaulted new users to a role that does not exist | Default MARKETING; the linked-profile rule follows the real role |
+| Reports | Blank filters sent `status:''`, `from:''`; `createdFrom`/`createdTo`/`hasReservation`/`hasCrm` were shown but not in the contract | `omitBlank()` on every payload; the four filters implemented in schema + SQL rather than removed |
+| Photo buttons | `pickCustomerPhoto` was a top-level `const` — a global binding, not a window property — so the dispatcher never found it | Registered in the NAMED action table |
+| Photo crop | Cropped on a canvas, called a `photos.save` that always failed, kept the ORIGINAL name and cached the crop in memory — it survived until the next launch | Real managed crop: `photos:crop` takes a name and a rectangle, clamps it, crops with `nativeImage`, stores a new managed photo |
+| Automatic backup | Settings saved the preference; nothing ever created a backup | `src/main/backup/auto-backup.js`, run at startup through the same trusted service; local-calendar-day scheduling; retention never touches a manual backup |
+| Legacy onclick reads | Seven `getAttribute('onclick')` lookups still decided which control was "active" — always null since the handlers were removed | Read `data-args` instead |
+| Total Guests KPI | Carried a `go:` field the template never reads | `act`/`actArgs` like every other card |
+| Duplicate `class` | Generated markup carried two `class` attributes; HTML keeps the first | Merged; gate generalised to every attribute name |
+| Archive dialog | Promised the reservations would be removed and that it could not be undone. Neither is true — it is a soft archive | Truthful copy |
+| Data Folder button | Bridge stub always returned VALIDATION | Real no-argument `app:openDataFolder` using `shell.openPath` on the fixed path |
+| v1 updater | Documentation said disabled; `MERIT_UPDATE_URL` still armed it | `V1_UPDATES_DISABLED` in code, above the environment |
+| Stable signing | Warned and continued when no certificate was configured | Blocks before `release.json` and BUILD COMPLETE |
+| Legacy prototype | The owner kept opening it and thinking it was the app | Loud in-page banner plus a file header; still excluded from the package |
+
