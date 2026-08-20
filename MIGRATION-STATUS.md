@@ -143,3 +143,35 @@ called services directly instead of pressing the buttons.
 New gates: `tests/ipc/contract-consistency.test.js`,
 `tests/electron/golden-path.test.js`, `tests/electron/photo-crop.test.js`,
 `tests/database/auto-backup.test.js`.
+
+## Source closure — verified state
+
+| | |
+|---|---|
+| Full suite | **38 suites · 1353 assertions · 0 failing** (190s, Electron's Node) |
+| Golden path | **45 assertions** — setup form → every Save button → cancel → delete → reports → restart → everything persisted |
+| Package | `npm run package` completes on this host; the output carries no test file and no legacy prototype |
+| IPC surface | 62 channels, document regenerated and gate green |
+| v1 updates | Off in code. `build` also disarms the updater object it is handed |
+
+Two tests had stopped describing the product and were corrected rather than
+deleted: `electron/offline.test.js` still drove the updater through `build`
+(which returns the v1 stub, so it crashed instead of failing) and now tests the
+shipping refusal and the retained implementation separately;
+`docs/IPC-SECURITY-SURFACE.md` was two channels behind.
+
+The golden path had never run before this pass. It was not hanging — the
+generated probe was invalid JavaScript, so Electron exited during parse and
+printed nothing, which looks exactly like a hang. The suite now parses every
+script it generates before spawning.
+
+### Still not done, and not claimed
+
+- **No Windows build. No installer executed. Nothing signed.** No Windows
+  machine was involved at any point.
+- `scripts/Release-Merit.ps1` has never been executed or syntax-checked — there
+  is no PowerShell in this container.
+- `assets/crm.ico` and `src/renderer/logo.png`: **OWNER ASSET REQUIRED.** Absent,
+  and no placeholder was generated.
+
+Next step is an internal Windows build and one real installation.

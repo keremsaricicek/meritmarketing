@@ -91,19 +91,19 @@ Identity, role and profile are never read from the caller's payload.
 
 ## 6. The IPC surface as a contract
 
-`src/shared/contracts/ipc-surface.js` documents all **60 channels** with
+`src/shared/contracts/ipc-surface.js` documents all **62 channels** with
 `auth`, `capability`, `roles`, `scope`, `protection`, `validation`,
 `destructive`, `audit`, `denial` and notes.
 
 | | |
 |---|---|
-| Channels | 60 |
+| Channels | 62 |
 | Anonymous (pre-login) | 6 — `app:info`, `app:needsSetup`, `auth:setup`, `auth:login`, `auth:logout`, `auth:session` |
-| Authenticated | 54 |
+| Authenticated | 56 |
 | Record-scoped | 34 |
 | Destructive | 9 |
-| Audited | 29 |
-| Reachable by MARKETING | 40 |
+| Audited | 31 |
+| Reachable by MARKETING | 41 |
 
 This file is not documentation *about* the system — the registry reads it at
 startup and **refuses to boot** on an undocumented channel, a channel with no
@@ -604,9 +604,11 @@ decision about the update client.
 
 **ENGINEERING READY — EXTERNAL RELEASE SETUP REQUIRED.**
 
-The engineering is complete and verified: **1240 assertions, 0 failing**, on the
-production runtime, including a suite that starts the real binary and drives the
-real first-run form.
+The engineering is complete and verified: **1353 assertions across 38 suites, 0
+failing**, on the production runtime, including a suite that starts the real
+binary and drives the real forms — setup, guest, profile, user, reservation,
+cancel, delete, reports, settings — then restarts the application and checks
+that every one of those records survived.
 
 That last clause is the honest lesson of this migration. Until the independent
 reviews ran, this report would have said "1016 assertions, 0 failing" about an
@@ -664,3 +666,66 @@ count of passing assertions is not evidence about the part of the system nobody
 pointed a test at. `tests/electron/golden-path.test.js` is the correction —
 first-run through the setup form, save through every real Save button, restart,
 and check it all survived.
+
+## 33. Source closure — the state this repository is in
+
+The last source pass ended with the golden path actually running. That matters
+more than the number it produced, because for three attempts it produced
+nothing at all and the reason was not a hang: the generated probe contained an
+invalid nested template literal, so Electron exited during parse, before any
+output. Silence and a timeout are indistinguishable from the outside, which is
+why the suite now parses every script it generates before spawning and reports
+the syntax error at the line that caused it. Two lessons in one defect — an
+absent result is not a slow result, and a harness that cannot say why it failed
+will be re-run instead of read.
+
+What the golden path proves, by pressing the buttons rather than calling the
+services (45 assertions):
+
+| | |
+|---|---|
+| First run | The setup **form** creates the first administrator |
+| Every editor | Profile, guest, guest edit, user, reservation save through their own Save buttons and the modal closes |
+| Lifecycle | Cancel moves a booking to Cancelled; delete without a reason is refused by the form; delete with a reason moves it to Deleted, where the row offers no actions |
+| Reports | All five report types run on default filters with no validation refusal |
+| Contract | **No strict-schema refusal occurred anywhere in the flow**, and the renderer logged no errors |
+| Injection | A hostile guest name creates no element, injects no script, survives no `svg onload`, executes no handler, and is displayed as text |
+| Restart | Second launch does not ask for setup again, the administrator signs in through the **login form**, and the edited guest, the profile, the user, the cancelled booking and the deleted booking are all still there |
+| Backup | The preference persisted **and automatic backups were actually created** |
+| Updates | A configured feed does not enable checking in v1, and installing is refused |
+
+Two things were corrected in this pass and are worth recording because both
+were tests that had stopped describing the product:
+
+- `tests/electron/offline.test.js` still drove the updater through `build`,
+  which in v1 returns the disabled stub. It crashed rather than failed, and
+  behind the crash sat four assertions describing behaviour that no longer
+  shipped. It now tests both questions separately: what v1 does (refuses
+  everything, attaches no listener, and disarms the updater object it is
+  handed) and what the updater must still do when B8 and B9 are resolved.
+- `docs/IPC-SECURITY-SURFACE.md` described 60 channels. There are 62;
+  `photos:crop` and `app:openDataFolder` were missing. The freshness gate
+  caught it, which is what it is for.
+
+### What is true, and what is still not
+
+Verified here:
+
+- 1353 assertions, 38 suites, 0 failing, on Electron's Node.
+- `npm run package` completes on this host.
+- The packaged output contains no test file and no legacy prototype.
+
+Not verified here, and not claimed:
+
+- **No Windows build has been produced.** No installer has been executed. No
+  Windows machine was involved at any point.
+- **Nothing is signed.** There is no certificate.
+- **`scripts/Release-Merit.ps1` has never been executed or syntax-checked** —
+  there is no PowerShell in this container.
+- `assets/crm.ico` and `src/renderer/logo.png` are absent. **OWNER ASSET
+  REQUIRED.** No placeholder was generated; the release script blocks a stable
+  build without them.
+
+The correct next step is an **internal** Windows build, followed by a real
+installation on a real Windows machine. Nothing in the source is waiting on
+anything else.
