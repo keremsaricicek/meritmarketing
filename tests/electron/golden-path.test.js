@@ -100,11 +100,23 @@ app.whenReady().then(async () => {
      nothing but "timed out". Bounding each call turns that into a named step. */
   const js = (code) => Promise.race([
     win.webContents.executeJavaScript(code),
-    new Promise((resolve) => setTimeout(() => { stalls.push(step); resolve('__STALLED__'); }, 15000)),
+    new Promise((resolve) => setTimeout(() => { stalls.push(step); resolve('__STALLED__'); }, 8000)),
   ]).catch((err) => { stalls.push(step + ':' + err.message.slice(0, 80)); return '__THREW__'; });
   const settle = (ms = 600) => new Promise(r => setTimeout(r, ms));
   await js(HELPERS);
   const out = {};
+
+  /* A diagnostic that cannot report is not a diagnostic. If the flow overruns,
+     print whatever has been collected — including which steps stalled — rather
+     than letting the launch budget kill the process silently. */
+  const watchdog = setTimeout(() => {
+    out.watchdogFired = true;
+    out.stalls = stalls;
+    out.consoleErrors = consoleErrors;
+    out.validationErrors = validationErrors;
+    console.log('PROBE:' + JSON.stringify(out));
+    app.exit(0);
+  }, 200000);
 
   // ---------------------------------------- 1. first-run admin, through the form
   step = 'setup';
@@ -315,6 +327,15 @@ app.whenReady().then(async () => {
   const settle = (ms = 600) => new Promise(r => setTimeout(r, ms));
   await js(HELPERS);
   const out = {};
+  const stalls = [];
+  const watchdog = setTimeout(() => {
+    out.watchdogFired = true;
+    out.stalls = stalls;
+    out.consoleErrors = consoleErrors;
+    out.validationErrors = validationErrors;
+    console.log('PROBE:' + JSON.stringify(out));
+    app.exit(0);
+  }, 150000);
 
   out.asksForSetup = await js("(async () => { const r = await window.api.app.needsSetup(); return r.data; })()");
 
@@ -383,7 +404,7 @@ app.whenReady().then(async () => {
 });
 `;
 
-function runElectron(userData, script, file, extraEnv = {}, timeoutMs = 420000) {
+function runElectron(userData, script, file, extraEnv = {}, timeoutMs = 260000) {
   return new Promise((resolve) => {
     const probeFile = path.join(userData, file);
     fs.writeFileSync(probeFile, script);
@@ -426,6 +447,8 @@ module.exports = async function () {
       a ? `${a.error}\n${(a.stack || []).join('\n')}` : `exit=${first.code} timedOut=${!!first.timedOut}\n${first.stderr.slice(-1200)}`);
     if (!a || a.error) return s.finish();
 
+    s.check('the operator flow completed without needing the watchdog',
+      a.watchdogFired !== true, `flow overran; stalls: ${(a.stalls || []).join(', ') || 'none recorded'}`);
     s.check('no step in the operator flow hung',
       !a.stalls || a.stalls.length === 0, (a.stalls || []).join(', '));
 
