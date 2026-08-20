@@ -10,7 +10,7 @@ continue deterministically. Delete when the migration is fully complete.
 | Baseline commit | `fb49302` |
 | Baseline tag | `pre-electron-baseline` (local only — blocker B1) |
 | Baseline tests | 529 assertions, 18 suites |
-| Current | **1131 assertions, 33 suites, 0 failing** |
+| Current | see `docs/FINAL-REPORT.md` — updated after each full run |
 | Branch | `claude/plugin-marketplace-ui-ux-pro-max-91h8kg` |
 
 ## Checkpoints
@@ -34,7 +34,7 @@ continue deterministically. Delete when the migration is fully complete.
 |---|---|---|---|
 | B1 | `git push` of **tags** returns HTTP 403 (branches push fine) | `pre-electron-baseline` is local only | Recovery tooling written **and verified** — a generated bundle was fetched into a fresh clone and all commits arrived |
 | B2 | `assets/crm.ico` does not exist anywhere in the repo or workspace | Windows build uses the default Electron icon | Build wired to the path; Forge warns loudly; the release script **blocks a stable release** without it. No icon was invented. |
-| B3 | `logo.png` is referenced 3× by the renderer but is not in the repo | In-app brand mark is a broken reference | Owner must supply |
+| B3 | `src/renderer/logo.png` is referenced by the renderer but is not in the repo | In-app brand mark falls back to the letter mark | Owner must supply. The release script **blocks a stable build** without it, alongside `assets/crm.ico`. |
 | B4 | No Windows host in this container | Installer and Squirrel update not executed here | Windows CI job packages and smoke-tests; end-to-end update still needs one manual run |
 | B5 | No code-signing certificate | Artifacts unsigned; SmartScreen will warn | Hooks configured, driven by CI secrets; `release.json` records `signed:false` honestly |
 | B6 | No update-host credentials | Feed not published | Provider abstraction complete, configured by `MERIT_UPDATE_URL` (HTTPS enforced) |
@@ -126,3 +126,20 @@ called services directly instead of pressing the buttons.
 | Stable signing | Warned and continued when no certificate was configured | Blocks before `release.json` and BUILD COMPLETE |
 | Legacy prototype | The owner kept opening it and thinking it was the app | Loud in-page banner plus a file header; still excluded from the package |
 
+
+### Source-closure additions
+
+| Area | Now |
+|---|---|
+| Photo crop | Real, via `photos:crop` + `nativeImage`. Managed name + clamped rectangle in, new managed name out. Verified by reading dimensions off disk. |
+| Automatic backup | `src/main/backup/auto-backup.js`, run at startup. Local-calendar-day scheduling. Manual backups are never pruned. |
+| CRM note date | Migration `002-crm-note-date.sql` restores the column the form always showed. |
+| Customer list filters | `createdFrom`, `createdTo`, `hasReservation`, `hasCrm` implemented in SQL. |
+| Data folder | `app:openDataFolder` — no argument, fixed path, `shell.openPath`. |
+| v1 updates | `V1_UPDATES_DISABLED` in `update-service.js`, above the environment. |
+| Stable signing | Blocks before `release.json` and BUILD COMPLETE. Internal channel still allows unsigned. |
+| Legacy prototype | Loud in-page banner + file header. Still excluded from the package. |
+
+New gates: `tests/ipc/contract-consistency.test.js`,
+`tests/electron/golden-path.test.js`, `tests/electron/photo-crop.test.js`,
+`tests/database/auto-backup.test.js`.

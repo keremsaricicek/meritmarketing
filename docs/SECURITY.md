@@ -113,3 +113,35 @@ by key name, so a field called `password` is redacted wherever it appears.
 | A local Windows administrator can read or alter the database | Out of scope for a local-first desktop app. Mitigation is OS disk encryption. |
 | The audit log is not cryptographically tamper-evident | It is a business record, not a forensic one. Claiming otherwise would be false. |
 | Artifacts are unsigned until a certificate is supplied | See [RELEASE.md](RELEASE.md). SmartScreen will warn until then. |
+
+
+## Automatic updates are disabled in code for v1
+
+`V1_UPDATES_DISABLED` in `src/main/updates/update-service.js` short-circuits the
+service before any listener is attached. Setting `MERIT_UPDATE_URL` cannot arm
+it: `updates:check` reports `disabled: true` and `updates:install` refuses.
+
+This is deliberate and temporary. `electron-updater`'s Windows path performs no
+signature verification without an electron-builder `app-update.yml`, which this
+project (packaged with Forge) does not produce — so the only integrity check
+would be a hash served by the same host as the payload. Whoever controlled a
+feed would control the operator's machine. Until there is a signing certificate
+(B5) and the maker matches the update client (B9), the honest configuration is
+off, and the code says so rather than the documentation saying so.
+
+## Photo cropping crosses no dangerous boundary
+
+`photos:crop` takes a MANAGED photo name and a rectangle. It never takes a
+filesystem path and never takes image bytes. The main process resolves the
+source through `safeJoin` inside the photos directory, clamps the rectangle to
+the real image dimensions, and writes a new managed file. A traversal name is
+refused as NOT_FOUND, and an out-of-bounds rectangle becomes a valid crop rather
+than an exception or a read past the buffer.
+
+## The renderer has no code evaluator and no inline handler
+
+Enforced by `tests/ui/renderer-source-safety.test.js` as exhaustive patterns
+rather than a list of names: any `on*=` attribute, any construct that turns a
+string into code, any attribute repeated within one start tag, and every literal
+`data-act` resolving to something the renderer defines. The gate was verified by
+reintroducing each defect and confirming it goes red.

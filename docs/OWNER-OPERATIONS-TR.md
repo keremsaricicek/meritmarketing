@@ -260,3 +260,58 @@ bir kez, bir Windows makinesinde denenmelidir. Bunu size açıkça söylüyoruz,
 
 Program, veritabanını güvenle açamadığında **hiçbir şeye dokunmaz** ve boş bir
 veritabanı oluşturmaz. Verileriniz olduğu yerde durur.
+
+
+---
+
+## Otomatik yedekleme
+
+Ayarlar ekranındaki **Otomatik Yedekleme** artık gerçekten çalışıyor. Daha önce
+seçiminiz kaydediliyordu ama hiçbir yedek alınmıyordu — bunu ancak yedeğe
+ihtiyacınız olduğu gün fark ederdiniz. Şimdi düzeltildi.
+
+| Ayar | Varsayılan | Anlamı |
+|---|---|---|
+| Otomatik Yedekleme | açık | Kapatırsanız hiç yedek alınmaz |
+| Sıklık | Başlangıç | `Başlangıç` her açılışta · `Günlük` günde bir kez · `Haftalık` 7 günde bir |
+| Saklanacak yedek | 10 | Kaç **otomatik** yedeğin tutulacağı |
+
+Üç şey önemli:
+
+- **Gün hesabı takvim günüdür.** Sabah 09:00'da ve ertesi sabah 08:00'de
+  çalıştığınızda bu iki ayrı gündür — aradan 24 saat geçmemiş olsa bile ikinci
+  gün için de yedek alınır.
+- **Elle aldığınız yedekler asla silinmez.** Saklama sınırı yalnızca programın
+  kendi aldığı otomatik yedekleri temizler.
+- **Yedek alınamazsa program yine açılır.** Hata kaydedilir, çalışmanız engellenmez
+  ve mevcut veritabanınıza hiçbir şey olmaz.
+
+Otomatik yedeklerin dosya adı `-auto` ile biter, böylece listede ayırt edilir.
+
+## Fotoğraf kırpma
+
+Misafir veya profil fotoğrafını kırptığınızda **kırpılmış hâli kalıcı olarak
+kaydedilir**. Önceden kırpma yalnızca ekranda doğru görünüyordu; programı kapatıp
+açtığınızda eski fotoğraf geri geliyordu. Artık kırpılmış fotoğraf yeni bir dosya
+olarak saklanır ve orijinali de silinmez — yanlış kırptıysanız kaybolmaz.
+
+## Veri klasörünü açma
+
+Ayarlar ekranındaki **Veri Klasörü** düğmesi artık gerçekten klasörü açıyor.
+Önceden her seferinde hata veriyordu.
+
+## Güncellemeler — bu sürümde kapalı
+
+Bu ilk sürümde **otomatik güncelleme yoktur** ve program bunu kendi kodunda
+engeller. Yeni sürüme geçmek için yeni kurulum dosyasını elle çalıştırırsınız.
+
+Sebebi teknik ama önemli: güncelleme dosyasının imzası henüz doğrulanamıyor.
+Doğrulanmadan otomatik indirme açılırsa, güncelleme sunucusunu ele geçiren biri
+bilgisayarınızda istediği programı çalıştırabilir. Bu yüzden imza sertifikası
+alınana kadar kapalı kalacak.
+
+## Misafir arşivleme
+
+Bir misafiri sildiğinizde aslında **arşivlenir**: aktif listelerden çıkar ama
+rezervasyon geçmişi ve CRM notları saklanır. Uyarı penceresi artık bunu doğru
+anlatıyor — daha önce "rezervasyonlar da silinecek" diyordu, ki bu doğru değildi.
