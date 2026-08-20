@@ -111,6 +111,10 @@
      edit was dead on three tables and Enter-to-open on two more, with no error
      anywhere. An event-scoped attribute cannot collide with itself. */
   function resolve(element, expected) {
+    /* A document-level listener sees events whose target is the document itself
+       or a text node — neither has `closest`. A keyboard shortcut fired at the
+       document is the ordinary case, not an error. */
+    if (!element || typeof element.closest !== 'function') return null;
     const scoped = element.closest(`[data-act-${expected}]`);
     if (scoped) {
       return { element: scoped, name: scoped.getAttribute(`data-act-${expected}`), argsAttr: `data-args-${expected}` };
@@ -161,7 +165,30 @@
     catch (err) { console.error('[actions] handler failed', name, err); }
   }
 
-  for (const type of ['click', 'change', 'input', 'keydown', 'dblclick']) {
+  for (const type of ['click', 'change', 'input', 'keydown', 'dblclick', 'focus', 'blur']) {
     document.addEventListener(type, (event) => dispatch(event, type), false);
+  }
+
+  /* mouseenter and mouseleave do NOT bubble, so they cannot be delegated from
+     the document the way the others are. mouseover/mouseout do bubble and fire
+     for every descendant, so they are filtered back down to enter/leave
+     semantics: the pointer has entered only when it came from OUTSIDE the
+     element, and left only when it went outside it.
+
+     Doing this properly is what let the hover behaviours — the CRM submenu and
+     the Finder's cursor row — move off inline `onmouseenter=` attributes, which
+     a `script-src 'self'` policy renders inert. They were the last inline
+     handlers in the product, and they survived because the test that claimed
+     none remained checked a hand-written list of event names that did not
+     include them. */
+  const HOVER = { mouseover: 'mouseenter', mouseout: 'mouseleave' };
+  for (const [bubbling, intended] of Object.entries(HOVER)) {
+    document.addEventListener(bubbling, (event) => {
+      const found = resolve(event.target, intended);
+      if (!found) return;
+      const related = event.relatedTarget;
+      if (related && found.element.contains(related)) return;   // still inside
+      dispatch(event, intended);
+    }, false);
   }
 })();

@@ -1516,3 +1516,9 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 .ink-teal{ color:var(--teal); }
 .toast-body{ flex:1; min-width:0; }
 .fatal-notice{ padding:40px; font:14px system-ui, sans-serif; }
+
+/* Deleted reservation history — management-only, deliberately quiet. It is a
+   record of something undone, not an alert. */
+.tag-deleted{ color:var(--danger); }
+.tag-deleted .tag-dot{ background:var(--danger); }
+.deleted-meta{ font-size:11px; color:var(--ink-4); white-space:nowrap; }

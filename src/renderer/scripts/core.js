@@ -191,6 +191,9 @@ function statusMeta(code){
     case 'CHECKED_IN': return { label:'CHECKED IN', cls:'tag-warm' };
     case 'COMPLETED':  return { label:'COMPLETED', cls:'tag-cold' };
     case 'CANCELLED':  return { label:'CANCELLED', cls:'tag-none' };
+    /* DELETED outranks CANCELLED wherever both are true, so it gets its own
+       badge rather than reusing the cancelled one. */
+    case 'DELETED':    return { label:'DELETED', cls:'tag-deleted' };
     /* users list reuses this for account state, kept independent of the
        customer-status vocabulary above */
     case 'ACCOUNT_ACTIVE':   return { label:'ACTIVE', cls:'tag-hot' };
@@ -705,11 +708,11 @@ function renderFinderResults(q){
   }
   wrap.innerHTML = finderRows.map((r,i) => finderMode === 'profile'
     ? `<div class="finder-row single${i === finderCursor ? ' cursor' : ''}" role="option" aria-selected="${i === finderCursor}"
-         onmouseenter="finderSetCursor(${i})" data-act="selectFinderRow" data-on="click" data-args='[${i}]'>
+         data-act-mouseenter="finderSetCursor" data-args-mouseenter='[${i}]' data-act-click="selectFinderRow" data-args-click='[${i}]'>
          <span class="fc-name">${escapeHtml(r.full_name)}${r.sub ? `<span class="fc-sub">${escapeHtml(r.sub)}</span>` : ''}</span>
        </div>`
     : `<div class="finder-row${i === finderCursor ? ' cursor' : ''}" role="option" aria-selected="${i === finderCursor}"
-         onmouseenter="finderSetCursor(${i})" data-act="selectFinderRow" data-on="click" data-args='[${i}]'>
+         data-act-mouseenter="finderSetCursor" data-args-mouseenter='[${i}]' data-act-click="selectFinderRow" data-args-click='[${i}]'>
          <span class="fc-id">#${escapeHtml(r.code)}</span>
          <span class="fc-name">${escapeHtml(r.full_name)}</span>
          <span class="fc-phone">${r.last_visit ? fmtDate(r.last_visit) : '—'}</span>
@@ -861,21 +864,21 @@ function closePalette(){
 }
 function defaultCommands(){
   const cmds = [
-    { kind:'Go', title:'Dashboard', run:"switchTab('dashboard')" },
-    { kind:'Go', title:'Reservation History', run:"switchTab('reservations')" },
-    { kind:'Go', title:'Action Calendar', run:"switchTab('calendar')" },
-    { kind:'Go', title:'CRM Panel', run:"switchTab('customers')" },
-    { kind:'Go', title:'Reports', run:"switchTab('reports')" },
-    { kind:'Go', title:'Settings', run:"switchTab('settings')" },
-    { kind:'New', title:'New Reservation', run:'openReservationModal()' },
-    { kind:'New', title:'New Customer', run:'openCustomerModal()' }
+    { kind:'Go', title:'Dashboard', action:'switchTab', args:['dashboard'] },
+    { kind:'Go', title:'Reservation History', action:'switchTab', args:['reservations'] },
+    { kind:'Go', title:'Action Calendar', action:'switchTab', args:['calendar'] },
+    { kind:'Go', title:'CRM Panel', action:'switchTab', args:['customers'] },
+    { kind:'Go', title:'Reports', action:'switchTab', args:['reports'] },
+    { kind:'Go', title:'Settings', action:'switchTab', args:['settings'] },
+    { kind:'New', title:'New Reservation', action:'openReservationModal', args:[] },
+    { kind:'New', title:'New Customer', action:'openCustomerModal', args:[] }
   ];
-  if (mayOpen('profiles')) cmds.push({ kind:'Go', title:'Profiles', run:"switchTab('profiles')" },
-                                     { kind:'New', title:'New Profile', run:'openProfileModal()' });
-  if (mayOpen('customerlist')) cmds.push({ kind:'Go', title:'Customer List', run:"goCrmView('customerlist')" });
-  if (mayOpen('norecord')) cmds.push({ kind:'Go', title:'No Record', run:"goCrmView('norecord')" });
-  if (mayOpen('users')) cmds.push({ kind:'Go', title:'Users', run:"switchTab('users')" });
-  if (mayOpen('audit')) cmds.push({ kind:'Go', title:'Audit Log', run:"switchTab('audit')" });
+  if (mayOpen('profiles')) cmds.push({ kind:'Go', title:'Profiles', action:'switchTab', args:['profiles'] },
+                                     { kind:'New', title:'New Profile', action:'openProfileModal', args:[] });
+  if (mayOpen('customerlist')) cmds.push({ kind:'Go', title:'Customer List', action:'goCrmView', args:['customerlist'] });
+  if (mayOpen('norecord')) cmds.push({ kind:'Go', title:'No Record', action:'goCrmView', args:['norecord'] });
+  if (mayOpen('users')) cmds.push({ kind:'Go', title:'Users', action:'switchTab', args:['users'] });
+  if (mayOpen('audit')) cmds.push({ kind:'Go', title:'Audit Log', action:'switchTab', args:['audit'] });
   return cmds;
 }
 
@@ -902,13 +905,13 @@ async function runPaletteSearch(){
 
   (guests?.rows || []).forEach(c => items.push({
     kind:'Guest', title:c.full_name, sub:`#${c.code}${c.phone ? ' · ' + c.phone : ''}`,
-    run:`goToGuest(${c.id},'customers')` }));
+    action:'goToGuest', args:[c.id, 'customers'] }));
   (reservations?.rows || []).forEach(r => items.push({
     kind:'Stay', title:r.customer_name, sub:`${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}`,
-    run:`openReservationModal(${r.id})` }));
+    action:'openReservationModal', args:[r.id] }));
   (profiles || []).forEach(p => items.push({
     kind:'Person', title:p.full_name, sub:`${p.reservation_count} invited · ${p.customer_count} guests`,
-    run:`openProfileDetail(${p.id})` }));
+    action:'openProfileDetail', args:[p.id] }));
 
   renderPalette(items);
 }
@@ -942,11 +945,37 @@ function movePalette(delta){
   const active = nodes.find(n => Number(n.dataset.i) === palette.cursor);
   if (active){ active.classList.add('active'); active.scrollIntoView?.({ block:'nearest' }); }
 }
+/* Every command the palette can run, by name. A palette entry names one of
+   these and supplies structured arguments; it never carries a fragment of
+   JavaScript.
+
+   This list used to be strings — `run:"switchTab('dashboard')"` — executed with
+   `eval(item.run)`, falling back to `Function(item.run)()`. That is a code
+   evaluator in the renderer, which is both the thing `script-src 'self'`
+   exists to prevent and a standing invitation: anything that ever reached
+   `item.run` would have run as the application. Nothing did, but the door does
+   not need to have been used to be worth closing. */
+const PALETTE_ACTIONS = Object.freeze({
+  switchTab:            (...a) => switchTab(...a),
+  goCrmView:            (...a) => goCrmView(...a),
+  goToGuest:            (...a) => goToGuest(...a),
+  openReservationModal: (...a) => openReservationModal(...a),
+  openCustomerModal:    (...a) => openCustomerModal(...a),
+  openProfileModal:     (...a) => openProfileModal(...a),
+  openProfileDetail:    (...a) => openProfileDetail(...a),
+});
+
 function runPaletteItem(i){
   const item = palette.items[i];
   if (!item) return;
   closePalette();
-  try { window.eval ? eval(item.run) : Function(item.run)(); } catch (e) { console.error(e); }
+  const fn = PALETTE_ACTIONS[item.action];
+  if (typeof fn !== 'function'){
+    console.warn('[palette] no command named', item.action);
+    return;
+  }
+  try { fn(...(Array.isArray(item.args) ? item.args : [])); }
+  catch (e) { console.error('[palette] command failed', item.action, e); }
 }
 function onPaletteKey(e){
   if (e.key === 'ArrowDown'){ e.preventDefault(); movePalette(1); }

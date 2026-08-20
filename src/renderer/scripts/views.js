@@ -237,19 +237,36 @@ function clearResFilters(){
 }
 /* Reservations and Cancelled are one dataset viewed two ways (spec §6) —
    switching just changes the view flag sent to the same list call. */
+/* May this session see Deleted history at all? The backend is the authority —
+   `reservations.listDeleted` is a separate verb behind its own capability and
+   refuses MARKETING outright. This only decides whether to draw the tab. */
+function maySeeDeleted(){
+  return ['ADMIN','MANAGER'].includes(state.session?.role) && can1('reservations.deleted.read');
+}
+
+/* Reservations and Cancelled are one dataset viewed two ways; Deleted is a
+   different dataset behind a different verb, so it is not a third value of the
+   same `view` parameter crossing the boundary — `renderReservations` calls
+   `reservations.listDeleted` for it. Making it a parameter would have meant a
+   MARKETING client could ask for it by crafting a request. */
 function setResView(view){
   const s = state.res;
+  if (view === 'deleted' && !maySeeDeleted()) return;
   if (s.view === view) return;
   s.view = view; s.page = 1;
-  el('resViewActiveTab').classList.toggle('active', view === 'active');
-  el('resViewActiveTab').setAttribute('aria-selected', String(view === 'active'));
-  el('resViewCancelledTab').classList.toggle('active', view === 'cancelled');
-  el('resViewCancelledTab').setAttribute('aria-selected', String(view === 'cancelled'));
+  for (const [id, name] of [['resViewActiveTab','active'], ['resViewCancelledTab','cancelled'], ['resViewDeletedTab','deleted']]){
+    const tab = el(id);
+    if (!tab) continue;
+    tab.classList.toggle('active', view === name);
+    tab.setAttribute('aria-selected', String(view === name));
+  }
   /* the status refinement (Upcoming/Checked in/Completed) only makes
-     sense inside the active view — every row in Cancelled already is */
-  el('resFStatus').style.display = view === 'cancelled' ? 'none' : '';
-  el('resFStatusLabel').style.display = view === 'cancelled' ? 'none' : '';
-  if (view === 'cancelled'){ el('resFStatus').value = ''; state.res.status = ''; }
+     sense inside the active view — every row in Cancelled already is,
+     and a deleted booking has left the lifecycle entirely */
+  const hideStatus = view !== 'active';
+  el('resFStatus').style.display = hideStatus ? 'none' : '';
+  el('resFStatusLabel').style.display = hideStatus ? 'none' : '';
+  if (hideStatus){ el('resFStatus').value = ''; state.res.status = ''; }
   renderReservations();
 }
 function fillFilterProfileSelects(){
@@ -267,19 +284,77 @@ async function renderReservations(){
      they share the same search/invitedBy/date filters as the visible
      view (status only ever applies within Reservations, never Cancelled),
      otherwise a badge can promise a row the filtered list won't render */
-  const shared = { search:s.search, invitedBy:s.invitedBy || '', from:s.from || '', to:s.to || '' };
-  const [data, activeCount, cancelledCount] = await Promise.all([
-    call(window.api.reservations.list, { ...resFilterParams(), page:s.page, pageSize:s.pageSize }),
-    call(window.api.reservations.list, { ...shared, status:s.status || '', view:'active', pageSize:1 }, { silent:true }),
-    call(window.api.reservations.list, { ...shared, view:'cancelled', pageSize:1 }, { silent:true })
+  const shared = {};
+  if (s.search) shared.search = s.search;
+  if (s.invitedBy) shared.invitedBy = s.invitedBy;
+  if (s.from) shared.from = s.from;
+  if (s.to) shared.to = s.to;
+
+  const showDeletedTab = maySeeDeleted();
+  /* Sign out as an administrator and back in as a marketer in the same window
+     and the view flag would still say "deleted". Reset it rather than trusting
+     that nobody will manage it — the backend would refuse anyway, but the
+     screen should not be asking. */
+  if (s.view === 'deleted' && !showDeletedTab){ s.view = 'active'; s.page = 1; }
+  const deletedView = s.view === 'deleted';
+  const deletedTab = el('resViewDeletedTab');
+  if (deletedTab) deletedTab.style.display = showDeletedTab ? '' : 'none';
+
+  /* The visible list comes from whichever verb owns the view. Deleted uses the
+     dedicated one; the badge for it is only ever requested when this session is
+     allowed to have it, so a refusal never appears as a broken count. */
+  const listCall = deletedView
+    ? call(window.api.reservations.listDeleted, { ...shared, page:s.page, pageSize:s.pageSize })
+    : call(window.api.reservations.list, { ...resFilterParams(), page:s.page, pageSize:s.pageSize });
+
+  const [data, activeCount, cancelledCount, deletedCount] = await Promise.all([
+    listCall,
+    call(window.api.reservations.list, { ...shared, ...(s.status ? { status:s.status } : {}), view:'active', pageSize:1 }, { silent:true }),
+    call(window.api.reservations.list, { ...shared, view:'cancelled', pageSize:1 }, { silent:true }),
+    showDeletedTab
+      ? call(window.api.reservations.listDeleted, { ...shared, pageSize:1 }, { silent:true }).catch(() => null)
+      : Promise.resolve(null),
   ]);
   if (!data) return;
   s.total = data.total; s.rows = data.rows;
   el('resViewActiveCount').textContent = activeCount?.total ?? 0;
   el('resViewCancelledCount').textContent = cancelledCount?.total ?? 0;
+  if (deletedTab) el('resViewDeletedCount').textContent = deletedCount?.total ?? 0;
 
   const tbody = el('resTableBody');
   const cancelledView = s.view === 'cancelled';
+  /* The column holds the deletion reason in this view, so it says so. */
+  const notesHeader = el('resNotesHeader');
+  if (notesHeader) notesHeader.textContent = deletedView ? 'DELETION REASON' : 'NOTES';
+
+  /* A deleted booking is a record of something that was undone. It carries who
+     removed it, when, and why — and it offers no actions, because editing or
+     cancelling a reservation that is no longer operational is meaningless. */
+  if (deletedView){
+    tbody.innerHTML = data.rows.length ? data.rows.map(r => `
+      <tr tabindex="0" aria-label="${escapeHtml(r.customer_name)}, deleted reservation">
+        <td class="muted">#${escapeHtml(r.customer_code)}</td>
+        <td>${escapeHtml(r.customer_name)}</td>
+        <td>${fmtDate(r.check_in)}</td>
+        <td>${fmtDate(r.check_out)}</td>
+        <td>${invitedByHTML(r.invited_by_name, r.invited_by_status)}</td>
+        <td class="muted">${r.deletion_reason ? escapeHtml(r.deletion_reason) : '—'}</td>
+        <td>
+          <div class="status-cell">
+            ${statusTagHTML('DELETED')}
+            <span class="deleted-meta">${escapeHtml(r.deleted_by_username || 'unknown')} · ${fmtDateTime(r.deleted_at)}</span>
+          </div>
+        </td>
+      </tr>`).join('')
+      : emptyRow(7, s.search
+          ? emptyState({ icon:'search', title:'Nothing matched that search',
+              text:`No deleted reservation matches “${s.search}”.`,
+              actions:[{ label:'Clear search', act:'clearSearchAnd', actArgs:['resSearch','onResSearch'] }] })
+          : emptyState({ icon:'check', title:'No deleted reservations',
+              text:'Reservations an administrator deletes are kept here, with the reason and who removed them.' }));
+    pagerHTML('resPager', s.page, s.pageSize, s.total, 'goResPage');
+    return;
+  }
   tbody.innerHTML = data.rows.length ? data.rows.map(r => `
     <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${r.customer_id},"resDetailPanel"]' data-act-dblclick="openReservationModal" data-args-dblclick='[${r.id}]' aria-label="${escapeHtml(r.customer_name)}, ${fmtDate(r.check_in)} to ${fmtDate(r.check_out)}">
       <td class="muted">#${escapeHtml(r.customer_code)}</td>

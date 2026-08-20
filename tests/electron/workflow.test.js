@@ -163,6 +163,171 @@ app.whenReady().then(async () => {
     copy: (document.querySelector('#modalDeleteReservation .danger-hint') || {}).textContent || '',
   })\`);
 
+  // ============================ Deleted Reservations, in the real screen
+  /* The backend verb existed from the start; the screen never exposed it, so
+     an administrator had no way to reach deleted history at all. */
+  await js('switchTab("reservations")');
+  await settle(700);
+
+  out.deletedTabAdmin = await js(\`(async () => {
+    const tab = document.getElementById('resViewDeletedTab');
+    if (!tab) return { present: false };
+    tab.click();
+    await new Promise(r => setTimeout(r, 800));
+    const rows = [...document.querySelectorAll('#resTableBody tr')];
+    const text = rows.map(r => r.textContent).join(' | ');
+    return {
+      present: true,
+      visible: getComputedStyle(tab).display !== 'none',
+      active: tab.classList.contains('active'),
+      count: document.getElementById('resViewDeletedCount').textContent,
+      rowCount: rows.length,
+      showsGuest: /WORKFLOW GUEST/.test(text),
+      showsReason: /wrong guest/i.test(text),
+      showsWhoDeleted: /owner/.test(text),
+      showsDeletedBadge: /DELETED/.test(text),
+      notesHeader: document.getElementById('resNotesHeader').textContent,
+      /* A deleted booking offers no destructive actions — editing or
+         cancelling something already withdrawn is meaningless. */
+      rowActionButtons: document.querySelectorAll('#resTableBody .ra-btn').length,
+    };
+  })()\`);
+
+  /* The same booking must not still be sitting in Reservations or Cancelled. */
+  out.deletedAbsentElsewhere = await js(\`(async () => {
+    const seen = {};
+    for (const [view, id] of [['active','resViewActiveTab'], ['cancelled','resViewCancelledTab']]) {
+      document.getElementById(id).click();
+      await new Promise(r => setTimeout(r, 700));
+      seen[view] = /WORKFLOW GUEST/.test(document.getElementById('resTableBody').textContent);
+    }
+    return seen;
+  })()\`);
+
+  // ================================================ Command Palette, for real
+  out.palette = await js(\`(async () => {
+    const r = {};
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    await new Promise(x => setTimeout(x, 400));
+    const overlay = document.getElementById('palette') || document.querySelector('.palette-overlay, #paletteOverlay');
+    const input = document.getElementById('paletteInput');
+    r.opened = !!input && !!input.offsetParent;
+    if (!r.opened) return r;
+
+    input.value = 'Dash';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(x => setTimeout(x, 300));
+    r.itemsAfterTyping = document.querySelectorAll('#paletteList .palette-item').length;
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await new Promise(x => setTimeout(x, 120));
+    r.arrowDownMovedCursor = document.querySelectorAll('#paletteList .palette-item.active').length === 1;
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await new Promise(x => setTimeout(x, 120));
+    r.arrowUpKeptOneActive = document.querySelectorAll('#paletteList .palette-item.active').length === 1;
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise(x => setTimeout(x, 300));
+    r.escapeClosed = !input.offsetParent;
+
+    /* Reopen and execute by MOUSE, which is the path that used to run
+       eval(item.run). */
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    await new Promise(x => setTimeout(x, 300));
+    const input2 = document.getElementById('paletteInput');
+    input2.value = 'Action Calendar';
+    input2.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(x => setTimeout(x, 300));
+    const item = document.querySelector('#paletteList .palette-item');
+    r.hasMatch = !!item;
+    if (item) {
+      item.click();
+      await new Promise(x => setTimeout(x, 700));
+      r.clickNavigated = !!document.querySelector('#page-calendar.active, [data-page="calendar"].active')
+        || (document.getElementById('page-calendar') || {}).classList?.contains('active') || false;
+      r.closedAfterRun = !document.getElementById('paletteInput').offsetParent;
+    }
+    /* Enter must execute too. */
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    await new Promise(x => setTimeout(x, 300));
+    const input3 = document.getElementById('paletteInput');
+    input3.value = 'Dashboard';
+    input3.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(x => setTimeout(x, 300));
+    input3.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise(x => setTimeout(x, 700));
+    r.enterNavigated = (document.getElementById('page-dashboard') || {}).classList?.contains('active') || false;
+    return r;
+  })()\`);
+
+  // ================== CRM submenu + Finder: the hover paths that were inline
+  out.hover = await js(\`(async () => {
+    const r = {};
+    const trigger = document.getElementById('appMenuTrigger');
+    if (trigger) { trigger.click(); await new Promise(x => setTimeout(x, 400)); }
+    const crm = document.getElementById('appMenuCrmItem');
+    r.crmItemPresent = !!crm;
+    if (crm) {
+      r.inlineAttrs = crm.getAttributeNames().filter(n => n.startsWith('on'));
+      r.scopedAttrs = crm.getAttributeNames().filter(n => n.startsWith('data-act-'));
+      /* mouseenter does not bubble; the app delegates via mouseover. */
+      crm.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body }));
+      await new Promise(x => setTimeout(x, 500));
+      const sub = document.getElementById('crmSubmenu');
+      r.submenuOpenedOnHover = !!sub && sub.classList.contains('show');
+      r.submenuInlineAttrs = sub ? sub.getAttributeNames().filter(n => n.startsWith('on')) : [];
+    }
+    return r;
+  })()\`);
+
+  out.finder = await js(\`(async () => {
+    const r = {};
+    if (typeof openFinder !== 'function') return { openFinderMissing: true };
+    openFinder('customer');
+    await new Promise(x => setTimeout(x, 900));
+    const rows = [...document.querySelectorAll('#finderResults .finder-row')];
+    r.rowCount = rows.length;
+    if (!rows.length) return r;
+    r.inlineAttrs = rows[0].getAttributeNames().filter(n => n.startsWith('on'));
+    r.scopedAttrs = rows[0].getAttributeNames().filter(n => n.startsWith('data-act-'));
+    const target = rows[rows.length - 1];
+    target.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body }));
+    await new Promise(x => setTimeout(x, 250));
+    r.hoverMovedCursor = target.classList.contains('cursor');
+    if (typeof closeFinder === 'function') closeFinder();
+    return r;
+  })()\`);
+
+  // ========================= MARKETING must not reach any of this
+  out.marketing = await js(\`(async () => {
+    const r = {};
+    const profile = await window.api.profiles.create({ fullName: 'DELETED VIEW MARKETER' });
+    if (!profile.ok) return { setupFailed: JSON.stringify(profile.error) };
+    const user = await window.api.users.create({
+      username: 'mviewer', password: 'harbour-lantern-quiet', role: 'MARKETING',
+      profileId: profile.data.id, fullName: 'DELETED VIEW MARKETER', active: true });
+    if (!user.ok) return { setupFailed: JSON.stringify(user.error) };
+    await window.api.auth.logout({});
+    const session = await window.api.auth.login({ username: 'mviewer', password: 'harbour-lantern-quiet' });
+    r.signedIn = session.ok && session.data.role === 'MARKETING';
+    if (!r.signedIn) return r;
+    if (typeof enterApp === 'function') { state.session = session.data; await enterApp(); }
+    await new Promise(x => setTimeout(x, 900));
+    switchTab('reservations');
+    await new Promise(x => setTimeout(x, 900));
+
+    const tab = document.getElementById('resViewDeletedTab');
+    r.tabVisible = !!tab && getComputedStyle(tab).display !== 'none';
+    /* The UI hides it — but the UI is not the boundary. Click it anyway, and
+       call the verb directly, and both must fail. */
+    if (tab) { tab.click(); await new Promise(x => setTimeout(x, 600)); }
+    r.viewAfterForcedClick = state.res.view;
+    r.tableShowsDeleted = /DELETED/.test(document.getElementById('resTableBody').textContent);
+    const direct = await window.api.reservations.listDeleted({ page: 1, pageSize: 50 });
+    r.directCall = direct.ok ? 'ALLOWED' : (direct.error && direct.error.code);
+    return r;
+  })()\`);
+
   out.consoleErrors = consoleErrors;
   console.log('PROBE:' + JSON.stringify(out));
   app.exit(0);
@@ -289,6 +454,72 @@ module.exports = async function () {
       p.deleteForm.hasReasonField === true);
     s.check('and its copy no longer claims the record is destroyed',
       !/no record of the stay is kept|cannot be undone/i.test(p.deleteForm.copy), p.deleteForm.copy.trim());
+
+    // ================================================ Deleted Reservations UI
+    /* The verb existed from the first day of the migration and the screen never
+       exposed it, so deleted history was unreachable for the only two roles
+       permitted to read it. */
+    const d = p.deletedTabAdmin;
+    s.check('the Reservation History screen has a Deleted tab', d.present === true, JSON.stringify(d));
+    s.check('an administrator can see it', d.visible === true, JSON.stringify(d));
+    s.check('clicking it activates the Deleted view', d.active === true, JSON.stringify(d));
+    s.check('the deleted reservation is listed there', d.showsGuest === true, JSON.stringify(d));
+    s.check('the row shows why it was deleted', d.showsReason === true, JSON.stringify(d));
+    s.check('and who deleted it', d.showsWhoDeleted === true, JSON.stringify(d));
+    s.check('and carries a DELETED badge', d.showsDeletedBadge === true, JSON.stringify(d));
+    s.check('the count pill reports one deleted reservation', d.count === '1', String(d.count));
+    s.check('the column header names the deletion reason',
+      d.notesHeader === 'DELETION REASON', String(d.notesHeader));
+    s.check('a deleted row offers no edit or cancel action',
+      d.rowActionButtons === 0, `${d.rowActionButtons} action buttons on deleted rows`);
+
+    /* DELETED outranks CANCELLED: the booking belongs to exactly one view. */
+    s.check('the deleted reservation is gone from Reservations',
+      p.deletedAbsentElsewhere.active === false, JSON.stringify(p.deletedAbsentElsewhere));
+    s.check('and gone from Cancelled',
+      p.deletedAbsentElsewhere.cancelled === false, JSON.stringify(p.deletedAbsentElsewhere));
+
+    // ============================================== Command Palette, driven live
+    const pal = p.palette;
+    s.check('the Command Palette opens', pal.opened === true, JSON.stringify(pal));
+    s.check('typing filters the command list', pal.itemsAfterTyping > 0, JSON.stringify(pal));
+    s.check('Arrow Down keeps exactly one command selected', pal.arrowDownMovedCursor === true, JSON.stringify(pal));
+    s.check('Arrow Up keeps exactly one command selected', pal.arrowUpKeptOneActive === true, JSON.stringify(pal));
+    s.check('Escape closes the palette', pal.escapeClosed === true, JSON.stringify(pal));
+    /* This is the path that used to call eval(item.run). */
+    s.check('clicking a command executes it', pal.clickNavigated === true, JSON.stringify(pal));
+    s.check('and the palette closes after running a command', pal.closedAfterRun === true, JSON.stringify(pal));
+    s.check('Enter executes the selected command', pal.enterNavigated === true, JSON.stringify(pal));
+
+    // ======================================= CRM submenu and Finder hover paths
+    const h = p.hover;
+    s.check('the CRM menu item carries no inline handler',
+      Array.isArray(h.inlineAttrs) && h.inlineAttrs.length === 0, JSON.stringify(h.inlineAttrs));
+    s.check('it uses event-scoped delegated actions instead',
+      Array.isArray(h.scopedAttrs) && h.scopedAttrs.length >= 3, JSON.stringify(h.scopedAttrs));
+    s.check('hovering the CRM item opens the submenu', h.submenuOpenedOnHover === true, JSON.stringify(h));
+    s.check('the submenu itself carries no inline handler',
+      Array.isArray(h.submenuInlineAttrs) && h.submenuInlineAttrs.length === 0, JSON.stringify(h.submenuInlineAttrs));
+
+    const f = p.finder;
+    s.check('the Finder lists guests', f.rowCount > 0, JSON.stringify(f));
+    s.check('a Finder row carries no inline handler',
+      Array.isArray(f.inlineAttrs) && f.inlineAttrs.length === 0, JSON.stringify(f.inlineAttrs));
+    s.check('hovering a Finder row moves the cursor to it',
+      f.hoverMovedCursor === true, JSON.stringify(f));
+
+    // ================================ MARKETING is refused, by UI and by boundary
+    const mk = p.marketing;
+    s.check('a marketing user can sign in for the negative test',
+      mk.signedIn === true, JSON.stringify(mk));
+    s.check('MARKETING never sees the Deleted tab', mk.tabVisible === false, JSON.stringify(mk));
+    s.check('forcing a click on it does not switch the view',
+      mk.viewAfterForcedClick !== 'deleted', String(mk.viewAfterForcedClick));
+    s.check('and no deleted row reaches their table',
+      mk.tableShowsDeleted === false, String(mk.tableShowsDeleted));
+    /* The UI is a convenience. The boundary is the guarantee. */
+    s.check('calling the deleted verb directly is refused by the backend',
+      mk.directCall === 'FORBIDDEN' || mk.directCall === 'NOT_FOUND', String(mk.directCall));
 
     // ------------------------------------------------------ nothing complained
     s.check('the renderer logged no errors or warnings',

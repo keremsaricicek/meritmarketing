@@ -76,14 +76,22 @@ if (-not (Test-Path 'package-lock.json')) {
 
 # ------------------------------------------------------------------ assets
 Step 'Assets'
-if (Test-Path 'assets/crm.ico') {
-  Write-Host '  crm.ico present' -ForegroundColor Green
-} else {
-  # A missing icon does not corrupt data, so it blocks only a STABLE release.
-  if ($Channel -eq 'stable') {
-    Block 'assets/crm.ico is missing.' 'Place the real crm.ico in assets/ before a stable release.'
+# Both are owner-supplied artwork. Neither is invented here, and a stable
+# release cannot proceed without them: shipping the default Electron icon or a
+# broken brand mark is a visible defect on the first screen the owner sees.
+$requiredAssets = @(
+  @{ Path = 'assets/crm.ico';         What = 'the Windows application icon';
+     Missing = 'The Windows build would use the default Electron icon.' },
+  @{ Path = 'src/renderer/logo.png';  What = 'the in-app brand mark';
+     Missing = 'The renderer references ./logo.png; without it the brand mark falls back to the letter mark.' }
+)
+foreach ($asset in $requiredAssets) {
+  if (Test-Path $asset.Path) {
+    Write-Host "  $($asset.Path) present" -ForegroundColor Green
+  } elseif ($Channel -eq 'stable') {
+    Block "$($asset.Path) is missing." "Place $($asset.What) at $($asset.Path) before a stable release."
   } else {
-    Write-Warning '  assets/crm.ico is missing — the default Electron icon will be used.'
+    Write-Warning "  $($asset.Path) is missing — $($asset.Missing)"
   }
 }
 

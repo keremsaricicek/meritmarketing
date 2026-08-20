@@ -111,7 +111,7 @@
         Action Calendar
       </div>
       <div class="nav-item has-submenu" data-page="customers" id="appMenuCrmItem" role="menuitem" aria-haspopup="true" tabindex="0" data-activatable
-           data-act="openCrmSubmenu" data-on="click" data-args='[{"$":"event"}]' onmouseenter="scheduleOpenCrmSubmenu()" onmouseleave="scheduleCloseSubmenu()" data-act="arrowRightOpensCrmSubmenu" data-on="keydown" data-args='[{"$":"event"}]'>
+           data-act-click="openCrmSubmenu" data-args-click='[{"$":"event"}]' data-act-keydown="arrowRightOpensCrmSubmenu" data-args-keydown='[{"$":"event"}]' data-act-mouseenter="scheduleOpenCrmSubmenu" data-act-mouseleave="scheduleCloseSubmenu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v4h4"/><path d="M9 13h6M9 17h6"/></svg>
         CRM Panel<span class="nav-badge" id="norecBadge">0</span>
         <span class="nav-item-caret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
@@ -165,7 +165,7 @@
   </div>
 </div>
 
-<div class="app-submenu" id="crmSubmenu" role="menu" aria-label="CRM Panel" onmouseenter="cancelCloseSubmenu()" onmouseleave="scheduleCloseSubmenu()">
+<div class="app-submenu" id="crmSubmenu" role="menu" aria-label="CRM Panel" data-act-mouseenter="cancelCloseSubmenu" data-act-mouseleave="scheduleCloseSubmenu">
   <div class="app-submenu-title">CRM Panel</div>
   <div class="nav">
     <div class="nav-item" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","overview"]'>Overview</div>
@@ -259,6 +259,10 @@
     <div class="view-switch" role="tablist" aria-label="Reservation view">
       <button class="view-switch-tab active" role="tab" aria-selected="true" id="resViewActiveTab" data-act="setResView" data-on="click" data-args='["active"]'>Reservations<span class="count-pill" id="resViewActiveCount">0</span></button>
       <button class="view-switch-tab" role="tab" aria-selected="false" id="resViewCancelledTab" data-act="setResView" data-on="click" data-args='["cancelled"]'>Cancelled<span class="count-pill" id="resViewCancelledCount">0</span></button>
+      <!-- Deleted history is management's. The tab is removed from the DOM
+           entirely for MARKETING rather than hidden, and the backend refuses
+           the verb regardless — the UI is a convenience, never the boundary. -->
+      <button class="view-switch-tab is-hidden" role="tab" aria-selected="false" id="resViewDeletedTab" data-act="setResView" data-on="click" data-args='["deleted"]'>Deleted<span class="count-pill" id="resViewDeletedCount">0</span></button>
     </div>
     <div class="toolbar">
       <label class="visually-hidden" for="resSearch">Search reservations</label>
@@ -303,7 +307,7 @@
               <th scope="col" class="sortable" data-act="sortReservations" data-on="click" data-args='["customer"]' aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
               <th scope="col" class="sortable sorted" data-act="sortReservations" data-on="click" data-args='["check_in"]' aria-sort="descending">CHECK IN<span class="sort-arrow">↓</span></th>
               <th scope="col" class="sortable" data-act="sortReservations" data-on="click" data-args='["check_out"]' aria-sort="none">CHECK OUT<span class="sort-arrow"></span></th>
-              <th scope="col">INVITED BY</th><th scope="col">NOTES</th><th scope="col">STATUS</th>
+              <th scope="col">INVITED BY</th><th scope="col" id="resNotesHeader">NOTES</th><th scope="col">STATUS</th>
             </tr>
           </thead>
           <tbody id="resTableBody"></tbody>
@@ -391,7 +395,7 @@
             <div class="filter-opt" data-val="NO_RECORD" data-act="setCustFilter" data-on="click" data-args='["NO_RECORD",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot ink-muted"></span>NO RECORD</div>
             <div class="fm-sep"></div>
             <div class="fm-title">Marketing</div>
-            <select class="fm-input" id="custFMarketing" data-act="applyCustFilters" data-on="change" data-args='[]' data-act="stopPropagation" data-on="click" data-args='[]'></select>
+            <select class="fm-input" id="custFMarketing" data-act-change="applyCustFilters" data-args-change='[]' data-act-click="stopPropagation" data-args-click='[]'></select>
             <div class="fm-actions"><button class="pager-btn" data-act="clearCustFilters" data-on="click" data-args='[]'>Clear</button></div>
           </div>
         </div>
@@ -701,7 +705,7 @@
             <span id="resGuestFinderLabel">Find guest by ID, name or phone…</span>
           </button>
           <div class="field-error" id="err-resCustomerSelect" role="alert"></div>
-          <a class="btn-link guest-new-link" id="resNewGuestLink" href="javascript:void(0)" data-act="setResNewGuest" data-on="click" data-args='[true]'>+ New guest (not yet registered)</a>
+          <a class="btn-link guest-new-link" id="resNewGuestLink" role="button" tabindex="0" data-act="setResNewGuest" data-on="click" data-args='[true]'>+ New guest (not yet registered)</a>
         </div>
         <div class="entity-preview" id="resGuestPreview">
           <div class="avatar lg m-0" id="resGuestAvatar"></div>
@@ -724,7 +728,7 @@
             <input type="text" id="resNewCustomerName">
             <div class="field-error" id="err-resNewCustomerName" role="alert"></div>
           </div>
-          <a class="btn-link guest-new-link" href="javascript:void(0)" data-act="setResNewGuest" data-on="click" data-args='[false]'>Choose an existing guest instead</a>
+          <a class="btn-link guest-new-link" role="button" tabindex="0" data-act="setResNewGuest" data-on="click" data-args='[false]'>Choose an existing guest instead</a>
         </div>
       </div>
 
@@ -1261,7 +1265,7 @@
 <div class="palette-overlay" id="palette">
   <div class="palette" role="dialog" aria-modal="true" aria-label="Search">
     <input class="palette-input" id="paletteInput" placeholder="Search guests, reservations, people — or type a command"
-           autocomplete="off" spellcheck="false" data-act="onPaletteInput" data-on="input" data-args='[]' data-act="onPaletteKey" data-on="keydown" data-args='[{"$":"event"}]'>
+           autocomplete="off" spellcheck="false" data-act-input="onPaletteInput" data-args-input='[]' data-act-keydown="onPaletteKey" data-args-keydown='[{"$":"event"}]'>
     <div class="palette-list" id="paletteList"></div>
     <div class="palette-foot">
       <span><kbd>↑</kbd><kbd>↓</kbd> move</span>

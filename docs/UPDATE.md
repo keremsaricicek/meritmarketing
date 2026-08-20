@@ -1,5 +1,27 @@
 # Updates
 
+> **Automatic updates are NOT enabled for v1.**
+>
+> A shipped v1 installation has no update feed configured, so the application
+> never checks, never downloads and never installs anything on its own. This is
+> a deliberate release decision, not an oversight.
+>
+> The reasons are concrete and were confirmed by independent review:
+> electron-updater's Windows path performs **no signature verification** when
+> the packaging toolchain has not produced an `app-update.yml` (this project
+> packages with Forge, which does not), so the only integrity check would be a
+> hash served by the same host as the payload. Until there is a signing
+> certificate and a trusted feed, an automatic updater is a remote code
+> execution path with extra steps.
+>
+> `autoInstallOnAppQuit` is off, so nothing installs silently on exit;
+> `updates:install` requires ADMIN and takes a backup first; and with no
+> `MERIT_UPDATE_URL` the check is a no-op. Updating v1 means running a new
+> installer by hand.
+>
+> Redesigning the updater properly is a separate project, after the first
+> signed and Windows-tested release.
+
 ## Two rules that outrank everything
 
 1. **The application must work with no Internet.** An update check that fails is

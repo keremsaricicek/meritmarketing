@@ -76,3 +76,27 @@ The engineering is finished. Nothing on this list is code:
 5. Publish a feed and run one update end to end between two versions (B6).
 
 Delete this file once those are done. It is a handoff record, not documentation.
+
+## Final correction pass (post-a259ea9)
+
+A third independent inspection of the source archive found four things the two
+adversarial reviews and 1131 assertions had all missed:
+
+| # | Finding | Fix |
+|---|---|---|
+| A | The Deleted Reservations **UI never existed**. The backend verb, its capability and its tests were all in place; the screen only ever showed Reservations and Cancelled, so no ADMIN or MANAGER could reach deleted history. | Third tab, using the dedicated `reservations.listDeleted` verb — not a `view` parameter. Removed for MARKETING and refused by the boundary. |
+| B | `runPaletteItem` executed command strings with `eval(item.run)`, falling back to `Function(item.run)()`. A live code evaluator in the renderer, next to a CSP whose whole purpose is to prevent one. | Palette entries carry `action` + `args`; a frozen `PALETTE_ACTIONS` allowlist resolves them. |
+| C | Inline `onmouseenter`/`onmouseleave` handlers remained on the CRM submenu and every Finder row — inert under CSP, so those hover behaviours were dead. The test claiming "no inline event handler of any kind survives" checked a hand-written list of four event names that did not include them. | Delegated via bubbling `mouseover`/`mouseout` filtered back to enter/leave semantics. Two `javascript:` URLs removed as well. |
+| D | Duplicate `data-act`/`data-on`/`data-args` triples on the CRM item, the marketing filter and the palette input. HTML keeps the first and drops the rest, so the second behaviour silently did nothing. | Event-scoped `data-act-<event>` attributes, which cannot collide with themselves. |
+
+The common thread is the one this migration keeps re-learning: **a gate built as
+a hand-maintained list only catches what somebody remembered to list.** The new
+`tests/ui/renderer-source-safety.test.js` is written as exhaustive patterns
+instead — any `on*=` attribute, any code-constructing call, any repeated action
+attribute in one tag — and was verified to go red when each defect is
+reintroduced.
+
+Also corrected: the CI step commented "Proves the packaged binary starts on
+Windows" only checked that an .exe existed and was over 1 MB. It is now named
+`Validate the packaged artifact (does not launch it)` and says so in its output.
+Windows startup remains unverified.

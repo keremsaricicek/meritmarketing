@@ -94,8 +94,18 @@ jobs:
             "$h  $($_.Name)"
           } | Tee-Object -FilePath out/make/SHA256SUMS.txt
 
-      # Proves the packaged binary starts on Windows, rather than assuming it.
-      - name: Smoke-test the packaged application
+      # This step validates the ARTIFACT. It does NOT start the application.
+      #
+      # It previously carried a comment claiming it proved the packaged binary
+      # starts on Windows. It never did — it checks that an executable was
+      # produced and is a plausible size, which is a packaging check, not a
+      # runtime one. Launching the GUI here and waiting for a trustworthy
+      # readiness signal is a real piece of work, and until it exists the step
+      # is named for what it actually does.
+      #
+      # Windows runtime startup, installer execution and the Squirrel update
+      # path remain UNVERIFIED and manual. See docs/RELEASE.md.
+      - name: Validate the packaged artifact (does not launch it)
         shell: pwsh
         run: |
           $exe = Get-ChildItem out -Recurse -Filter 'MeritMarketingHub.exe' | Select-Object -First 1
@@ -104,6 +114,7 @@ jobs:
           $info = Get-Item $exe.FullName
           if ($info.Length -lt 1MB) { throw 'Packaged executable is implausibly small.' }
           Write-Host "Size $([math]::Round($info.Length/1MB,1)) MB"
+          Write-Host 'NOTE: the application was not started. This proves packaging, not startup.'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
