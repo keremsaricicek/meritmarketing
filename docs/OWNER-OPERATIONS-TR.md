@@ -20,6 +20,9 @@ C:\Users\<kullanıcı adınız>\AppData\Roaming\Merit Marketing Hub\
 Bu ayrım önemlidir: **program güncellenince verileriniz silinmez.** Güncelleme
 sadece programın kendisini değiştirir.
 
+> Otomatik güncelleme şu anda **kapalıdır**; nedeni madde 8'de anlatılmıştır.
+> Yeni sürümler şimdilik elden kurulur ve bu da verilerinize dokunmaz.
+
 ---
 
 ## 2. İlk kurulumda ne olur?
@@ -70,7 +73,34 @@ olduğu için değil, program izin vermediği için.
 
 ---
 
-## 4. Yedekleme — en önemli bölüm
+## 4. Bildirimler (zil simgesi)
+
+Sağ üstteki zil çalışır ve kime ne gösterileceği role göre değişir:
+
+| Kim | Ne görür |
+|---|---|
+| **Müdür** | Personelin yaptığı işlemler — rezervasyon, misafir, not, profil |
+| **Pazarlama** | Kendisine atanan misafirler, soğuyan misafirleri, yaklaşan girişleri |
+
+İki tür bildirim vardır ve farkları önemlidir:
+
+- **Olay bildirimi** bir kez olur ve kalır. "Size yeni misafir atandı" gibi.
+- **Durum bildirimi** kendiliğinden değişir. "Bu misafir soğudu" ya da "yarın
+  giriş var" gibi. Bu tür bildirimler her açılışta yeniden hesaplanır: durum
+  geçtiyse bildirim **kendiliğinden kaybolur.**
+
+Bu yüzden iptal edilen bir rezervasyonun giriş hatırlatması ortadan kalkar.
+Olmayan bir giriş için hatırlatma görmek, hiç hatırlatma görmemekten kötüdür —
+birisi ona göre hareket eder.
+
+Kendinizin yaptığı işlem size bildirim olarak gelmez; ne yaptığınızı zaten
+biliyorsunuz.
+
+Müdür bildirim akışı istenmezse Ayarlar'dan kapatılabilir.
+
+---
+
+## 5. Yedekleme — en önemli bölüm
 
 ### Yedek nasıl alınır?
 
@@ -104,7 +134,7 @@ gibi kalır.**
 
 ---
 
-## 5. Yeni sürüm çıkarma (versiyon)
+## 6. Yeni sürüm çıkarma (versiyon)
 
 ### Versiyon numarası ne anlama gelir?
 
@@ -140,7 +170,7 @@ out\make\...\MeritMarketingHub-Setup.exe
 
 ---
 
-## 6. GitHub'a gönderirken hata alırsanız
+## 7. GitHub'a gönderirken hata alırsanız
 
 Bazen `git push` komutu **403** hatası verir. Bu sizin hatanız değildir — izin
 veya yetki ile ilgilidir.
@@ -159,11 +189,36 @@ Bu komut **hiçbir şeyi silmez ve geri almaz.**
 
 ---
 
-## 7. Şu anda sizden beklenen iki şey
+## 8. Otomatik güncelleme — şu anda KAPALI, ve nedeni
 
-Bu ikisi olmadan da program çalışır, ama profesyonel bir kurulum için gereklidir:
+Program güncellendiğinde verileriniz silinmez, ve güncellemeden önce otomatik
+yedek alınır. Bu kısım hazır ve test edilmiş durumdadır.
 
-### a) `crm.ico` simge dosyası
+**Ama otomatik güncelleme şu anda kapalıdır ve açılmamalıdır.**
+
+Sebebi tek cümleyle: **indirilen kurulum dosyasının imzası doğrulanmıyor.**
+Yani güncelleme sunucusunu ele geçiren biri, sizin bilgisayarınıza istediği
+programı kurdurabilirdi. Kilidi takmış ama çevirmemiş olmak gibidir.
+
+Bu düzelene kadar yeni sürümler **elden kurulur**: kurulum dosyasını siz
+indirir, siz çalıştırırsınız. Verileriniz yine korunur.
+
+Açılabilmesi için gereken iki şey:
+
+1. Kod imzalama sertifikası (aşağıda, madde 9-b).
+2. Kurulum paketleyicisi ile güncelleme istemcisinin uyumlu hale getirilmesi —
+   şu an ikisi farklı biçim bekliyor. Bu bizim işimiz, sizin değil.
+
+Bu bir eksiklik değil, bilerek verilmiş bir karardır. Çalışmayan bir güvenlik
+kontrolünü "var" saymaktansa, özelliği kapalı tutmak doğrudur.
+
+---
+
+## 9. Şu anda sizden beklenenler
+
+Bunlar olmadan da program çalışır, ama profesyonel bir kurulum için gereklidir:
+
+### a) `crm.ico` simge dosyası ve `logo.png`
 
 Hazırladığınızı söylediğiniz simge dosyası şu anda projede **yok**. Bulup
 şuraya koyun:
@@ -172,20 +227,29 @@ Hazırladığınızı söylediğiniz simge dosyası şu anda projede **yok**. Bu
 assets\crm.ico
 ```
 
-Koyulmazsa program Electron'un varsayılan simgesiyle paketlenir. Sizin
+Program içindeki logo (`logo.png`) da eksiktir; şimdilik yerine "M" harfi
+görünür. Koyulmazsa program Electron'un varsayılan simgesiyle paketlenir. Sizin
 tasarımınızın yerine başka bir simge **uydurulmadı** — bu bilinçli bir tercih.
 
 ### b) Kod imzalama sertifikası (Code Signing Certificate)
 
 Sertifika olmadan Windows, programı ilk çalıştıran kişiye "bilinmeyen yayıncı"
-uyarısı gösterir. Program çalışır, ama kullanıcı tedirgin olur.
+uyarısı gösterir. Program çalışır, ama kullanıcı tedirgin olur. Sertifika ayrıca
+otomatik güncellemenin açılabilmesi için de gereklidir (madde 8).
 
 Sertifika satın aldığınızda bize söyleyin; yapılandırma zaten hazır, sadece
 dosyanın yolunu ve şifresini eklemek gerekir.
 
+### c) Bir Windows bilgisayarda ilk kurulumun denenmesi
+
+Kurulum dosyası (`MeritMarketingHub-Setup.exe`) **henüz hiç çalıştırılmadı** —
+elimizde Windows bilgisayar yok. Program kodu test edilmiştir; kurulumun kendisi
+bir kez, bir Windows makinesinde denenmelidir. Bunu size açıkça söylüyoruz,
+çünkü "denendi" demek kolay ama doğru olmazdı.
+
 ---
 
-## 8. Bir sorun olursa ne yapmalısınız?
+## 10. Bir sorun olursa ne yapmalısınız?
 
 1. **Yeniden kurmayın.** Bu genelde yardımcı olmaz ve durumu karıştırır.
 2. Şu klasörün tamamını güvenli bir yere kopyalayın:

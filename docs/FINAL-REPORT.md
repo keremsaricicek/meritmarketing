@@ -419,12 +419,28 @@ raporda, takvimde veya başka hiçbir yerde.
 en az bir yönetici hesabı olduğundan emin olur. Sizi kendi programınızın
 dışında bırakacak bir yedeği geri yüklemeyi **reddeder**.
 
-**Güncelleme.** Güncelleme sadece programı değiştirir, verilerinizi değil.
-Güncellemeden önce otomatik yedek alınır.
+**Bildirimler.** Zil simgesi çalışır: müdür hareketleri görür, pazarlama
+personeli kendisine atanan misafiri, soğuyan misafirlerini ve yaklaşan
+girişlerini görür. Yaklaşan giriş uyarısı, rezervasyon iptal edilirse kendi
+kendine kaybolur — olmayan bir giriş için hatırlatma, hiç hatırlatma olmamasından
+kötüdür.
 
-**Bilinmesi gerekenler.** Program tek bilgisayar içindir; veri dosyasını ağ
-sürücüsüne koymayın. İmza sertifikası olmadığı için Windows ilk açılışta
-uyarı gösterebilir — bu, sertifika alınana kadar normaldir.
+**Güncelleme — şu anda KAPALIDIR.** Program güncellendiğinde verileriniz
+silinmez ve güncellemeden önce otomatik yedek alınır; bu kısım hazırdır. Ancak
+otomatik güncelleme **henüz açılmamalıdır**: indirilen kurulum dosyasının
+imzası doğrulanmıyor. Yani güncelleme sunucusunu ele geçiren biri, bilgisayarınıza
+istediği programı kurdurabilirdi. Bu çözülene kadar güncellemeler kapalıdır ve
+yeni sürümler elden kurulur. Bu bir eksiklik değil, bilerek verilmiş bir karardır
+— çalışmayan bir kilidi takmaktansa kapıyı kapalı tutmak gerekir.
+
+**Bilinmesi gerekenler.**
+- Program **tek bilgisayar** içindir; veri dosyasını ağ sürücüsüne koymayın.
+- İmza sertifikası olmadığı için Windows ilk açılışta uyarı gösterebilir — bu,
+  sertifika alınana kadar normaldir.
+- Kurulum dosyası (installer) **henüz hiç çalıştırılmadı**; elimizde Windows
+  bilgisayar yok. İlk kurulumu bir Windows makinesinde bir kez denemek gerekir.
+- Program simgesi (`crm.ico`) ve logo (`logo.png`) sizden beklenmektedir. Sizin
+  görselinizin yerine yapay bir simge konulmadı.
 
 ## 29. Independent code review
 
