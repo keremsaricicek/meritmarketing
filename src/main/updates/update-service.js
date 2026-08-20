@@ -39,27 +39,44 @@ const STATES = Object.freeze({
  * intact for the future updater project; nothing can reach it while this is on. */
 const V1_UPDATES_DISABLED = true;
 
-function build({ autoUpdater, backup, getContext, log = () => {}, notify = () => {}, feedConfigured = false, channel = 'stable' }) {
-  if (V1_UPDATES_DISABLED) {
-    /* No listeners are attached, so no download can be triggered by the
-       updater's own events either. */
-    return {
-      STATES,
-      V1_DISABLED: true,
-      status() {
-        return { state: STATES.UNAVAILABLE, channel, version: null, feedConfigured: false,
-          disabled: true, lastError: null };
-      },
-      async check() {
-        return { state: STATES.UNAVAILABLE, channel, feedConfigured: false, disabled: true,
-          message: 'Automatic updates are turned off in this version. Update by running the new installer.' };
-      },
-      async install() {
-        throw new AppError(CODES.UPDATE_FAILED,
-          'Automatic updates are turned off in this version. Update by running the new installer.');
-      },
-    };
+/* The only entry point the application uses. While the v1 switch is on it
+   never reaches the implementation below. */
+function build(options) {
+  if (!V1_UPDATES_DISABLED) return buildUpdater(options);
+
+  const { autoUpdater, channel = 'stable' } = options;
+  /* Neutralise the updater object itself before returning. No listener is
+     attached, so no download can be triggered by the updater's own events —
+     but electron-updater will install on a normal quit if it ever reaches a
+     downloaded state by any other route, and that path never calls install()
+     below. Turning it off costs two lines and closes the question. */
+  if (autoUpdater) {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
   }
+  return {
+    STATES,
+    V1_DISABLED: true,
+    status() {
+      return { state: STATES.UNAVAILABLE, channel, version: null, feedConfigured: false,
+        disabled: true, lastError: null };
+    },
+    async check() {
+      return { state: STATES.UNAVAILABLE, channel, feedConfigured: false, disabled: true,
+        message: 'Automatic updates are turned off in this version. Update by running the new installer.' };
+    },
+    async install() {
+      throw new AppError(CODES.UPDATE_FAILED,
+        'Automatic updates are turned off in this version. Update by running the new installer.');
+    },
+  };
+}
+
+/* The full updater, kept intact for the future updater project (B8, B9) and
+   still covered by its own tests so the authorization and backup rules do not
+   rot while they are unreachable. Nothing in the application calls this
+   directly; `build` is the door, and in v1 that door is shut. */
+function buildUpdater({ autoUpdater, backup, getContext, log = () => {}, notify = () => {}, feedConfigured = false, channel = 'stable' }) {
   let state = STATES.IDLE;
   let lastError = null;
   let pendingVersion = null;
@@ -168,4 +185,4 @@ function build({ autoUpdater, backup, getContext, log = () => {}, notify = () =>
   };
 }
 
-module.exports = { build, STATES };
+module.exports = { build, buildUpdater, STATES, V1_UPDATES_DISABLED };

@@ -67,7 +67,47 @@ module.exports = async function () {
   s.check('there is no analytics or telemetry in the renderer', !telemetry.test(scripts));
   s.check('there is no analytics or telemetry in the markup', !telemetry.test(html));
 
-  // -------------------------------- the update check degrades, never blocks
+  /* ------------------------------------------ what v1 actually does
+   *
+   * `build` is the only entry point the application uses, and in v1 it returns
+   * a service that never reaches the network at all. These assertions are
+   * about the SHIPPING behaviour: a configured feed changes nothing, no
+   * listener is attached, and the updater object is left unable to install
+   * behind the operator's back. */
+  const armed = {
+    autoDownload: true,
+    autoInstallOnAppQuit: true,
+    on: () => { throw new Error('v1 must not subscribe to updater events'); },
+    checkForUpdates: async () => { throw new Error('v1 must not reach the network'); },
+  };
+  const shipping = updateFactory.build({
+    autoUpdater: armed,
+    backup: { create: async () => ({ name: 'x' }) },
+    getContext: () => ({ audit: () => {} }),
+    feedConfigured: true,
+    log: () => {},
+    notify: () => {},
+  });
+  s.check('v1 ships with automatic updates off in code',
+    updateFactory.V1_UPDATES_DISABLED === true, String(updateFactory.V1_UPDATES_DISABLED));
+  const shippingStatus = await shipping.check();
+  s.check('a configured feed does not arm the updater in v1',
+    shippingStatus.state === updateFactory.STATES.UNAVAILABLE && shippingStatus.disabled === true,
+    JSON.stringify(shippingStatus));
+  s.check('and the updater cannot install silently on quit',
+    armed.autoInstallOnAppQuit === false && armed.autoDownload === false,
+    JSON.stringify({ quit: armed.autoInstallOnAppQuit, download: armed.autoDownload }));
+  let shippingInstall = null;
+  try { await shipping.install(); } catch (err) { shippingInstall = err.code; }
+  s.check('installing is refused for everyone, not only for the wrong role',
+    shippingInstall === 'UPDATE_FAILED', String(shippingInstall));
+
+  /* -------------------------- the updater that v1 keeps switched off
+   *
+   * Everything below drives `buildUpdater` directly. It is unreachable while
+   * the v1 switch is on, but its rules — degrade offline, never install
+   * without a backup, ADMIN only — are the reason updates can be turned back
+   * on later, and untested code does not survive being left alone. */
   const events = {};
   const fakeUpdater = {
     autoDownload: true,
@@ -76,7 +116,7 @@ module.exports = async function () {
     checkForUpdates: async () => { throw new Error('getaddrinfo ENOTFOUND updates.example.com'); },
   };
   const notices = [];
-  const updates = updateFactory.build({
+  const updates = updateFactory.buildUpdater({
     autoUpdater: fakeUpdater,
     backup: { create: async () => ({ name: 'x' }) },
     getContext: () => ({ audit: () => {} }),
@@ -111,7 +151,7 @@ module.exports = async function () {
   });
   const ctxFor = (role) => ({ sessions: sessionFor(role), audit: () => {} });
 
-  const unconfigured = updateFactory.build({
+  const unconfigured = updateFactory.buildUpdater({
     autoUpdater: null, backup: {}, getContext: () => ctxFor('ADMIN'), feedConfigured: false, log: () => {},
   });
   const noFeed = await unconfigured.check();
@@ -129,14 +169,14 @@ module.exports = async function () {
      deliberately exempt from `backup.create` — so nothing downstream would have
      caught an unauthorised caller either. */
   for (const role of ['MARKETING', 'MANAGER']) {
-    const asRole = updateFactory.build({
+    const asRole = updateFactory.buildUpdater({
       autoUpdater: null, backup: {}, getContext: () => ctxFor(role), feedConfigured: false, log: () => {},
     });
     let code = null;
     try { await asRole.install(); } catch (err) { code = err.code; }
     s.check(`a ${role} user cannot install an update`, code === 'FORBIDDEN', `${role} → ${code}`);
   }
-  const signedOut = updateFactory.build({
+  const signedOut = updateFactory.buildUpdater({
     autoUpdater: null, backup: {}, getContext: () => ctxFor(null), feedConfigured: false, log: () => {},
   });
   let anonCode = null;
@@ -147,7 +187,7 @@ module.exports = async function () {
   /* Silent install on quit would bypass install() entirely, taking the
      pre-update backup and the audit row with it. */
   const quitProbe = { autoDownload: true, autoInstallOnAppQuit: true, on: () => {} };
-  updateFactory.build({
+  updateFactory.buildUpdater({
     autoUpdater: quitProbe, backup: {}, getContext: () => ctxFor('ADMIN'),
     feedConfigured: true, log: () => {}, notify: () => {},
   });
@@ -155,7 +195,7 @@ module.exports = async function () {
     quitProbe.autoInstallOnAppQuit === false, String(quitProbe.autoInstallOnAppQuit));
 
   // ------------------------------------- the update install is backup-gated
-  const failingBackup = updateFactory.build({
+  const failingBackup = updateFactory.buildUpdater({
     autoUpdater: { on: () => {}, quitAndInstall: () => { throw new Error('should not be reached'); } },
     backup: { create: async () => { throw new Error('disk full'); } },
     getContext: () => ({ audit: () => {} }),
@@ -163,7 +203,7 @@ module.exports = async function () {
   });
   /* Drive it to DOWNLOADED so install() gets past its own state check. */
   const downloadedHandlers = {};
-  updateFactory.build({
+  updateFactory.buildUpdater({
     autoUpdater: { on: (n, f) => { downloadedHandlers[n] = f; }, quitAndInstall: () => {} },
     backup: { create: async () => { throw new Error('disk full'); } },
     getContext: () => ({ audit: () => {} }),

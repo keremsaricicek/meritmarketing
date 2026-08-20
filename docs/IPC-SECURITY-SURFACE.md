@@ -16,13 +16,13 @@ do not edit by hand.** Run `npm run ipc:doc` after changing the contract;
 
 | | |
 |---|---|
-| Channels | **60** |
+| Channels | **62** |
 | Callable with no session | 6 |
 | Record- or query-scoped | 34 |
 | Destructive | 9 |
-| Written to the audit log | 29 |
+| Written to the audit log | 31 |
 | Enforcing guest protection | 4 |
-| Reachable by MARKETING | 40 |
+| Reachable by MARKETING | 41 |
 
 ## This file is load-bearing
 
@@ -142,6 +142,8 @@ table, including other marketers'.
 | `audit:list` | required | `audit.read` | ADMIN, MANAGER | `none` | — | — | — | `FORBIDDEN` |
 | `export:run` | required | `export.run` | ADMIN, MANAGER, MARKETING | `query` | — | — | yes | `FORBIDDEN` |
 | `photos:import` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | — | yes | `FORBIDDEN` |
+| `app:openDataFolder` | required | `backup.read` | ADMIN, MANAGER | `none` | — | — | yes | `FORBIDDEN` |
+| `photos:crop` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | — | yes | `FORBIDDEN` |
 | `photos:read` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `none` | — | — | — | `FORBIDDEN` |
 | `photos:remove` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | yes | yes | `FORBIDDEN` |
 | `backup:list` | required | `backup.read` | ADMIN | `none` | — | — | — | `FORBIDDEN` |
@@ -188,6 +190,8 @@ table, including other marketers'.
 - `audit:list` — Read-only: there is deliberately no audit update or delete verb anywhere.
 - `export:run` — Scope applies to the dataset; the file path comes from a native Save dialog, never the renderer.
 - `photos:import` — Opens a native picker in the main process; validates type, signature and size.
+- `app:openDataFolder` — Opens the FIXED application data folder. Takes no arguments: the renderer supplies no path, so there is nothing to traverse. Uses shell.openPath, never a shell command or a URL.
+- `photos:crop` — Crops an ALREADY-MANAGED photo by name plus a rectangle. No filesystem path and no image bytes cross the boundary; the rectangle is clamped to the real image.
 - `photos:read` — Resolves inside the managed photo directory only; traversal is refused.
 - `backup:list` — A backup is a full database dump including credentials — ADMIN only, not configurable.
 - `backup:restore` — Validates, stages, and only then switches; current data survives any failure.
