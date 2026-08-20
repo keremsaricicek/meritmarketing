@@ -13,7 +13,6 @@
 
 const fs = require('fs');
 const crypto = require('crypto');
-const { nativeImage } = require('electron');
 const { safeJoin } = require('../paths');
 const guard = require('./guard');
 const domain = require('./domain');
@@ -97,6 +96,14 @@ function build({ dialog, paths, getWindow }) {
       const source = safeJoin(paths.photos, row.name);
       if (!source || !fs.existsSync(source)) throw notFound('Photo not found.');
 
+      /* Required lazily and checked: under ELECTRON_RUN_AS_NODE (how the test
+         suites run) `require('electron')` resolves to the binary's PATH rather
+         than the API, so this would otherwise be an obscure TypeError instead
+         of a clear statement that cropping needs the real runtime. */
+      const { nativeImage } = require('electron');
+      if (!nativeImage || typeof nativeImage.createFromBuffer !== 'function') {
+        throw validation('Image editing is only available in the desktop application.');
+      }
       const image = nativeImage.createFromBuffer(fs.readFileSync(source));
       if (image.isEmpty()) throw validation('That image could not be read.');
       const { width, height } = image.getSize();

@@ -149,8 +149,11 @@ const SCHEMAS = {
   'reservations:delete': z.object({ id: idLike, reason: text(300) }).strict(),
 
   'crmNotes:list': z.object({ customerId: idLike }).strict(),
-  'crmNotes:create': z.object({ customerId: idLike, note: text(4000) }).strict(),
-  'crmNotes:update': z.object({ id: idLike, note: text(4000) }).strict(),
+  /* `noteDate` is the day the CONVERSATION happened — a business date the
+     operator picks, distinct from `created_at`, which is when the row was
+     written. The form has always offered it; the contract had not. */
+  'crmNotes:create': z.object({ customerId: idLike, note: text(4000), noteDate: businessDate.optional() }).strict(),
+  'crmNotes:update': z.object({ id: idLike, note: text(4000), noteDate: businessDate.optional() }).strict(),
   'crmNotes:delete': byId,
 
   'profiles:list': z.object({ includeStaff: z.boolean().optional() }).strict(),

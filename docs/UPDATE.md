@@ -14,6 +14,13 @@
 > certificate and a trusted feed, an automatic updater is a remote code
 > execution path with extra steps.
 >
+> This is enforced in CODE, not only here: `V1_UPDATES_DISABLED` in
+> `src/main/updates/update-service.js` short-circuits the whole service before
+> any listener is attached, so setting `MERIT_UPDATE_URL` cannot arm it.
+> `updates:check` reports `disabled: true` and `updates:install` refuses with
+> `UPDATE_FAILED`. The golden-path suite launches the application with a
+> valid-looking feed URL configured and asserts both.
+>
 > `autoInstallOnAppQuit` is off, so nothing installs silently on exit;
 > `updates:install` requires ADMIN and takes a backup first; and with no
 > `MERIT_UPDATE_URL` the check is a no-op. Updating v1 means running a new

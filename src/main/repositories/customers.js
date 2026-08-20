@@ -37,7 +37,7 @@ const DERIVED = `
   (SELECT MIN(r.check_in) FROM reservations r
      WHERE r.customer_id = c.id AND r.deleted_at IS NULL AND r.cancelled_at IS NULL
        AND r.check_in > date('now','localtime')) AS next_visit,
-  (SELECT MAX(date(n.created_at,'localtime')) FROM crm_notes n
+  (SELECT MAX(COALESCE(n.note_date, date(n.created_at,'localtime'))) FROM crm_notes n
      WHERE n.customer_id = c.id AND n.deleted_at IS NULL) AS last_note_date,
   p.full_name AS marketing_name
 `;

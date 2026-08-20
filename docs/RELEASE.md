@@ -1,5 +1,23 @@
 # Release
 
+## The signing rule
+
+**UNSIGNED = INTERNAL / QA ONLY. STABLE = A VALID SIGNATURE, ALWAYS.**
+
+`-Channel stable` now BLOCKS unless every signable artifact carries a signature
+Windows itself reports as `Valid`, checked with `Get-AuthenticodeSignature`
+after the artifacts exist and before `release.json` is written or BUILD COMPLETE
+is printed. Missing certificate, invalid signature, or no signable artifact are
+all refusals.
+
+Previously this only warned when no certificate was configured, and carried on
+to a successful exit — recording an honest `signed:false` on something the
+script had just called a stable release. A warning is not a gate.
+
+`-Channel internal` allows unsigned artifacts, which is what the owner's first
+Windows install test uses.
+
+
 ## Gates
 
 A stable release does not happen unless all of these pass. Each is a refusal

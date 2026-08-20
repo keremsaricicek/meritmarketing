@@ -1,6 +1,6 @@
 # Merit Marketing Hub — Electron / SQLite Migration: Final Report
 
-**Status:** ENGINEERING READY — EXTERNAL RELEASE SETUP REQUIRED
+**Status:** SOURCE ENGINEERING READY — INTERNAL WINDOWS BUILD / INSTALL VALIDATION REQUIRED
 **Branch:** `claude/plugin-marketplace-ui-ux-pro-max-91h8kg`
 **Baseline:** `fb49302`, tag `pre-electron-baseline` (local — see §24, B1)
 
@@ -628,3 +628,39 @@ those can be invented here, and none was pretended into existence:
 
 This is not "production deployed". It is ready to be, once those things are
 supplied.
+
+
+## 32. The source-closure pass — what a third inspection found
+
+The two adversarial reviews checked the architecture, the boundary and the SQL.
+They were right about all of it. What none of them checked, and what 1240
+assertions could not see, was whether **pressing the buttons works** — because
+every test called `window.api.customers.create(...)` directly.
+
+Thirteen defects lived in that gap. The representative one: the renderer read
+every guest and profile photo as `photo_path`, a field that exists in no table,
+no query and no service, in twenty-five places. Every avatar in the product was
+blank and nothing failed, because reading an absent property is not an error.
+
+Three of them were not merely broken but actively misleading, which is worse:
+
+- **Crop** cropped on a canvas, called a `photos.save` that always returned
+  VALIDATION, silently kept the ORIGINAL photo's name and cached the cropped
+  image in memory. It looked applied until the next launch.
+- **Automatic Backup** saved its preference and never made a backup. The
+  operator would have found out on the day they needed one.
+- **The archive dialog** promised the guest's reservations would be removed and
+  that it could not be undone. The backend does a soft archive and keeps every
+  one of them.
+
+Two claims elsewhere in this repository were made true rather than restated:
+`MERIT_UPDATE_URL` was still enough to arm the updater that documentation called
+disabled, and a stable release with no certificate warned and continued to a
+successful exit.
+
+The lesson is the one this migration keeps re-learning in a new costume: a test
+that bypasses the layer where the defect lives cannot find the defect, and a
+count of passing assertions is not evidence about the part of the system nobody
+pointed a test at. `tests/electron/golden-path.test.js` is the correction —
+first-run through the setup form, save through every real Save button, restart,
+and check it all survived.

@@ -28,33 +28,38 @@ const crmNotes = {
       SELECT n.*, u.username AS created_by_username FROM crm_notes n
       LEFT JOIN users u ON u.id = n.created_by
       WHERE n.customer_id = ? AND n.deleted_at IS NULL
-      ORDER BY n.created_at DESC`).all(Number(customerId));
+      ORDER BY COALESCE(n.note_date, date(n.created_at,'localtime')) DESC, n.created_at DESC`)
+      .all(Number(customerId));
   },
 
-  create(ctx, { customerId, note }) {
+  create(ctx, { customerId, note, noteDate }) {
     const session = guard.requireCapability(ctx, 'crm.create');
     const customer = customersRepo.findById(ctx.db, Number(customerId));
     guard.requireCustomerInScope(ctx, customer);
     const text = String(note || '').trim();
     if (!text) throw validation('A note cannot be empty.', 'note');
     const now = nowIso();
+    /* Defaults to the LOCAL business day, not a UTC slice of `now`. */
+    const when = noteDate || today();
     const id = ctx.db.prepare(`
-      INSERT INTO crm_notes (customer_id, note, created_at, created_by, updated_at, updated_by)
-      VALUES (?, ?, ?, ?, ?, ?)`).run(Number(customerId), text, now, session.id, now, session.id).lastInsertRowid;
+      INSERT INTO crm_notes (customer_id, note, note_date, created_at, created_by, updated_at, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(Number(customerId), text, when, now, session.id, now, session.id).lastInsertRowid;
     ctx.audit({ action: 'CRM_NOTE_CREATE', entity_type: 'crm_note', entity_id: id,
       description: `Note added for ${customer.full_name}` });
     return { id };
   },
 
-  update(ctx, { id, note }) {
+  update(ctx, { id, note, noteDate }) {
     const session = guard.requireCapability(ctx, 'crm.update');
     const row = ctx.db.prepare('SELECT * FROM crm_notes WHERE id = ? AND deleted_at IS NULL').get(Number(id));
     if (!row) throw notFound('Note not found.');
     guard.requireCustomerInScope(ctx, customersRepo.findById(ctx.db, row.customer_id));
     const text = String(note || '').trim();
     if (!text) throw validation('A note cannot be empty.', 'note');
-    ctx.db.prepare('UPDATE crm_notes SET note = ?, updated_at = ?, updated_by = ?, row_version = row_version + 1 WHERE id = ?')
-      .run(text, nowIso(), session.id, row.id);
+    ctx.db.prepare(`UPDATE crm_notes SET note = ?, note_date = COALESCE(?, note_date),
+        updated_at = ?, updated_by = ?, row_version = row_version + 1 WHERE id = ?`)
+      .run(text, noteDate || null, nowIso(), session.id, row.id);
     ctx.audit({ action: 'CRM_NOTE_UPDATE', entity_type: 'crm_note', entity_id: row.id, description: 'Note edited' });
     return { id: row.id };
   },

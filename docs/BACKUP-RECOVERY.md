@@ -1,5 +1,37 @@
 # Backup and recovery
 
+## Automatic backup
+
+Settings drives it, and — as of the source-closure pass — it actually runs.
+Before that the preference was stored faithfully and read by nothing, so no
+automatic backup was ever created on any schedule. That is worth stating
+plainly, because a control that saves and does nothing is worse than one that
+is absent: the operator believes they are covered.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| Automatic Backup | on | Off stops it entirely |
+| Frequency | Startup | `startup` every launch · `daily` once per local calendar day · `weekly` every 7 local days |
+| Backups to keep | 10 | How many AUTOMATIC backups are retained |
+
+It runs once during startup, through the same service the manual button uses —
+there is no second way to write a backup. Three properties matter:
+
+- **Local calendar days, not 24-hour windows.** "Daily" means once on each day
+  the operator worked, so a 09:00 shift and an 08:00 shift the next morning are
+  two days even though they are 23 hours apart.
+- **Retention never removes a manual backup.** Pruning only considers names the
+  application generated itself (`-auto`, `-premigration`, `-preupdate`,
+  `-prerestore`). A backup the owner took deliberately is theirs.
+- **A failure is logged, never fatal.** The snapshot goes through SQLite's own
+  backup API, so it cannot damage the live database, and a disk problem at
+  startup does not stop the operator getting to work.
+
+Automatic backups are named `…-auto.mmhbackup` so they are distinguishable in
+the list. Covered by `tests/database/auto-backup.test.js` (27 assertions),
+including both sides of every schedule boundary and the retention rule.
+
+
 ## Where the data is
 
 ```
