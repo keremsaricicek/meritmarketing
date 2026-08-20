@@ -10,7 +10,7 @@ continue deterministically. Delete when the migration is fully complete.
 | Baseline commit | `fb49302` |
 | Baseline tag | `pre-electron-baseline` (local only — blocker B1) |
 | Baseline tests | 529 assertions, 18 suites |
-| Current | **1016 assertions, 29 suites, 0 failing** |
+| Current | **1131 assertions, 33 suites, 0 failing** |
 | Branch | `claude/plugin-marketplace-ui-ux-pro-max-91h8kg` |
 
 ## Checkpoints
@@ -25,8 +25,8 @@ continue deterministically. Delete when the migration is fully complete.
 | 6 | IPC enforcement + adversarial attack suites | **done** |
 | 7 | Release, recovery, CI, documentation | **done** |
 | 8 | Performance at scale, clean-start workflow, offline | **done** |
-| 9 | Independent code review | **running** — two reviewers: backend/data, Electron/release |
-| 10 | Scorecard and final report | pending review findings |
+| 9 | Independent code review | **done** — 28 confirmed defects, all fixed with regression tests |
+| 10 | Scorecard and final report | **done** — `docs/SCORECARD.md`, `docs/FINAL-REPORT.md` |
 
 ## External blockers
 
@@ -61,7 +61,18 @@ continue deterministically. Delete when the migration is fully complete.
 | Browser regression suites ported to Electron | The 529 baseline assertions still run against `merit-marketing-hub.html` as a behavioural reference. The security-critical ones are re-proved against the new architecture (283 new assertions); the UI-interaction ones still exercise the legacy file. |
 | `logo.png` / `crm.ico` | Owner-supplied (B2, B3) |
 
-## Next action
+## Next action — all of it external
 
-Act on the code review findings when the agent reports, then produce the final
-report and scorecard.
+The engineering is finished. Nothing on this list is code:
+
+1. Supply `assets/crm.ico` and `logo.png` (B2, B3).
+2. Run the Windows CI job, or package on a Windows machine, and execute the
+   installer once (B4).
+3. Obtain a code-signing certificate and set `WINDOWS_CERT_FILE` /
+   `WINDOWS_CERT_PASSWORD` in CI secrets (B5).
+4. **Before enabling updates at all**, resolve B8 (the downloaded installer is
+   not signature-verified) and B9 (Squirrel maker vs electron-updater's NSIS
+   path). Until then leave `MERIT_UPDATE_URL` unset — see `docs/UPDATE.md`.
+5. Publish a feed and run one update end to end between two versions (B6).
+
+Delete this file once those are done. It is a handoff record, not documentation.

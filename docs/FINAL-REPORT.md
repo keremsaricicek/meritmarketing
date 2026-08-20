@@ -62,14 +62,19 @@ merely unlikely:
 Soft-delete columns exist from migration 1, not bolted on later. Detail in
 `docs/DATA-MODEL.md`.
 
-## 5. Business dates versus system instants
+### Business dates versus system instants
 
 A business date is `TEXT 'YYYY-MM-DD'` with no zone: the day the guest arrives.
-A system instant is ISO-8601 UTC: when a row was written. Conflating them is
-what shifts a reservation a day west of UTC. `src/shared/contracts/dates.js` is
-the single source for both, and the two types are never compared to each other.
+A system instant is ISO-8601 UTC: when a row was written. Conflating them shifts
+a reservation a day west of UTC. `src/shared/contracts/dates.js` is the single
+source for both, and the two types are never compared to each other.
 
-## 6. Authorization: two axes, both required
+The independent review found the one place this had leaked: an assignment's UTC
+`changed_at` was sliced to make a business date, which put every decision made
+between midnight and 03:00 in Turkey on the previous day and expired guest
+protection a day early. `instantToBusinessDate` existed and was called nowhere.
+
+## 5. Authorization: two axes, both required
 
 `guard(capability)` answers *may this ROLE call this verb*.
 `customerInScope()` / `reservationInScope()` answer *may this SESSION touch
@@ -84,7 +89,7 @@ than everything.
 
 Identity, role and profile are never read from the caller's payload.
 
-## 7. The IPC surface as a contract
+## 6. The IPC surface as a contract
 
 `src/shared/contracts/ipc-surface.js` documents all **60 channels** with
 `auth`, `capability`, `roles`, `scope`, `protection`, `validation`,
@@ -105,7 +110,7 @@ startup and **refuses to boot** on an undocumented channel, a channel with no
 handler, or a channel with no schema (`src/main/ipc/registry.js`). A new verb
 cannot be added quietly.
 
-## 8. Soft deletion, and why DELETED outranks CANCELLED
+## 7. Soft deletion, and why DELETED outranks CANCELLED
 
 Reservation deletion is non-destructive. A deleted reservation keeps its
 cancellation metadata, so nothing about the history is lost.
@@ -132,7 +137,7 @@ overlap detection, calendar buckets and every dashboard KPI.
 permission itself is unchanged: ADMIN only. **No undelete feature was added** —
 soft deletion is a data-integrity decision, not a new product surface.
 
-## 9. Authentication
+## 8. Authentication
 
 Argon2id. No plaintext password is stored anywhere, and there is no default
 account, no seeded password and no recovery back door. The absence of a back
@@ -141,7 +146,7 @@ it.
 
 Login returns an identical message for an unknown user and a wrong password.
 
-## 10. The Electron security boundary
+## 9. The Electron security boundary
 
 `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`. The
 preload exposes one named function per operation — no generic `invoke`, no
@@ -156,7 +161,7 @@ Fuses burned into the binary (`forge.config.js`): RunAsNode off, NodeOptions
 off, NodeCliInspect off, embedded ASAR integrity validation on, load-only-from-
 ASAR on.
 
-## 11. Why inline handlers had to go
+## 10. Why inline handlers had to go
 
 `script-src 'self'` makes `onclick="..."` inert. Every handler became a
 delegated action driven by `data-act` / `data-on` / `data-args`
@@ -164,7 +169,7 @@ delegated action driven by `data-act` / `data-on` / `data-args`
 handlers remain. The dispatcher looks names up in a table and never evaluates a
 string.
 
-## 12. Why `node:sqlite` rather than better-sqlite3
+## 11. Why `node:sqlite` rather than better-sqlite3
 
 `better-sqlite3` is a native module: it needs `electron-rebuild`, which needs
 Electron headers, which are served from a host this environment's proxy blocks
@@ -176,7 +181,7 @@ Electron 43 bundles Node 24.18.1, which has SQLite built in. Switching to
 Python and a C++ toolchain from every machine that ever builds this app. The
 blocker stopped existing rather than being worked around.
 
-## 13. Offline by construction
+## 12. Offline by construction
 
 A hotel back office loses its connection; the application must not care. This
 is guaranteed structurally rather than by testing with the cable unplugged: a
@@ -189,7 +194,7 @@ depend on the Internet whatever the network is doing.
 legitimately reaches out — degrades to `unavailable` rather than throwing when
 DNS fails or the connection drops.
 
-## 14. Backup and restore
+## 13. Backup and restore
 
 A custom container (`MMHBACKUP1`) with a per-entry SHA-256. Entry names are
 validated against `^[A-Za-z0-9._-]+$`, so there is no zip-slip surface at all
@@ -201,14 +206,14 @@ data is confirmed **before** anything is swapped — restoring a backup that
 would lock the owner out of their own application is refused. Detail in
 `docs/BACKUP-RECOVERY.md`.
 
-## 15. Updates never erase data
+## 14. Updates never erase data
 
 User data lives in `%APPDATA%\Merit Marketing Hub\`, outside the program
 directory. An update replaces the program, not the data. Installing an update
 takes a backup first, and `install()` refuses when nothing was actually
 downloaded. Detail in `docs/UPDATE.md`.
 
-## 16. First run
+## 15. First run
 
 A shipped installation contains no accounts, no guests, no reservations, no
 profiles and no default password. `tests/database/first-run-workflow.test.js`
@@ -218,15 +223,40 @@ calendar → export → audit → marketer signs in scoped → sign out and back
 with data intact — and ends by asserting the whole workflow completed with no
 manual database edit.
 
+## 16. Notifications
+
+Four producers, restored after the independent review found the feature complete
+and inert — the table, its index, five channels and all the scope logic had been
+carried across, and every producer left behind.
+
+| Kind | Trigger | Storage |
+|---|---|---|
+| Manager activity feed | Any audited action in the feed set | Written when it happens |
+| Guest assigned | `customers:assign` | Written when it happens |
+| Cold guest | The guest's status is COLD | Recomputed on read |
+| Check-in soon / urgent | An arrival within 7 days / 24 hours | Recomputed on read |
+
+The split matters. An event happened once at a known moment. A standing
+condition changes on its own as the calendar moves, so a row written yesterday
+would go on being true after it stopped being true. Derived rows are reconciled —
+one row per live condition, inserted when it starts and deleted when it lifts —
+which is what stops a marketer opening the panel on Monday to forty copies of the
+same cold guest, and stops a reminder outliving the booking it was about.
+
+The feed hangs off the audit sink rather than off each verb, so a new verb joins
+the feed the moment it becomes auditable. `src/main/services/audit-sink.js` is
+the single sink, used by the application and by the test harness — the harness
+having its own copy is precisely why the missing producers went unnoticed.
+
 ## 17. Test suite
 
 | | |
 |---|---|
-| Suites | 29 |
-| Assertions | **1016, 0 failing** |
+| Suites | 33 |
+| Assertions | **1131, 0 failing** |
 | Baseline | 529 |
-| Source | ~8,300 lines |
-| Test code | ~5,600 lines |
+| Source | ~9,000 lines |
+| Test code | ~6,700 lines |
 
 Tests run on the **production runtime**, not system Node:
 
@@ -234,7 +264,8 @@ Tests run on the **production runtime**, not system Node:
 ELECTRON_RUN_AS_NODE=1 ./node_modules/electron/dist/electron tests/run-all.js
 ```
 
-Largest suites: `ipc/surface-enforcement` (127), `ipc/attack-matrix` (81).
+Largest suites: `ipc/surface-enforcement` (127), `ipc/attack-matrix` (81),
+`database/review-findings` (50), `electron/workflow` (39).
 
 ## 18. Regression protection, not a one-time audit
 
@@ -248,7 +279,20 @@ payload fails the suite rather than passing unnoticed.
 ## 19. Performance at the specified scale
 
 10,000 guests · 50,000 reservations · 50,000 CRM notes
-(`tests/database/performance.test.js`). Thresholds are deliberately loose
+(`tests/database/performance.test.js`). Measured on this machine:
+
+| Operation | Measured | Budget |
+|---|---|---|
+| Customer list (page of 25 from 10,000) | 5 ms | 800 |
+| Customer search | 5 ms | 800 |
+| Customer detail | 1 ms | 200 |
+| Reservation list | 28 ms | 800 |
+| Dashboard (all KPIs) | 219 ms | 2000 |
+| Calendar month | 17 ms | 800 |
+| Guest finder | 4 ms | 500 |
+| Scoped list (MARKETING) | 3 ms | 800 |
+
+Thresholds are deliberately loose
 because the suite is a tripwire for missing indexes, whole-table loads and
 O(n²) joins — failures of that kind are an order of magnitude, not
 milliseconds. `EXPLAIN QUERY PLAN` assertions confirm the hot queries use
@@ -266,7 +310,10 @@ Electron Forge, Squirrel.Windows plus zip, ASAR, fuses. Application name
 
 `tests/packaged/hygiene.test.js` inspects the **actual archive**, not the
 ignore list — the ignore list is a claim, the archive is the fact. That
-distinction found four files being shipped that the list appeared to exclude.
+distinction found four files the list appeared to exclude, and later 146
+vendored `.test.ts` files the root-anchored rules never reached. The archive is
+now **698 entries**, down from 1104: no tests, no prototype HTML, no `.git`, no
+`.env`, no source maps, no database, no docs, no recovery bundles.
 
 ## 21. Secrets
 
@@ -304,11 +351,16 @@ prints `NO — internal/QA artifact`.
 | B3 | `logo.png` referenced by the renderer, not in the repo | In-app brand mark is a broken reference | Owner must supply |
 | B4 | No Windows host | Installer and Squirrel update not executed | Windows CI job packages and smoke-tests; one manual run still required |
 | B5 | No code-signing certificate | Artifacts unsigned; SmartScreen will warn | Hooks configured from CI secrets; `release.json` records `signed:false` honestly |
-| B6 | No update-host credentials | Feed not published | Provider abstraction complete, configured by `MERIT_UPDATE_URL` |
+| B6 | No update-host credentials | Feed not published | Provider abstraction complete; `MERIT_UPDATE_URL` must be HTTPS or it is refused and logged |
+| B8 | The downloaded installer is **not signature-verified** | Whoever controlled a feed would get code execution on every installation | `electron-updater` skips its check without an electron-builder `app-update.yml`, which forge does not produce. Needs B5 plus the publisher name wired through. **Updates stay off until this is resolved.** |
+| B9 | Squirrel.Windows maker vs `electron-updater`'s NSIS path | The update flow cannot work as configured | Decide maker-or-client before publishing a feed. Documented rather than papered over. |
 | B7 | `www.electronjs.org` policy-blocked by the proxy | `electron-rebuild` cannot fetch headers | **Resolved by design change** — `node:sqlite`, so there is no native module to rebuild |
 
-Every blocker is external: a certificate, a host, a credential, an image file
-or a network policy. None is an unfinished piece of engineering.
+B1–B7 are external: a certificate, a host, a credential, an image file or a
+network policy. **B8 and B9 are not** — they are decisions that have to be made
+about the update path before it can be trusted, and pretending otherwise is
+exactly the kind of claim this report exists to avoid. Automatic updates are
+off, and `docs/UPDATE.md` opens by saying why.
 
 ## 25. What the owner must supply
 
@@ -493,16 +545,38 @@ Four were found and replaced with assertions that can:
 
 ## 30. Scorecard
 
-See `docs/SCORECARD.md`.
+See [`docs/SCORECARD.md`](SCORECARD.md). Twelve of fourteen dimensions score 8
+or above. Two do not, and they are the same story told twice: **updates (5/10)**
+and **release readiness (6/10)**. Everything the application does on the machine
+it is installed on is finished and tested; everything about getting it onto that
+machine and keeping it current needs a certificate, a Windows host and a
+decision about the update client.
 
 ## 31. Verdict
 
 **ENGINEERING READY — EXTERNAL RELEASE SETUP REQUIRED.**
 
-The engineering is complete and verified: 1016 assertions, 0 failing, on the
-production runtime. What remains is not code. It is a certificate, a Windows
-machine, an update host and two image files — none of which can be invented
-here, and none of which were pretended into existence.
+The engineering is complete and verified: **1131 assertions, 0 failing**, on the
+production runtime, including a suite that starts the real binary and drives the
+real first-run form.
 
-This is not "production deployed". It is ready to be, once those five things
-are supplied.
+That last clause is the honest lesson of this migration. Until the independent
+reviews ran, this report would have said "1016 assertions, 0 failing" about an
+application that could not create its first administrator, whose two main
+screens rendered nothing, and whose entire adapter layer died on load. Every one
+of those was a one-word fix. None of them was hard to find once something
+actually looked. A test count is a measure of how much was checked, never a
+measure of whether the product works — and the difference between those two
+things is the whole reason an independent review is a phase and not a courtesy.
+
+What remains is not code. It is a code-signing certificate, a Windows machine,
+an update host, a decision about the update client, and two image files. None of
+those can be invented here, and none was pretended into existence:
+
+- **No build produced here is signed.** There is no certificate.
+- **No Windows installer has been executed.** There is no Windows host.
+- **Automatic updates must stay off** until the downloaded installer is
+  signature-verified (B8) and the maker and update client are reconciled (B9).
+
+This is not "production deployed". It is ready to be, once those things are
+supplied.
