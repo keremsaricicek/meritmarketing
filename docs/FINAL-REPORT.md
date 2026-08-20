@@ -133,7 +133,13 @@ Deleted rows are excluded from every derived fact: `last_visit`, `next_visit`,
 overlap detection, calendar buckets and every dashboard KPI.
 
 `reservations.listDeleted` is a **separate verb** requiring its own capability
-`reservations.deleted.read`, not a parameter on the ordinary list. Delete
+`reservations.deleted.read`, not a parameter on the ordinary list. Reservation
+History exposes it as a third tab — Reservations | Cancelled | Deleted — shown
+only to ADMIN and MANAGER, removed from the DOM for MARKETING, and refused by
+the boundary regardless of what the client does. That tab did not exist until
+the final correction pass: the verb and all of its tests were complete while the
+screen still drew only two tabs, so the feature was unreachable by the only
+people permitted to use it. Delete
 permission itself is unchanged: ADMIN only. **No undelete feature was added** —
 soft deletion is a data-integrity decision, not a new product surface.
 
@@ -164,10 +170,36 @@ ASAR on.
 ## 10. Why inline handlers had to go
 
 `script-src 'self'` makes `onclick="..."` inert. Every handler became a
-delegated action driven by `data-act` / `data-on` / `data-args`
-(`src/renderer/scripts/actions.js`). 218 handlers were converted; zero inline
-handlers remain. The dispatcher looks names up in a table and never evaluates a
-string.
+delegated action driven by `data-act` / `data-on` / `data-args`, or by the
+event-scoped `data-act-<event>` form where one element needs two behaviours
+(`src/renderer/scripts/actions.js`). 218 handlers were converted.
+
+**This section previously claimed "zero inline handlers remain" and "the
+dispatcher never evaluates a string." Both were false when written, and the
+tests backing them could not have discovered it.**
+
+- `onmouseenter` and `onmouseleave` were still on the CRM submenu and on every
+  Finder row. The assertion named *"no inline event handler of any kind
+  survives"* used the selector `[onclick],[onchange],[oninput],[onkeydown]`,
+  which cannot match them. Being inert under CSP, those hover behaviours simply
+  did not work.
+- The Command Palette executed its commands with `eval(item.run)`, falling back
+  to `Function(item.run)()`. Nothing tested for a code evaluator in the renderer
+  at all.
+
+Both are fixed, and both are now covered by
+`tests/ui/renderer-source-safety.test.js`, which is deliberately written as
+exhaustive patterns rather than a list of things to look for: any attribute
+matching `on*=`, any construct that turns a string into code, any action
+attribute repeated inside one start tag. The gate was verified by reintroducing
+each defect and confirming it goes red — a gate nobody has watched fail is not
+yet evidence of anything.
+
+Hover is delegated through bubbling `mouseover`/`mouseout` filtered back to
+enter/leave semantics via `relatedTarget`, because `mouseenter` does not bubble
+and cannot be delegated from the document directly. The dispatcher resolves
+names in a table and additionally refuses any resolved value that is native
+code, so `data-act="eval"` cannot reach `window.eval`.
 
 ## 11. Why `node:sqlite` rather than better-sqlite3
 
@@ -252,8 +284,8 @@ having its own copy is precisely why the missing producers went unnoticed.
 
 | | |
 |---|---|
-| Suites | 33 |
-| Assertions | **1131, 0 failing** |
+| Suites | 34 |
+| Assertions | **1240, 0 failing** |
 | Baseline | 529 |
 | Source | ~9,000 lines |
 | Test code | ~6,700 lines |
@@ -572,7 +604,7 @@ decision about the update client.
 
 **ENGINEERING READY — EXTERNAL RELEASE SETUP REQUIRED.**
 
-The engineering is complete and verified: **1131 assertions, 0 failing**, on the
+The engineering is complete and verified: **1240 assertions, 0 failing**, on the
 production runtime, including a suite that starts the real binary and drives the
 real first-run form.
 

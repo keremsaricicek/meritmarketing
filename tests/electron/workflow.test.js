@@ -410,7 +410,14 @@ module.exports = async function () {
       const hits = source.match(/style="/g) || [];
       s.check(`${file} authors no style attribute`, hits.length === 0, `${hits.length} occurrences`);
     }
-    s.check('no inline event handler of any kind survives',
+    /* Named for what it actually checks. This assertion used to be called "no
+       inline event handler of ANY kind survives" while testing a hand-written
+       list of four event names — and `onmouseenter`/`onmouseleave` were sitting
+       in the markup the whole time. The exhaustive claim belongs to the source
+       gate in tests/ui/renderer-source-safety.test.js, which matches by shape;
+       this one confirms the DOM the app actually delivered is free of the
+       common ones. */
+    s.check('the delivered DOM carries none of the common inline handlers',
       fr.inlineHandlers === 0, `${fr.inlineHandlers} elements still carry one`);
     s.check('on a fresh installation the setup card is shown',
       fr.setupCard === 'block', String(fr.setupCard));

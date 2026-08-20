@@ -60,7 +60,12 @@ proved by a direct IPC call in the tests.
 - `sandbox: true`, `contextIsolation: true`, `nodeIntegration: false`.
 - Navigation blocked, popups denied, permissions denied by default, no
   `shell.openExternal` bridge, DevTools gated to development builds.
-- `script-src 'self'` with **zero inline handlers**, which is what makes an
+- `script-src 'self'` with **zero inline handlers and no code evaluator in the
+  renderer** — verified by an exhaustive source gate
+  (`tests/ui/renderer-source-safety.test.js`), not by a list of event names.
+  An earlier version of this claim was false: `onmouseenter`/`onmouseleave`
+  survived, and the Command Palette ran commands through `eval`. Both are gone
+  and both are now gated. This is what makes an
   injected `onclick` in a guest's name inert.
 
 ## Input handling
