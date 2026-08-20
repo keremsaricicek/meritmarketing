@@ -186,11 +186,9 @@ app.whenReady().then(async () => {
   await js(\`openReservationModal(null, \${customerId})\`); await settle(700);
   const inDate = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
   const outDate = new Date(Date.now() + 17 * 86400000).toISOString().slice(0, 10);
-  await js(\`(() => {
-    __fill('resCheckIn', ${'`'}\${'\${inDate}'}${'`'});
-    __fill('resCheckOut', ${'`'}\${'\${outDate}'}${'`'});
-    __press('#modalReservation .btn-gold');
-  })()\`);
+  await js("(() => { __fill('resCheckIn','" + inDate + "');"
+    + " __fill('resCheckOut','" + outDate + "');"
+    + " __press('#modalReservation .btn-gold'); })()");
   await settle(1600);
   out.reservationSaved = await js("/MEHMET YILMAZ/.test(document.getElementById('resTableBody').textContent)");
 
@@ -210,11 +208,9 @@ app.whenReady().then(async () => {
   await js(\`openReservationModal(null, \${customerId})\`); await settle(700);
   const in2 = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
   const out2 = new Date(Date.now() + 42 * 86400000).toISOString().slice(0, 10);
-  await js(\`(() => {
-    __fill('resCheckIn', ${'`'}\${'\${in2}'}${'`'});
-    __fill('resCheckOut', ${'`'}\${'\${out2}'}${'`'});
-    __press('#modalReservation .btn-gold');
-  })()\`);
+  await js("(() => { __fill('resCheckIn','" + in2 + "');"
+    + " __fill('resCheckOut','" + out2 + "');"
+    + " __press('#modalReservation .btn-gold'); })()");
   await settle(1600);
   const secondId = await js("(async () => { const r = await window.api.reservations.list({ page:1, pageSize:10, view:'active' }); return r.ok && r.data.rows.length ? r.data.rows[0].id : null; })()");
 
@@ -408,6 +404,16 @@ function runElectron(userData, script, file, extraEnv = {}, timeoutMs = 260000) 
   return new Promise((resolve) => {
     const probeFile = path.join(userData, file);
     fs.writeFileSync(probeFile, script);
+    /* A probe with a syntax error makes Electron exit before it can print
+       anything, which looks exactly like a hang and cost three runs to
+       diagnose. Parse it here, where the error is readable. */
+    try {
+      // eslint-disable-next-line no-new-func
+      new Function(script);
+    } catch (err) {
+      resolve({ syntaxError: err.message, stdout: '', stderr: '' });
+      return;
+    }
     const useXvfb = process.platform === 'linux';
     const command = useXvfb ? 'xvfb-run' : ELECTRON;
     const args = useXvfb ? ['-a', ELECTRON, '--no-sandbox', probeFile] : [probeFile];
