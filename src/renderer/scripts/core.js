@@ -81,7 +81,7 @@ function toast(kind, title, msg){
   const stack = el('toastStack');
   const node = document.createElement('div');
   node.className = `toast ${kind}`;
-  node.innerHTML = `<div style="flex:1;min-width:0">
+  node.innerHTML = `<div class="toast-body">
       <div class="t-title">${escapeHtml(title)}</div>
       ${msg ? `<div class="t-msg">${escapeHtml(msg)}</div>` : ''}
     </div><button class="t-close" aria-label="Dismiss">✕</button>`;
@@ -128,9 +128,58 @@ async function resolvePhotos(names){
   }));
 }
 const photoUrl = (name) => (name && state.photoCache.get(name)) || null;
+/* The photo used to be applied as an inline `style` attribute, which the
+   Content Security Policy blocks — so every guest WITH a photo rendered as an
+   empty circle, while guests without one still got their initials. The URL is
+   carried as data instead and painted through CSSOM, which the policy allows.
+   `paintAvatars` runs from a MutationObserver, so it covers every render
+   without each call site having to remember. */
 function avatarStyle(name){
   const url = photoUrl(name);
-  return url ? ` style="background-image:url('${url}')"` : '';
+  return url ? ` data-avatar="${escapeHtml(url)}"` : '';
+}
+
+/* Everything a rendered row needs to say with a computed style — a photo, a
+   bar's length — is carried as data and painted here through CSSOM. A style
+   ATTRIBUTE in markup is what the policy blocks; assigning from script is not,
+   so this is the same visual result by the permitted route.
+
+   Values are clamped rather than trusted: a percentage is the only thing these
+   attributes may ever express, so nothing that arrives in one can become a
+   declaration of its own. */
+function paintDynamicStyles(root){
+  const scope = root && root.querySelectorAll ? root : document;
+  const pct = (v) => Math.max(0, Math.min(100, Number(v)));
+
+  for (const node of scope.querySelectorAll('[data-avatar]')){
+    const url = node.getAttribute('data-avatar');
+    node.removeAttribute('data-avatar');
+    /* Only ever a data: URL produced by photos.read in the main process. */
+    if (url && url.startsWith('data:')) node.style.backgroundImage = `url('${url}')`;
+  }
+  for (const node of scope.querySelectorAll('[data-bar-width]')){
+    const v = pct(node.getAttribute('data-bar-width'));
+    node.removeAttribute('data-bar-width');
+    if (Number.isFinite(v)) node.style.width = `${v}%`;
+  }
+  for (const node of scope.querySelectorAll('[data-bar-height]')){
+    const v = pct(node.getAttribute('data-bar-height'));
+    node.removeAttribute('data-bar-height');
+    if (Number.isFinite(v)) node.style.height = `${v}%`;
+  }
+}
+
+if (typeof MutationObserver === 'function'){
+  new MutationObserver((records) => {
+    for (const rec of records){
+      for (const node of rec.addedNodes){
+        if (node.nodeType !== 1) continue;
+        paintDynamicStyles(node);
+        /* A node can carry the attribute itself as well as contain others. */
+        if (node.parentNode) paintDynamicStyles(node.parentNode);
+      }
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
 }
 
 /* ---------- status presentation ---------- */
@@ -185,7 +234,13 @@ async function doSetup(){
 
   await withBusy(el('setupBtn'), 'CREATING…', async () => {
     try {
-      state.session = await call(window.api.auth.setup, { username:user, password:pass, fullName:name }, { silent:true });
+      /* Setup CREATES the administrator; it does not sign them in. Signing in
+         afterwards goes through the audited login path rather than having
+         setup mint a session of its own — the LOGIN row in the audit log is
+         the record that somebody actually took control of the installation. */
+      await call(window.api.auth.setup,
+        { username:user, password:pass, passwordConfirm:pass2, fullName:name }, { silent:true });
+      state.session = await call(window.api.auth.login, { username:user, password:pass }, { silent:true });
       await enterApp();
       toast('success','Welcome','Your administrator account is ready.');
     } catch (e){ err.textContent = e.message; err.classList.add('show'); }
@@ -629,7 +684,9 @@ async function runFinderSearch(q){
     finderRows = rows.slice(0,50).map(p => ({ id:p.id, full_name:p.full_name,
       sub:p.employment_status === 'inactive' ? 'inactive' : '' }));
   } else {
-    const data = await call(window.api.customers.picker, { search:q, pageSize:50, scoped:finderScoped }, { silent:true });
+    /* The finder is scoped by the main process from the session, never by a
+       flag the renderer sends — `scoped` was not a field the surface has. */
+    const data = await call(window.api.customers.picker, { search:q, pageSize:50 }, { silent:true });
     if (seq !== finderSeq) return;
     finderRows = (data || []).map(c => ({ id:c.id, code:c.code, full_name:c.full_name, phone:c.phone, last_visit:c.last_visit }));
   }

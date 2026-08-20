@@ -11,9 +11,7 @@
   <div class="login-card" id="loginCard">
     <div class="login-brand">
       <div class="brand-mark" id="loginFallback">M</div>
-      <img class="brand-logo" src="./logo.png" alt=""
-           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
-           onerror="this.remove()">
+      <img class="brand-logo" src="./logo.png" alt="" data-brand-logo>
     </div>
     <h1 class="login-title">MERIT MARKETING HUB</h1>
     <div class="login-sub">Casino CRM</div>
@@ -29,12 +27,10 @@
     <button class="btn btn-gold" id="loginBtn" data-act="doLogin" data-on="click" data-args='[]'>SIGN IN</button>
   </div>
 
-  <div class="login-card" id="setupCard" style="display:none;">
+  <div class="login-card is-hidden" id="setupCard">
     <div class="login-brand">
       <div class="brand-mark" id="setupFallback">M</div>
-      <img class="brand-logo" src="./logo.png" alt=""
-           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
-           onerror="this.remove()">
+      <img class="brand-logo" src="./logo.png" alt="" data-brand-logo>
     </div>
     <h1 class="login-title">Welcome</h1>
     <div class="login-sub">Create the administrator account</div>
@@ -68,9 +64,7 @@
   <div class="topbar-brand">
     <button class="app-menu-trigger" id="appMenuTrigger" data-act="toggleAppMenu" data-on="click" data-args='[{"$":"event"}]' aria-haspopup="true" aria-expanded="false" aria-controls="appMenu" title="Application menu">
       <div class="brand-mark" id="brandFallback" aria-hidden="true">M</div>
-      <img class="brand-logo" src="./logo.png" alt="" aria-hidden="true"
-           onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
-           onerror="this.remove()">
+      <img class="brand-logo" src="./logo.png" alt="" aria-hidden="true" data-brand-logo>
     </button>
     <div class="brand-text">MERIT MARKETING HUB<small>Casino CRM</small></div>
   </div>
@@ -207,7 +201,7 @@
             <h2 class="panel-title">Requires Attention</h2>
             <button class="btn-link" data-act="switchTab" data-on="click" data-args='["customers"]'>CRM Panel</button>
           </div>
-          <div class="panel-body" id="attentionList" style="max-height:250px"></div>
+          <div class="panel-body scroll-250" id="attentionList"></div>
         </div>
         <div class="panel">
           <div class="panel-head">
@@ -224,17 +218,17 @@
             <h2 class="panel-title">Notifications<span class="count-pill" id="notifBadge">0</span></h2>
             <button class="btn-link" data-act="markAllNotificationsRead" data-on="click" data-args='[]'>Mark All Read</button>
           </div>
-          <div class="panel-body" id="notifList" style="max-height:290px"></div>
+          <div class="panel-body scroll-290" id="notifList"></div>
         </div>
         <div class="panel">
           <div class="panel-head">
             <h2 class="panel-title">Recent Reservations</h2>
             <button class="btn-link" data-act="switchTab" data-on="click" data-args='["reservations"]'>View All</button>
           </div>
-          <div class="panel-body" id="recentResList" style="max-height:250px"></div>
+          <div class="panel-body scroll-250" id="recentResList"></div>
         </div>
       </div>
-      <div class="dash-col" id="rankCol" style="display:none;">
+      <div class="dash-col is-hidden" id="rankCol">
         <div class="dash-section-label">Team</div>
         <div class="panel">
           <div class="panel-head">
@@ -248,7 +242,7 @@
             <h2 class="panel-title">New Guests</h2>
             <button class="btn-link" data-act="goCrmView" data-on="click" data-args='["customerlist"]'>Customer List</button>
           </div>
-          <div class="panel-body" id="newGuestsList" style="max-height:230px"></div>
+          <div class="panel-body scroll-230" id="newGuestsList"></div>
         </div>
       </div>
     </div>
@@ -393,8 +387,8 @@
           </button>
           <div class="filter-menu" id="custFilterMenu" role="menu">
             <div class="filter-opt active" data-val="" data-act="setCustFilter" data-on="click" data-args='["",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="true" data-activatable>ALL</div>
-            <div class="filter-opt" data-val="COLD" data-act="setCustFilter" data-on="click" data-args='["COLD",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--cold)"></span>COLD</div>
-            <div class="filter-opt" data-val="NO_RECORD" data-act="setCustFilter" data-on="click" data-args='["NO_RECORD",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot" style="color:var(--ink-4)"></span>NO RECORD</div>
+            <div class="filter-opt" data-val="COLD" data-act="setCustFilter" data-on="click" data-args='["COLD",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot ink-cold"></span>COLD</div>
+            <div class="filter-opt" data-val="NO_RECORD" data-act="setCustFilter" data-on="click" data-args='["NO_RECORD",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="false" data-activatable><span class="fo-dot ink-muted"></span>NO RECORD</div>
             <div class="fm-sep"></div>
             <div class="fm-title">Marketing</div>
             <select class="fm-input" id="custFMarketing" data-act="applyCustFilters" data-on="change" data-args='[]' data-act="stopPropagation" data-on="click" data-args='[]'></select>
@@ -495,7 +489,7 @@
     </div>
 
     <div class="tab-pane" id="crmPane_norecord">
-      <div class="setting-hint" style="margin-bottom:var(--sp-3)">Registered guests with no reservation and no CRM note.</div>
+      <div class="setting-hint mb-3">Registered guests with no reservation and no CRM note.</div>
       <div class="toolbar">
         <label class="visually-hidden" for="norecSearch">Search no-record guests</label>
         <input class="search" id="norecSearch" placeholder="Search" data-act="onNorecSearch" data-on="input" data-args='[]'>
@@ -526,13 +520,13 @@
       <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setReportType" data-on="click" data-args='["cold",{"$":"this"}]'>Cold Guests</button>
       <button class="view-switch-tab" role="tab" aria-selected="false" data-act="setReportType" data-on="click" data-args='["norecord",{"$":"this"}]'>No Record</button>
     </div>
-    <div class="panel" style="margin-bottom:var(--sp-5)">
-      <div class="panel-body" id="reportFilters" style="padding:var(--sp-5)"></div>
+    <div class="panel mb-5">
+      <div class="panel-body p-5" id="reportFilters"></div>
       <div class="report-filter-actions">
         <button class="btn btn-gold btn-sm" id="reportGenerateBtn" data-act="runReport" data-on="click" data-args='[]'>GENERATE REPORT</button>
       </div>
     </div>
-    <div id="reportResultsWrap" style="display:none;">
+    <div class="is-hidden" id="reportResultsWrap">
       <div class="pane-head">
         <div class="pane-title" id="reportResultCount"></div>
         <button class="btn btn-outline btn-sm" data-act="exportReportResults" data-on="click" data-args='[]'>EXPORT</button>
@@ -623,12 +617,12 @@
         </div>
       </div>
 
-      <div class="settings-section" id="permissionsSection" style="display:none;">
+      <div class="settings-section is-hidden" id="permissionsSection">
         <h2 class="settings-section-title">Permissions</h2>
         <div class="perm-grid" id="permGrid"></div>
       </div>
 
-      <div class="settings-section" id="backupSection" style="display:none;">
+      <div class="settings-section is-hidden" id="backupSection">
         <h2 class="settings-section-title">Database</h2>
         <div class="setting-row">
           <div><div class="setting-label">Automatic backup</div>
@@ -667,16 +661,16 @@
         <div class="setting-row">
           <div><div class="setting-label">Backup now</div>
                <div class="setting-hint">Everything you enter is saved automatically; this makes a restore point</div></div>
-          <div class="setting-control" style="display:flex; gap:7px;">
+          <div class="setting-control row-gap-7">
             <button class="btn btn-gold btn-sm" id="backupNowBtn" data-act="doBackupNow" data-on="click" data-args='[]'>BACKUP</button>
             <button class="btn btn-outline btn-sm" data-act="openDataFolder" data-on="click" data-args='[]'>DATA FOLDER</button>
           </div>
         </div>
-        <div class="setting-row" style="align-items:flex-start;">
+        <div class="setting-row items-start">
           <div><div class="setting-label">Restore</div>
                <div class="setting-hint">A safety copy is taken before restoring</div></div>
-          <div class="setting-control" style="width:340px; max-width:100%;">
-            <div class="notif-list" id="backupList" style="max-height:210px; overflow-y:auto;"></div>
+          <div class="setting-control w-340">
+            <div class="notif-list scroll-210" id="backupList"></div>
           </div>
         </div>
       </div>
@@ -710,7 +704,7 @@
           <a class="btn-link guest-new-link" id="resNewGuestLink" href="javascript:void(0)" data-act="setResNewGuest" data-on="click" data-args='[true]'>+ New guest (not yet registered)</a>
         </div>
         <div class="entity-preview" id="resGuestPreview">
-          <div class="avatar lg" id="resGuestAvatar" style="margin:0;"></div>
+          <div class="avatar lg m-0" id="resGuestAvatar"></div>
           <div class="ep-info">
             <div class="ep-name" id="resGuestName"></div>
             <div class="ep-meta" id="resGuestMeta"></div>
@@ -718,8 +712,8 @@
           </div>
           <button type="button" class="btn-link ep-change" data-act="openReservationGuestFinder" data-on="click" data-args='[]'>Change</button>
         </div>
-        <div class="field-error" id="resGuestProtectedWarning" style="display:none;">Guest protection period has not expired.</div>
-        <div class="field-row" id="resNewCustomerField" style="display:none;">
+        <div class="field-error is-hidden" id="resGuestProtectedWarning">Guest protection period has not expired.</div>
+        <div class="field-row is-hidden" id="resNewCustomerField">
           <div class="field">
             <label for="resNewCustomerId">New Guest ID</label>
             <input type="text" id="resNewCustomerId">
@@ -734,7 +728,7 @@
         </div>
       </div>
 
-      <div class="form-row-split" style="margin-bottom:var(--sp-6);">
+      <div class="form-row-split mb-6">
         <div class="form-group">
           <div class="form-group-title">Stay Details</div>
           <div class="stay-dates">
@@ -761,7 +755,7 @@
               </button>
             </div>
             <div class="field-error" id="err-resInvitedBy" role="alert"></div>
-            <div class="field-hint" id="resInvitedByLockedHint" style="display:none;">Reservations you create are always attributed to you.</div>
+            <div class="field-hint is-hidden" id="resInvitedByLockedHint">Reservations you create are always attributed to you.</div>
           </div>
         </div>
       </div>
@@ -776,8 +770,8 @@
     </div>
     <div class="modal-foot modal-foot-tiered">
       <div class="foot-left">
-        <button class="btn btn-ghost btn-sm btn-destructive-ghost" id="resCancelResBtn" style="display:none;" data-act="cancelEditingReservation" data-on="click" data-args='[]'>Cancel Reservation</button>
-        <button class="btn-delete-icon" id="resDeleteResBtn" style="display:none;" data-act="deleteEditingReservation" data-on="click" data-args='[]' title="Permanently delete this reservation">
+        <button class="btn btn-ghost btn-sm btn-destructive-ghost is-hidden" id="resCancelResBtn" data-act="cancelEditingReservation" data-on="click" data-args='[]'>Cancel Reservation</button>
+        <button class="btn-delete-icon is-hidden" id="resDeleteResBtn" data-act="deleteEditingReservation" data-on="click" data-args='[]' title="Permanently delete this reservation">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </button>
       </div>
@@ -797,10 +791,10 @@
       <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalCancelReservation"]' aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="setting-hint" style="margin-bottom:var(--sp-4);">
+      <div class="setting-hint mb-4">
         The reservation is preserved and remains visible in the Cancelled view — this does not delete any history.
       </div>
-      <div class="ep-name" id="cancelResSummary" style="margin-bottom:var(--sp-4);"></div>
+      <div class="ep-name mb-4" id="cancelResSummary"></div>
       <div class="field">
         <label for="cancelResReason">Reason <span class="muted">(optional)</span></label>
         <select id="cancelResReason" data-act="onCancelReasonChange" data-on="change" data-args='[]'>
@@ -812,7 +806,7 @@
           <option value="Other">Other</option>
         </select>
       </div>
-      <div class="field" id="cancelResOtherField" style="display:none;">
+      <div class="field is-hidden" id="cancelResOtherField">
         <label for="cancelResOtherText">Reason details</label>
         <input type="text" id="cancelResOtherText" placeholder="Describe the reason">
         <div class="field-error" id="err-cancelResOtherText" role="alert"></div>
@@ -835,11 +829,17 @@
       <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalDeleteReservation"]' aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="danger-hint" style="margin-bottom:var(--sp-4);">
-        This permanently removes the reservation record. Unlike Cancel Reservation, it cannot be undone and no record of the stay is kept.
+      <div class="danger-hint mb-4">
+        This removes the reservation from the guest record, every report and every count. It is kept in Deleted history, where an administrator or manager can still see it — but it stops being an operational booking, and only an administrator can do this.
       </div>
-      <div class="ep-name" id="deleteResSummary" style="margin-bottom:var(--sp-2);"></div>
+      <div class="ep-name mb-2" id="deleteResSummary"></div>
       <div class="setting-hint" id="deleteResStatusLine"></div>
+      <div class="field mt-4">
+        <label class="field-label" for="deleteResReason">Why is this being deleted?</label>
+        <input class="input" id="deleteResReason" maxlength="300" autocomplete="off"
+               placeholder="e.g. entered against the wrong guest">
+        <div class="field-error" id="deleteResReasonError"></div>
+      </div>
     </div>
     <div class="modal-foot">
       <div class="foot-right">
@@ -903,7 +903,7 @@
         </div>
       </div>
 
-      <div class="form-group" id="profStatusSection" style="display:none;">
+      <div class="form-group is-hidden" id="profStatusSection">
         <div class="form-group-title">Employment</div>
         <label class="check-row">
           <input type="checkbox" id="profInactive">
@@ -912,7 +912,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-delete-icon" id="profDeleteBtn" style="display:none;" data-act="deleteProfile" data-on="click" data-args='[]' title="Delete">
+      <button class="btn-delete-icon is-hidden" id="profDeleteBtn" data-act="deleteProfile" data-on="click" data-args='[]' title="Delete">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
       </button>
       <div class="foot-right">
@@ -977,7 +977,7 @@
             <div class="split-col-title">Assigned Guests</div>
             <button class="btn-link" data-act="exportProfileSection" data-on="click" data-args='["guests"]'>Export</button>
           </div>
-          <div class="setting-hint" style="margin-bottom:var(--sp-3)">Guests currently assigned to this profile.</div>
+          <div class="setting-hint mb-3">Guests currently assigned to this profile.</div>
           <div class="split-list" id="pdGuestList"></div>
         </div>
 
@@ -986,7 +986,7 @@
             <div class="split-col-title">Customer List</div>
             <button class="btn-link" data-act="exportProfileSection" data-on="click" data-args='["customers"]'>Export</button>
           </div>
-          <div class="setting-hint" style="margin-bottom:var(--sp-3)">Every guest this profile has created, invited, or is assigned to.</div>
+          <div class="setting-hint mb-3">Every guest this profile has created, invited, or is assigned to.</div>
           <div class="split-list" id="pdCustList"></div>
         </div>
       </div>
@@ -1028,7 +1028,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-delete-icon" id="custDeleteBtn" style="display:none;" data-act="deleteCustomer" data-on="click" data-args='[]' title="Delete guest">
+      <button class="btn-delete-icon is-hidden" id="custDeleteBtn" data-act="deleteCustomer" data-on="click" data-args='[]' title="Delete guest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
       </button>
       <div class="foot-right">
@@ -1059,7 +1059,7 @@
           <div class="field-error" id="err-recCustomerSelect" role="alert"></div>
         </div>
         <div class="entity-preview" id="recPreview">
-          <div class="avatar lg" id="recPreviewAvatar" style="margin:0;"></div>
+          <div class="avatar lg m-0" id="recPreviewAvatar"></div>
           <div class="ep-info">
             <div class="ep-name" id="recPreviewName"></div>
             <div class="ep-meta" id="recPreviewMeta"></div>
@@ -1124,14 +1124,14 @@
     </div>
     <div class="modal-body">
       <div class="entity-preview show" id="assignPreview">
-        <div class="avatar lg" id="assignAvatar" style="margin:0;"></div>
+        <div class="avatar lg m-0" id="assignAvatar"></div>
         <div class="ep-info">
           <div class="ep-name" id="assignName"></div>
           <div class="ep-meta" id="assignMeta"></div>
           <div class="ep-pills" id="assignPills"></div>
         </div>
       </div>
-      <div class="form-group" style="margin-top:20px;">
+      <div class="form-group mt-5">
         <div class="form-group-title">Assign To</div>
         <div class="field"><select id="assignSelect"></select></div>
       </div>
@@ -1175,7 +1175,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-delete-icon" id="userDeleteBtn" style="display:none;" data-act="deleteUser" data-on="click" data-args='[]' title="Delete">
+      <button class="btn-delete-icon is-hidden" id="userDeleteBtn" data-act="deleteUser" data-on="click" data-args='[]' title="Delete">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
       </button>
       <div class="foot-right">
@@ -1226,7 +1226,7 @@
         <label for="cropZoom">Zoom</label>
         <input type="range" id="cropZoom" min="100" max="300" value="100" data-act="drawCrop" data-on="input" data-args='[]'>
       </div>
-      <div class="setting-hint" style="text-align:center;">Drag the picture to choose what shows</div>
+      <div class="setting-hint text-center">Drag the picture to choose what shows</div>
     </div>
     <div class="modal-foot">
       <div class="foot-right">

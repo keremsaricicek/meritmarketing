@@ -73,13 +73,29 @@ function picker(ctx, params = {}) {
   return repo.picker(ctx.db, params, guard.scopeOf(ctx));
 }
 
+/* A Guest ID is unique across the whole table, archived guests included — the
+   database index does not stop at the tombstone. Asking about the archived case
+   separately is the difference between an operator being told what to do and
+   being shown "An unexpected error occurred", which is what a bare UNIQUE
+   constraint failure becomes by the time it crosses the IPC boundary. */
+function requireCodeAvailable(ctx, code, exceptId = null) {
+  const clash = repo.findByCode(ctx.db, code);
+  if (clash && clash.id !== exceptId) throw validation('That Guest ID is already in use.', 'code');
+  const archived = repo.findArchivedByCode(ctx.db, code);
+  if (archived && archived.id !== exceptId) {
+    throw validation(
+      `That Guest ID belongs to an archived guest (${archived.full_name}). Guest IDs are never reused — choose a different one.`,
+      'code');
+  }
+}
+
 function create(ctx, params) {
   const session = guard.requireCapability(ctx, 'customers.create');
   const code = String(params.code || '').trim();
   const fullName = String(params.fullName || '').trim();
   if (!code) throw validation('Guest ID is required.', 'code');
   if (!fullName) throw validation('Name is required.', 'fullName');
-  if (repo.findByCode(ctx.db, code)) throw validation('That Guest ID is already in use.', 'code');
+  requireCodeAvailable(ctx, code);
 
   /* A marketer may only create guests owned by themselves. Scope is a two-way
      boundary: it stops reading another marketer's book, and it stops writing
@@ -161,8 +177,7 @@ function update(ctx, params) {
   if (params.code !== undefined) {
     const code = String(params.code).trim();
     if (!code) throw validation('Guest ID is required.', 'code');
-    const clash = repo.findByCode(ctx.db, code);
-    if (clash && clash.id !== existing.id) throw validation('That Guest ID is already in use.', 'code');
+    requireCodeAvailable(ctx, code, existing.id);
     patch.code = code;
   }
   if (!Object.keys(patch).length) return { id: existing.id };

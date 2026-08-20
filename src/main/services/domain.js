@@ -12,7 +12,7 @@
  * DELETED reservation is excluded from all operational meaning.
  */
 
-const { today, addYears, daysSince } = require('../../shared/contracts/dates');
+const { today, addYears, daysSince, instantToBusinessDate } = require('../../shared/contracts/dates');
 
 const PROTECTION_YEARS = 1;
 const COLD_AFTER_DAYS = 90;
@@ -74,7 +74,12 @@ function lastExplicitAssignmentDate(assignmentHistoryOldestFirst = []) {
   const explicit = assignmentHistoryOldestFirst.filter((h) => h.event_type === 'explicit');
   if (!explicit.length) return null;
   const at = explicit[explicit.length - 1].changed_at;
-  return at ? String(at).slice(0, 10) : null;
+  /* `changed_at` is a system instant in UTC; the protection clock runs in
+     business dates. Slicing the first ten characters silently answers "what
+     date was this in UTC", which is a different day from the operator's for
+     every decision made between midnight and the UTC offset — the whole of the
+     early shift in Turkey (UTC+3). */
+  return instantToBusinessDate(at);
 }
 
 /* Protection runs for one year from whichever came later: the latest qualifying
@@ -113,7 +118,20 @@ function isProtectedFrom({ customer, qualifyingReservations = [], assignmentHist
  * already stored, so the booking would itself re-establish the window.
  */
 function shouldDeriveOwnership({ customer, newestQualifying, assignmentHistory = [] }) {
-  if (!newestQualifying || !newestQualifying.invited_by_profile_id) return false;
+  if (!newestQualifying || !newestQualifying.invited_by_profile_id) {
+    /* Nothing qualifying is left — the last booking was deleted or cancelled.
+       Ownership that was INFERRED from a booking has to fall away with it,
+       otherwise the guest stays assigned with nothing in the database left to
+       explain why, and the owning profile's guest count and reservation count
+       stop agreeing about the same person.
+
+       A management DECISION is the opposite case: it was made deliberately and
+       does not stop being true because a booking was removed. So the last
+       history entry decides — inference releases, intent survives. */
+    if (!customer.marketing_profile_id) return false;
+    const last = assignmentHistory.length ? assignmentHistory[assignmentHistory.length - 1] : null;
+    return !!last && last.event_type === 'derived';
+  }
   const explicit = assignmentHistory.filter((h) => h.event_type === 'explicit');
   const lastExplicit = explicit.length ? explicit[explicit.length - 1] : null;
   if (!lastExplicit) return true;

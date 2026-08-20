@@ -51,7 +51,7 @@ async function renderDashboard(){
   band.style.gridTemplateColumns = `repeat(${cells.length},1fr)`;
   band.innerHTML = cells.map(c => `
     <div class="stat-cell" data-act="${c.act}" data-on="click" data-args='${JSON.stringify(c.actArgs || [])}'>
-      <span class="kpi-arrow" style="display:none"></span>
+      <span class="kpi-arrow is-hidden"></span>
       <div class="sc-l">${c.l}</div>
       <div class="sc-n">${c.n}${c.flag ? '<span class="sc-flag"></span>' : ''}</div>
       <div class="sc-sub">${c.sub}</div>
@@ -141,7 +141,7 @@ async function renderRolePanel(){
     <div class="rank-row">
       <div class="rank-pos">${i + 1}</div>
       <div class="rank-name">${escapeHtml(name)}</div>
-      <div class="rank-bar"><div class="rank-fill" style="width:${Math.round(n / max * 100)}%"></div></div>
+      <div class="rank-bar"><div class="rank-fill" data-bar-width="${Math.round(n / max * 100)}"></div></div>
       <div class="rank-val">${n}</div>
     </div>`).join('')
     : emptyState({ icon:'check', title:'No activity in this period' });
@@ -211,8 +211,13 @@ function sortReservations(col){
 
 function resFilterParams(){
   const s = state.res;
-  return { search:s.search, status:s.status || '', invitedBy:s.invitedBy || '',
-           from:s.from || '', to:s.to || '', view:s.view, sort:s.sort, dir:s.dir };
+  const p = { view:s.view, sort:s.sort, dir:s.dir };
+  if (s.search) p.search = s.search;
+  if (s.status) p.status = s.status;
+  if (s.invitedBy) p.invitedBy = s.invitedBy;
+  if (s.from) p.from = s.from;
+  if (s.to) p.to = s.to;
+  return p;
 }
 function applyResFilters(){
   const s = state.res;
@@ -276,7 +281,7 @@ async function renderReservations(){
   const tbody = el('resTableBody');
   const cancelledView = s.view === 'cancelled';
   tbody.innerHTML = data.rows.length ? data.rows.map(r => `
-    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${r.customer_id},"resDetailPanel"]' data-act="openReservationModal" data-on="dblclick" data-args='[${r.id}]' aria-label="${escapeHtml(r.customer_name)}, ${fmtDate(r.check_in)} to ${fmtDate(r.check_out)}">
+    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${r.customer_id},"resDetailPanel"]' data-act-dblclick="openReservationModal" data-args-dblclick='[${r.id}]' aria-label="${escapeHtml(r.customer_name)}, ${fmtDate(r.check_in)} to ${fmtDate(r.check_out)}">
       <td class="muted">#${escapeHtml(r.customer_code)}</td>
       <td>${escapeHtml(r.customer_name)}</td>
       <td>${fmtDate(r.check_in)}</td>
@@ -367,11 +372,23 @@ async function openDeleteReservationModal(id){
   deletingReservationCustomerId = r.customer_id;
   el('deleteResSummary').textContent = `${r.customer_name} · ${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}`;
   el('deleteResStatusLine').innerHTML = `Current status: ${statusTagHTML(r.status)}`;
+  el('deleteResReason').value = '';
+  el('deleteResReasonError').textContent = '';
+  el('deleteResReasonError').classList.remove('show');
   openModal('modalDeleteReservation');
 }
 async function confirmDeleteReservation(){
   if (!deletingReservationId) return;
-  const r = await call(window.api.reservations.delete, { id:deletingReservationId });
+  /* A deletion without a stated reason is an unanswerable question six months
+     later, so the service requires one and the form must collect it. */
+  const reason = el('deleteResReason').value.trim();
+  if (!reason){
+    el('deleteResReasonError').textContent = 'Give a reason so the record explains itself later.';
+    el('deleteResReasonError').classList.add('show');
+    el('deleteResReason').focus();
+    return;
+  }
+  const r = await call(window.api.reservations.delete, { id:deletingReservationId, reason });
   if (r){
     toast('success','Reservation permanently deleted');
     closeModal('modalDeleteReservation');
@@ -406,9 +423,18 @@ function sortCustomers(col){
   renderCustomers();
 }
 
+/* An unset filter is ABSENT, not an empty string. The boundary schemas are
+   strict and typed: `status:''` is not a valid status, `from:''` is not a
+   business date, and `marketing` is not a field name the surface has — it is
+   `assignedTo`. Sending those made the whole list call fail validation, so the
+   screen rendered nothing at all rather than rendering unfiltered. */
 function custFilterParams(){
   const s = state.cust;
-  return { search:s.search, status:s.status, marketing:s.marketing || '', sort:s.sort, dir:s.dir };
+  const p = { sort:s.sort, dir:s.dir };
+  if (s.search) p.search = s.search;
+  if (s.status) p.status = s.status;
+  if (s.marketing) p.assignedTo = s.marketing;
+  return p;
 }
 function applyCustFilters(){
   state.cust.marketing = el('custFMarketing').value;
@@ -458,7 +484,7 @@ async function renderCustomers(){
 
   const tbody = el('custTableBody');
   tbody.innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"detailPanel"]' data-act="openCustomerModal" data-on="dblclick" data-args='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
+    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"detailPanel"]' data-act-dblclick="openCustomerModal" data-args-dblclick='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
@@ -543,7 +569,7 @@ async function renderCustomerList(){
     { search:q, registeredOnly:true, sort:s.sort, dir:s.dir, pageSize:500, ...listFilterParams() });
   if (!data) return;
   el('listTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"listDetailPanel"]' data-act="openCustomerModal" data-on="dblclick" data-args='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
+    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"listDetailPanel"]' data-act-dblclick="openCustomerModal" data-args-dblclick='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td class="muted">${escapeHtml(c.created_by_label)}</td>
@@ -572,7 +598,7 @@ async function renderNoRecord(){
   const canAssignHere = ['ADMIN','MANAGER'].includes(state.session?.role);
 
   el('norecTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" tabindex="0" data-act="openCustomerModal" data-on="dblclick" data-args='[${c.id}]' data-act="enterOpensCustomer" data-on="keydown" data-args='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
+    <tr class="clickable" tabindex="0" data-act="openCustomerModal" data-on="dblclick" data-args='[${c.id}]' data-act-keydown="enterOpensCustomer" data-args-keydown='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
@@ -713,9 +739,9 @@ async function showCustomerDetail(customerId, panelId){
       <div class="gc-field"><div class="gf-l">Registered</div><div class="gf-v">${fmtDate(c.created_at)}</div></div>
       <div class="gc-field"><div class="gf-l">Last Activity</div><div class="gf-v">${lastActivity ? fmtDate(lastActivity) : '—'}</div></div>
     </div>
-    ${nextStay ? `<div class="pane-title" style="margin-top:var(--sp-4)">Next Stay</div>
+    ${nextStay ? `<div class="pane-title mt-4">Next Stay</div>
       <div class="rz-item"><div class="rz-dates"><span>${fmtDate(nextStay.check_in)} – ${fmtDate(nextStay.check_out)}</span>${statusTagHTML(nextStay.status)}</div></div>` : ''}
-    <div class="pane-title" style="margin-top:var(--sp-4)">Recent Activity</div>
+    <div class="pane-title mt-4">Recent Activity</div>
     ${events.length ? `<div class="timeline">${events.slice(0,3).map(e => `
       <div class="tl-item t-${e.kind}"><div class="tl-dot"></div><div class="tl-when">${fmtDate(e.when)}</div>
       <div class="tl-title">${escapeHtml(e.title)}</div></div>`).join('')}</div>`
@@ -741,7 +767,7 @@ async function showCustomerDetail(customerId, panelId){
       <div class="avatar xxl"${avatarStyle(c.photo_path)}>${photoUrl(c.photo_path) ? '' : escapeHtml(initials(c.full_name))}</div>
       <div class="gc-name">${escapeHtml(c.full_name)}</div>
       <div class="setting-hint">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''}</div>
-      <div style="margin-top:9px;">${statusTagHTML(c.status)}</div>
+      <div class="mt-9">${statusTagHTML(c.status)}</div>
     </div>
     <div class="card-tabs" id="${uid}_tabs">
       <button class="card-tab active" data-act="switchCardTab" data-on="click" data-args='["${uid}","overview",{"$":"this"}]'>Overview</button>
@@ -854,7 +880,7 @@ async function openCalDay(dateStr){
   const data = await call(window.api.calendar.day, { date:dateStr });
   if (!data) return;
   const row = (r) => `
-    <div class="mini-card" data-act="calDayGoToGuest" data-on="click" data-args='[${r.customer_id}]' style="cursor:pointer">
+    <div class="mini-card" data-act="calDayGoToGuest" data-on="click" data-args='[${r.customer_id}]' class="clickable">
       <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
       <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
     </div>`;
@@ -881,7 +907,7 @@ function weeklySeries(rows, weeks = 8){
 function sparkHTML(series){
   const max = Math.max(1, ...series);
   return `<div class="pc-spark">${series.map(v =>
-    `<div class="spark-bar${v ? ' on' : ''}" style="height:${Math.max(6, Math.round(v / max * 100))}%" title="${v}"></div>`
+    `<div class="spark-bar${v ? ' on' : ''}" data-bar-height="${Math.max(6, Math.round(v / max * 100))}" title="${v}"></div>`
   ).join('')}</div>`;
 }
 
@@ -908,7 +934,7 @@ async function renderProfiles(){
     return `
     <div class="profile-card${inactive ? ' inactive' : ''}" data-act="openProfileDetail" data-on="dblclick" data-args='[${p.id}]' title="Double-click for the full profile">
       <div class="pc-photo${url ? '' : ' no-photo'}">
-        ${url ? `<div class="pc-photo-img" style="background-image:url('${url}')"></div>` : `<div class="pc-initials">${escapeHtml(initials(p.full_name))}</div>`}
+        ${url ? `<div class="pc-photo-img" data-avatar="${escapeHtml(url)}"></div>` : `<div class="pc-initials">${escapeHtml(initials(p.full_name))}</div>`}
         ${inactive ? '<div class="pc-inactive-tag">Inactive</div>' : ''}
       </div>
       <div class="pc-content">
@@ -919,7 +945,7 @@ async function renderProfiles(){
         <div class="pc-metrics">
           <div class="pc-metric"><div class="n">${recent}</div><div class="l">30 DAYS</div></div>
           <div class="pc-metric"><div class="n">${p.customer_count}</div><div class="l">GUESTS</div></div>
-          <div class="pc-metric"><div class="n" style="font-size:11px">${last}</div><div class="l">LAST SEEN</div></div>
+          <div class="pc-metric"><div class="n fs-11">${last}</div><div class="l">LAST SEEN</div></div>
         </div>
         ${sparkHTML(weeklySeries(mine))}
       </div>
@@ -960,8 +986,8 @@ async function openProfileDetail(id){
   if (p.passport_no) chips.push(`<span class="pd-chip">${icon('<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 17h7"/>')}${escapeHtml(p.passport_no)}</span>`);
   if (p.phone) chips.push(`<span class="pd-chip">${icon('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/>')}${escapeHtml(p.phone)}</span>`);
   chips.push(inactive
-    ? `<span class="pd-chip" style="color:var(--ink-3)">${icon('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>')}No longer with the company</span>`
-    : `<span class="pd-chip" style="color:var(--teal)">${icon('<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>')}Active</span>`);
+    ? `<span class="pd-chip ink-3">${icon('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>')}No longer with the company</span>`
+    : `<span class="pd-chip ink-teal">${icon('<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>')}Active</span>`);
   el('pdChips').innerHTML = chips.join('');
 
   el('pdInvitedFilter').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 0));
@@ -1059,7 +1085,7 @@ async function renderNotifications(){
   }
   node.innerHTML = list.map(n => `
     <div class="notif-item${n.read ? '' : ' unread'}"
-         ${n.related_customer_id ? `data-act="openNotification" data-on="click" data-args='[${n.id},${n.related_customer_id}]' style="cursor:pointer"` : `data-act="markNotificationRead" data-on="click" data-args='[${n.id}]'`}>
+         ${n.related_customer_id ? `data-act="openNotification" data-on="click" data-args='[${n.id},${n.related_customer_id}]' class="clickable"` : `data-act="markNotificationRead" data-on="click" data-args='[${n.id}]'`}>
       <div class="notif-icon t-${NOTIF_TONE[n.type] || 'assign'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${NOTIF_ICONS[n.type] || NOTIF_ICONS.assignment}</svg>
       </div>
@@ -1298,7 +1324,7 @@ async function exportReportResults(){
 async function renderUsers(){
   const users = await call(window.api.users.list, {});
   el('usersTableBody').innerHTML = (users || []).length ? users.map(u => `
-    <tr class="clickable" tabindex="0" data-act="openUserModal" data-on="dblclick" data-args='[${u.id}]' data-act="enterOpensUser" data-on="keydown" data-args='[${u.id}]' aria-label="${escapeHtml(u.username)}. Press Enter to open.">
+    <tr class="clickable" tabindex="0" data-act="openUserModal" data-on="dblclick" data-args='[${u.id}]' data-act-keydown="enterOpensUser" data-args-keydown='[${u.id}]' aria-label="${escapeHtml(u.username)}. Press Enter to open.">
       <td>${escapeHtml(u.username)}</td>
       <td>${u.full_name ? escapeHtml(u.full_name) : '<span class="muted">—</span>'}</td>
       <td><span class="role-pill ${u.role.toLowerCase()}">${u.role}</span></td>
@@ -1365,7 +1391,7 @@ async function renderPermissionMatrix(){
     </div>`).join('');
   el('permGrid').innerHTML = `
     <div class="perm-row">
-      <div class="perm-head" style="text-align:left">Capability</div>
+      <div class="perm-head text-left">Capability</div>
       <div class="perm-head">Manager</div>
       <div class="perm-head">Marketing</div>
     </div>${rows}`;
@@ -1388,7 +1414,7 @@ async function loadBackups(){
     <div class="list-row">
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(b.name)}</div>
-        <div class="lr-sub">${fmtDateTime(b.created_at)} · ${(b.size/1024).toFixed(0)} KB</div>
+        <div class="lr-sub">${fmtDateTime(b.createdAt)} · ${(b.byteSize/1024).toFixed(0)} KB</div>
       </div>
       <button class="pager-btn" data-act="doRestore" data-on="click" data-args='["${jsonAttr(b.name)}"]'>Restore</button>
     </div>`).join('') : '<div class="panel-empty">No backups yet</div>';

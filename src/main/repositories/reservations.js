@@ -28,7 +28,7 @@ const SELECT = `
          p.full_name AS invited_by_name,
          du.username AS deleted_by_username, cu.username AS cancelled_by_username
   FROM reservations r
-  JOIN customers c ON c.id = r.customer_id
+  JOIN customers c ON c.id = r.customer_id AND c.deleted_at IS NULL
   LEFT JOIN profiles p ON p.id = r.invited_by_profile_id
   LEFT JOIN users du ON du.id = r.deleted_by
   LEFT JOIN users cu ON cu.id = r.cancelled_by`;
@@ -72,7 +72,7 @@ function list(db, q = {}, scopeId = null, view = 'active') {
   const page = Math.max(Number(q.page) || 1, 1);
 
   const total = db.prepare(`SELECT COUNT(*) AS n FROM reservations r
-    JOIN customers c ON c.id = r.customer_id WHERE ${whereSql}`).get(params).n;
+    JOIN customers c ON c.id = r.customer_id AND c.deleted_at IS NULL WHERE ${whereSql}`).get(params).n;
   const rows = db.prepare(`${SELECT} WHERE ${whereSql} ORDER BY ${order} ${dir} LIMIT @limit OFFSET @offset`)
     .all({ ...params, limit: pageSize, offset: (page - 1) * pageSize });
 
@@ -105,10 +105,13 @@ function update(db, id, patch) {
     .run({ ...patch, id });
 }
 
-/** Overlapping non-cancelled, non-deleted stays for the same guest. */
+/* Overlapping non-cancelled, non-deleted stays for the same guest.
+   No customer join: the caller has already established the guest exists, and
+   an overlap check that silently ignored an archived guest's stays would let a
+   double booking through on the day that guest is restored. */
 function overlapping(db, customerId, checkIn, checkOut, excludeId = null) {
   return db.prepare(`
-    SELECT id, check_in, check_out FROM reservations
+    SELECT id, check_in, check_out, invited_by_profile_id FROM reservations
     WHERE customer_id = @customerId AND deleted_at IS NULL AND cancelled_at IS NULL
       AND check_in <= @checkOut AND check_out >= @checkIn
       AND (@excludeId IS NULL OR id <> @excludeId)`)
@@ -125,6 +128,7 @@ function calendarMonth(db, year, month, scopeId = null) {
   if (scopeId !== null) params.scopeId = scopeId;
   const rows = db.prepare(`
     SELECT r.check_in, r.check_out FROM reservations r
+    JOIN customers c ON c.id = r.customer_id AND c.deleted_at IS NULL
     WHERE r.deleted_at IS NULL AND r.cancelled_at IS NULL
       AND r.check_in <= @last AND r.check_out >= @first${scope}`).all(params);
 

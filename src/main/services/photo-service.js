@@ -15,6 +15,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { safeJoin } = require('../paths');
 const guard = require('./guard');
+const domain = require('./domain');
+const customersRepo = require('../repositories/customers');
 const { nowIso } = require('../../shared/contracts/dates');
 const { validation, notFound } = require('../../shared/errors');
 
@@ -86,13 +88,31 @@ function build({ dialog, paths, getWindow }) {
       return { name: row.name, mimeType: row.mime_type, dataUrl: `data:${row.mime_type};base64,${buffer.toString('base64')}` };
     },
 
-    remove(ctx, { name }) {
+    /* A photo belongs to a guest, so deleting one is a write to that guest's
+       record and needs the record scope, not only the capability. Holding
+       `customers.update` answers "may this role edit guests"; it does not
+       answer "may this session edit THIS guest". */
+    remove(ctx, { name, customerId }) {
       guard.requireCapability(ctx, 'customers.update');
       const row = ctx.db.prepare('SELECT * FROM photos WHERE name = ?').get(String(name));
       if (!row) throw notFound('Photo not found.');
+
+      /* Whoever the image is attached to is who authorizes its removal. A photo
+         attached to nothing is management's to clear. */
+      const owner = ctx.db.prepare(
+        'SELECT * FROM customers WHERE photo_name = ? AND deleted_at IS NULL').get(row.name)
+        || (customerId ? customersRepo.findById(ctx.db, Number(customerId)) : null);
+      if (owner) guard.requireCustomerInScope(ctx, owner);
+      else if (domain.scopeProfileId(ctx.sessions.get()) !== null) throw notFound('Photo not found.');
+
       const file = safeJoin(paths.photos, row.name);
       if (file && fs.existsSync(file)) fs.unlinkSync(file);
       ctx.db.prepare('DELETE FROM photos WHERE name = ?').run(row.name);
+      /* Clear the reference too, or the guest keeps pointing at a file that is
+         gone and `photos.read` quietly returns null forever. */
+      if (owner) {
+        ctx.db.prepare('UPDATE customers SET photo_name = NULL WHERE photo_name = ?').run(row.name);
+      }
       ctx.audit({ action: 'PHOTO_DELETE', entity_type: 'photo', description: `Removed image ${row.name}` });
       return { ok: true };
     },

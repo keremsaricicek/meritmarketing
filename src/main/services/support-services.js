@@ -71,13 +71,23 @@ const crmNotes = {
 
 /* =============================================================== profiles */
 
-/* Another marketer's guest and reservation counts are their performance data.
-   A marketer can see that colleagues exist — the app would be baffling
-   otherwise — but not how they are doing. */
-function maskMetrics(session, rows) {
+/* Another marketer's guest and reservation counts are their performance data,
+   and their passport number, phone, email and the free-text `notes` field are
+   personnel data — that is where management records things like an employment
+   warning. A marketer can see that colleagues exist, because the app would be
+   baffling otherwise; everything else about a colleague is management's.
+   Masking the metrics while returning `SELECT p.*` handed over the rest. */
+const PROFILE_PERSONAL = Object.freeze(['passport_no', 'phone', 'email', 'nationality', 'notes']);
+
+function maskProfiles(session, rows) {
   const scope = domain.scopeProfileId(session);
   if (scope === null) return rows;
-  return rows.map((p) => (p.id === scope ? p : { ...p, customer_count: null, reservation_count: null }));
+  return rows.map((p) => {
+    if (p.id === scope) return p;
+    const masked = { ...p, customer_count: null, reservation_count: null };
+    for (const field of PROFILE_PERSONAL) delete masked[field];
+    return masked;
+  });
 }
 
 const profiles = {
@@ -86,18 +96,19 @@ const profiles = {
     const rows = ctx.db.prepare(`
       SELECT p.*,
         (SELECT COUNT(*) FROM customers c WHERE c.marketing_profile_id = p.id AND c.deleted_at IS NULL) AS customer_count,
-        (SELECT COUNT(*) FROM reservations r WHERE r.invited_by_profile_id = p.id AND r.deleted_at IS NULL) AS reservation_count
+        (SELECT COUNT(*) FROM reservations r JOIN customers rc ON rc.id = r.customer_id
+           WHERE r.invited_by_profile_id = p.id AND r.deleted_at IS NULL AND rc.deleted_at IS NULL) AS reservation_count
       FROM profiles p
       WHERE (@includeStaff = 1 OR p.kind = 'marketing') AND p.archived_at IS NULL
       ORDER BY p.full_name COLLATE NOCASE`).all({ includeStaff: params.includeStaff ? 1 : 0 });
-    return maskMetrics(session, rows);
+    return maskProfiles(session, rows);
   },
 
   get(ctx, { id }) {
     const session = guard.requireCapability(ctx, 'profiles.read');
     const row = ctx.db.prepare('SELECT * FROM profiles WHERE id = ?').get(Number(id));
     if (!row) throw notFound('Profile not found.');
-    return maskMetrics(session, [row])[0];
+    return maskProfiles(session, [row])[0];
   },
 
   /* A profile's guest book is that marketer's book. Handing it to another

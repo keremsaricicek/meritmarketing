@@ -11,7 +11,12 @@
 const { z } = require('zod');
 
 const id = z.number().int().positive();
-const idLike = z.union([id, z.string().regex(/^\d+$/).transform(Number)]);
+/* A form sends its ids as strings, so the string form is accepted — but it has
+   to survive the SAME constraints as the number form. Transforming without
+   re-validating let "0" through as 0 and a 21-digit string through as 1e+21,
+   which is neither an integer nor positive: the boundary was claiming a check
+   it stopped performing the moment the value arrived as text. */
+const idLike = z.union([id, z.string().regex(/^\d+$/).transform(Number).pipe(id)]);
 const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a YYYY-MM-DD date');
 const text = (max) => z.string().max(max);
 const optionalText = (max) => text(max).nullish();

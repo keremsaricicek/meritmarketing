@@ -125,4 +125,13 @@ const api = {
   },
 };
 
-contextBridge.exposeInMainWorld('api', Object.freeze(api));
+/* Exposed as `ipc`, not `api`.
+ *
+ * `exposeInMainWorld` defines a NON-WRITABLE property, so the renderer's
+ * adapter layer could not assign `window.api` on top of it — in strict mode
+ * that assignment throws, the adapter script died on its first statement, and
+ * every verb it was there to adapt silently did not exist. Handing the raw
+ * bridge a name of its own removes the collision: `bridge.js` builds `api` out
+ * of this, and the boundary here is unchanged either way, because the adapter
+ * only renames verbs and adds no authority of its own. */
+contextBridge.exposeInMainWorld('ipc', Object.freeze(api));

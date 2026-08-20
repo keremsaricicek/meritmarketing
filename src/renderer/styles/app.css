@@ -1469,3 +1469,50 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 @media (max-width:480px){
   .brand-text small{ display:none; }
 }
+
+/* ============================================================= utilities
+ *
+ * A Content Security Policy of `style-src 'self'` makes a `style="…"` attribute
+ * in markup inert, so the handful of one-off declarations that used to live in
+ * index.html are named classes here instead. They are deliberately boring and
+ * few: this is not the beginning of a utility framework, it is the exact set
+ * the markup already used.
+ *
+ * `.is-hidden` is special — see bridge.js. The screens hide and show elements
+ * by assigning `element.style.display`, including `= ''` to mean "show", so at
+ * startup this class is converted to an inline display:none and removed. It
+ * expresses the INITIAL state only.
+ */
+.is-hidden{ display:none; }
+
+.m-0{ margin:0; }
+.mb-2{ margin-bottom:var(--sp-2); }
+.mb-3{ margin-bottom:var(--sp-3); }
+.mb-4{ margin-bottom:var(--sp-4); }
+.mb-5{ margin-bottom:var(--sp-5); }
+.mb-6{ margin-bottom:var(--sp-6); }
+.mt-4{ margin-top:var(--sp-4); }
+.mt-5{ margin-top:var(--sp-5); }
+.p-5{ padding:var(--sp-5); }
+
+.w-340{ width:340px; max-width:100%; }
+.text-center{ text-align:center; }
+.items-start{ align-items:flex-start; }
+.row-gap-7{ display:flex; gap:7px; }
+
+.ink-muted{ color:var(--ink-4); }
+.ink-cold{ color:var(--cold); }
+
+.scroll-210{ max-height:210px; overflow-y:auto; }
+.scroll-230{ max-height:230px; overflow-y:auto; }
+.scroll-250{ max-height:250px; overflow-y:auto; }
+.scroll-290{ max-height:290px; overflow-y:auto; }
+
+.mt-9{ margin-top:9px; }
+.fs-11{ font-size:11px; }
+.text-left{ text-align:left; }
+.clickable{ cursor:pointer; }
+.ink-3{ color:var(--ink-3); }
+.ink-teal{ color:var(--teal); }
+.toast-body{ flex:1; min-width:0; }
+.fatal-notice{ padding:40px; font:14px system-ui, sans-serif; }

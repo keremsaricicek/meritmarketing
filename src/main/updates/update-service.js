@@ -14,7 +14,8 @@
  * needs to READ, and publishing credentials live in CI.
  */
 
-const { AppError, CODES } = require('../../shared/errors');
+const { AppError, CODES, forbidden } = require('../../shared/errors');
+const guard = require('../services/guard');
 
 const STATES = Object.freeze({
   IDLE: 'idle',
@@ -39,8 +40,13 @@ function build({ autoUpdater, backup, getContext, log = () => {}, notify = () =>
 
   if (autoUpdater) {
     autoUpdater.autoDownload = false;
-    /* Never restart underneath somebody. The user chooses when. */
-    autoUpdater.autoInstallOnAppQuit = true;
+    /* Never restart underneath somebody. The user chooses when.
+       This MUST be false: with it on, electron-updater installs silently on a
+       normal quit, straight through its own BaseUpdater — which never reaches
+       install() below, so the pre-update backup and the audit row are both
+       skipped. An invariant enforced only on the path the user takes is not an
+       invariant. */
+    autoUpdater.autoInstallOnAppQuit = false;
 
     autoUpdater.on('update-available', (info) => {
       pendingVersion = info && info.version;
@@ -96,10 +102,22 @@ function build({ autoUpdater, backup, getContext, log = () => {}, notify = () =>
     /* Called when the user asks to restart and update. The pre-update backup is
        a gate, not a courtesy: if it fails, the install does not happen. */
     async install() {
+      /* Installing an update restarts the application for everybody and
+         replaces the program on disk. The IPC surface documents this as
+         ADMIN-only with `backup.create`, and the registry enforces only that a
+         session exists — capability enforcement is the service's job here as
+         everywhere else, and this service was the one not doing it. The backup
+         it takes is `system: true`, which is deliberately exempt from the
+         capability check, so nothing downstream was catching it either. */
+      const ctx = getContext();
+      guard.requireCapability(ctx, 'backup.create');
+      const session = ctx.sessions.get();
+      if (!session || session.role !== 'ADMIN') {
+        throw forbidden('Only an administrator can install an update.');
+      }
       if (state !== STATES.DOWNLOADED) {
         throw new AppError(CODES.UPDATE_FAILED, 'There is no downloaded update to install.');
       }
-      const ctx = getContext();
       let safety;
       try {
         safety = await backup.create(ctx, { label: 'preupdate', system: true });

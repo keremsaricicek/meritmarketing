@@ -108,16 +108,21 @@ function migrate(db, { dir = MIGRATIONS_DIR, log = () => {} } = {}) {
         db.exec(m.sql);
         db.prepare('INSERT INTO schema_migrations (version, name, checksum, applied_at) VALUES (?, ?, ?, ?)')
           .run(m.version, m.name, m.checksum, new Date().toISOString());
+        /* INSIDE the transaction, so a migration that leaves an orphan row is
+           rolled back rather than committed and then complained about. Running
+           this after `run()` meant the damage AND the schema_migrations row
+           were both durable, while the message told the user "Your data has
+           not been changed" — and the next launch, finding nothing pending,
+           never re-checked. The application was then permanently unstartable
+           for a reason no longer attributable to the migration that caused it. */
+        const violations = db.pragma('foreign_key_check');
+        if (violations.length) {
+          throw new AppError(CODES.MIGRATION_FAILED,
+            'A schema migration left the database inconsistent. Your data has not been changed.',
+            { internal: `${m.version}-${m.name}: ${JSON.stringify(violations).slice(0, 400)}` });
+        }
       });
       run();
-      /* Structural damage introduced by a migration must not be discovered
-         later by a user — check while we still know which migration did it. */
-      const violations = db.pragma('foreign_key_check');
-      if (violations.length) {
-        throw new AppError(CODES.MIGRATION_FAILED,
-          'A schema migration left the database inconsistent.',
-          { internal: `${m.version}-${m.name}: ${JSON.stringify(violations).slice(0, 400)}` });
-      }
       done.push({ version: m.version, name: m.name });
       log(`migration applied: ${m.version}-${m.name}`);
     } catch (err) {

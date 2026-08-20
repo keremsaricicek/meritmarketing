@@ -101,8 +101,18 @@ module.exports = async function () {
     updates.status().state === updateFactory.STATES.UNAVAILABLE, JSON.stringify(updates.status()));
 
   // With no feed configured at all, checking is a no-op rather than a failure.
+  /* Installing an update restarts the app and replaces the program on disk, so
+     it needs a real session to authorize against — the surface documents it as
+     ADMIN with `backup.create`. */
+  const sessionFor = (role) => ({
+    get: () => (role ? { id: 1, username: 'someone', role, profile_id: role === 'MARKETING' ? 7 : null } : null),
+    touch: () => {},
+    can: () => true,
+  });
+  const ctxFor = (role) => ({ sessions: sessionFor(role), audit: () => {} });
+
   const unconfigured = updateFactory.build({
-    autoUpdater: null, backup: {}, getContext: () => ({}), feedConfigured: false, log: () => {},
+    autoUpdater: null, backup: {}, getContext: () => ctxFor('ADMIN'), feedConfigured: false, log: () => {},
   });
   const noFeed = await unconfigured.check();
   s.check('an installation with no update feed simply never checks',
@@ -113,6 +123,36 @@ module.exports = async function () {
   try { await unconfigured.install(); } catch (err) { installError = err.code; }
   s.check('installing with nothing downloaded is refused',
     installError === 'UPDATE_FAILED', String(installError));
+
+  /* The service enforces the capability itself. The registry only checks that a
+     session exists, and the pre-update backup runs as `system: true` — which is
+     deliberately exempt from `backup.create` — so nothing downstream would have
+     caught an unauthorised caller either. */
+  for (const role of ['MARKETING', 'MANAGER']) {
+    const asRole = updateFactory.build({
+      autoUpdater: null, backup: {}, getContext: () => ctxFor(role), feedConfigured: false, log: () => {},
+    });
+    let code = null;
+    try { await asRole.install(); } catch (err) { code = err.code; }
+    s.check(`a ${role} user cannot install an update`, code === 'FORBIDDEN', `${role} → ${code}`);
+  }
+  const signedOut = updateFactory.build({
+    autoUpdater: null, backup: {}, getContext: () => ctxFor(null), feedConfigured: false, log: () => {},
+  });
+  let anonCode = null;
+  try { await signedOut.install(); } catch (err) { anonCode = err.code; }
+  s.check('and nor can a caller with no session at all',
+    anonCode === 'AUTH_REQUIRED' || anonCode === 'FORBIDDEN', String(anonCode));
+
+  /* Silent install on quit would bypass install() entirely, taking the
+     pre-update backup and the audit row with it. */
+  const quitProbe = { autoDownload: true, autoInstallOnAppQuit: true, on: () => {} };
+  updateFactory.build({
+    autoUpdater: quitProbe, backup: {}, getContext: () => ctxFor('ADMIN'),
+    feedConfigured: true, log: () => {}, notify: () => {},
+  });
+  s.check('the updater never installs silently on quit',
+    quitProbe.autoInstallOnAppQuit === false, String(quitProbe.autoInstallOnAppQuit));
 
   // ------------------------------------- the update install is backup-gated
   const failingBackup = updateFactory.build({

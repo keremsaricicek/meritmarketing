@@ -12,9 +12,9 @@
  */
 
 (function () {
-  const bridge = window.api;
+  const bridge = window.ipc;
   if (!bridge) {
-    document.body.innerHTML = '<div style="padding:40px;font:14px system-ui">'
+    document.body.innerHTML = '<div class="fatal-notice">'
       + 'Merit Marketing Hub could not start: the application bridge is unavailable.</div>';
     return;
   }
@@ -110,6 +110,38 @@
     backup: adapted.backup,
     dialog: adapted.dialog,
   });
+
+  /* CSP makes a display:none style attribute in markup impossible, so the
+     markup carries an `is-hidden` class. But the screens hide and show by assigning
+     `element.style.display` — including `= ''` to mean "show" — and an empty
+     inline value falls back to the class, which would leave the element hidden
+     forever. Converting the class to an inline style once at startup restores
+     exactly the semantics the screens were written against, using CSSOM, which
+     the policy permits. Style attributes in markup are the thing CSP forbids;
+     setting them from script is not. */
+  function adoptInitialHiddenState() {
+    for (const node of document.querySelectorAll('.is-hidden')) {
+      node.style.display = 'none';
+      node.classList.remove('is-hidden');
+    }
+    /* The brand mark is a graceful fallback: show the logo only if it loads,
+       and drop the image entirely if it does not. This used to be an inline
+       onload/onerror pair, which the policy renders inert — leaving both the
+       letter and a broken image on screen at once. */
+    for (const img of document.querySelectorAll('[data-brand-logo]')) {
+      const fallback = img.previousElementSibling;
+      img.addEventListener('load', () => {
+        img.style.display = 'block';
+        if (fallback) fallback.style.display = 'none';
+      });
+      img.addEventListener('error', () => img.remove());
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', adoptInitialHiddenState, { once: true });
+  } else {
+    adoptInitialHiddenState();
+  }
 
   /* A promise-based confirmation modal, so a destructive action can await an
      answer the way it awaited window.confirm. Defined here because the screens

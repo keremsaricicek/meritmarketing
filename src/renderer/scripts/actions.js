@@ -28,8 +28,8 @@
     return arg;
   }
 
-  function parseArgs(element, event) {
-    const raw = element.getAttribute('data-args');
+  function parseArgs(element, event, argsAttr = 'data-args') {
+    const raw = element.getAttribute(argsAttr);
     if (!raw) return [];
     let parsed;
     try { parsed = JSON.parse(raw); }
@@ -104,12 +104,27 @@
 
   window.__actions = NAMED;
 
-  function dispatch(event, expected) {
-    const element = event.target.closest(`[data-act][data-on="${expected}"]`);
-    if (!element) return;
-    if (element.disabled) return;
+  /* One element, two behaviours — click to select a row, double-click to open
+     it — used to be written as two `data-act`/`data-on`/`data-args` triples on
+     the same tag. HTML keeps the FIRST occurrence of an attribute and silently
+     discards the rest, so the second behaviour never existed: double-click to
+     edit was dead on three tables and Enter-to-open on two more, with no error
+     anywhere. An event-scoped attribute cannot collide with itself. */
+  function resolve(element, expected) {
+    const scoped = element.closest(`[data-act-${expected}]`);
+    if (scoped) {
+      return { element: scoped, name: scoped.getAttribute(`data-act-${expected}`), argsAttr: `data-args-${expected}` };
+    }
+    const generic = element.closest(`[data-act][data-on="${expected}"]`);
+    if (generic) return { element: generic, name: generic.getAttribute('data-act'), argsAttr: 'data-args' };
+    return null;
+  }
 
-    const name = element.getAttribute('data-act');
+  function dispatch(event, expected) {
+    const found = resolve(event.target, expected);
+    if (!found) return;
+    const { element, name, argsAttr } = found;
+    if (element.disabled) return;
     if (!name) return;
 
     /* Keyboard actions only fire on the key they were written for. The
@@ -124,12 +139,22 @@
 
     if (name === 'stopPropagation') { event.stopPropagation(); return; }
 
-    const args = parseArgs(element, event);
+    const args = parseArgs(element, event, argsAttr);
     const fn = NAMED[name] || window[name];
     if (typeof fn !== 'function') {
       /* A name that resolves to nothing is a bug in the markup, never a
          security event — but it should be visible while developing. */
       console.warn('[actions] no handler named', name);
+      return;
+    }
+    /* `window[name]` reaches every global, and `eval`, `Function` and `open`
+       are globals. The screens' own handlers are ordinary declared functions;
+       the dangerous ones are all built in, so refusing native code closes the
+       whole category rather than blacklisting names one at a time. CSP already
+       blocks eval, and no injection sink was found — this is the second lock on
+       a door that should never have opened. */
+    if (!NAMED[name] && Function.prototype.toString.call(fn).includes('[native code]')) {
+      console.warn('[actions] refusing to invoke a built-in named', name);
       return;
     }
     try { fn.apply(null, args); }

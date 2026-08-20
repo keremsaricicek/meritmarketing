@@ -722,7 +722,8 @@ async function savePassword(){
 
   await withBusy(el('pwSaveBtn'), 'Saving…', async () => {
     try {
-      await call(window.api.auth.changePassword, { currentPassword, newPassword }, { silent:true });
+      await call(window.api.auth.changePassword,
+        { currentPassword, newPassword, newPasswordConfirm:confirm }, { silent:true });
       closeModal('modalPassword');
       toast('success','Password changed');
     } catch (e){

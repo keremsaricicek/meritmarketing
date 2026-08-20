@@ -37,7 +37,7 @@ const DERIVED = `
   (SELECT MIN(r.check_in) FROM reservations r
      WHERE r.customer_id = c.id AND r.deleted_at IS NULL AND r.cancelled_at IS NULL
        AND r.check_in > date('now','localtime')) AS next_visit,
-  (SELECT MAX(substr(n.created_at,1,10)) FROM crm_notes n
+  (SELECT MAX(date(n.created_at,'localtime')) FROM crm_notes n
      WHERE n.customer_id = c.id AND n.deleted_at IS NULL) AS last_note_date,
   p.full_name AS marketing_name
 `;
@@ -96,6 +96,15 @@ function findById(db, id) {
 
 function findByCode(db, code) {
   return db.prepare('SELECT * FROM customers WHERE code = ? COLLATE NOCASE AND deleted_at IS NULL').get(code) || null;
+}
+
+/* The UNIQUE index on `code` covers archived guests too, so a Guest ID stays
+   claimed after the guest is archived. Without this the operator's re-entry
+   attempt surfaced as a raw SQLite constraint failure, which the IPC layer
+   turns into "An unexpected error occurred" — no field highlighted, nothing to
+   act on. Asking the question explicitly lets the service say what happened. */
+function findArchivedByCode(db, code) {
+  return db.prepare('SELECT * FROM customers WHERE code = ? COLLATE NOCASE AND deleted_at IS NOT NULL').get(code) || null;
 }
 
 /** One decorated guest, with the derived facts the inspector shows. */
@@ -223,7 +232,7 @@ function recordAssignment(db, entry) {
 }
 
 module.exports = {
-  create, findById, findByCode, detail, list, picker, update, softDelete,
+  create, findById, findByCode, findArchivedByCode, detail, list, picker, update, softDelete,
   reservationsFor, qualifyingFor, assignmentHistory, recordAssignment,
   SORTABLE, scopeClause, isQualifying,
 };

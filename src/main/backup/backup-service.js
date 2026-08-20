@@ -20,12 +20,19 @@ const zlib = require('zlib');
 const connection = require('../database/connection');
 const { currentVersion } = require('../database/migrator');
 const guard = require('../services/guard');
+const { safeJoin } = require('../paths');
 const { nowIso } = require('../../shared/contracts/dates');
 const { AppError, CODES, validation, notFound } = require('../../shared/errors');
 
 const EXTENSION = '.mmhbackup';
 const MAGIC = 'MMHBACKUP1';
 const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
+/* The COMPRESSED cap above says nothing about what the file expands to: gzip
+   reaches roughly 1000:1 on repetitive input, so a 10 MB archive can decompress
+   to gigabytes and take the main process — the whole application — down with
+   it. This runs during `inspect`, before the operator has confirmed anything,
+   so the file does not even have to be one they chose to restore. */
+const MAX_UNPACKED_BYTES = 8 * 1024 * 1024 * 1024;
 
 /* A tiny container format rather than a zip library: a dependency-free reader
    we fully control means no zip-slip surface at all, because nothing in the
@@ -52,8 +59,16 @@ function pack(manifest, entries) {
    merely parses is not a valid backup. */
 function unpack(raw) {
   let buffer;
-  try { buffer = zlib.gunzipSync(raw); }
-  catch (_) { throw new AppError(CODES.BACKUP_INVALID, 'That file is not a Merit backup.'); }
+  try { buffer = zlib.gunzipSync(raw, { maxOutputLength: MAX_UNPACKED_BYTES }); }
+  catch (err) {
+    /* zlib reports the cap as ERR_BUFFER_TOO_LARGE. Saying which of the two
+       things went wrong matters: one is a corrupt file, the other is a file
+       built to exhaust memory. */
+    if (err && (err.code === 'ERR_BUFFER_TOO_LARGE' || /too large/i.test(String(err.message)))) {
+      throw new AppError(CODES.BACKUP_INVALID, 'That backup expands to an implausible size and was not opened.');
+    }
+    throw new AppError(CODES.BACKUP_INVALID, 'That file is not a Merit backup.');
+  }
 
   const readLine = (from) => {
     const end = buffer.indexOf(0x0A, from);
@@ -181,10 +196,22 @@ function build({ paths, appVersion, getDb, setDb, log = () => {} }) {
       return { name, byteSize: fs.statSync(target).size, manifest };
     },
 
+    /* A backup name is a managed, flat label chosen by this application — never
+       a path. Joining it directly let `../Downloads/planted.mmhbackup` name a
+       file outside the backup directory, which turns "restore my backup" into
+       "install this archive somebody dropped in the user's profile", including
+       its users table. `safeJoin` is what every other file path in the app goes
+       through; this was the one that did not. */
+    resolveBackup(name) {
+      const file = safeJoin(paths.backups, name);
+      if (!file) throw notFound('That backup no longer exists.');
+      return file;
+    },
+
     /** Structural validation only — never touches live data. */
     inspect(ctx, { name }) {
       guard.requireCapability(ctx, 'backup.read');
-      return service.validateFile(path.join(paths.backups, String(name)));
+      return service.validateFile(service.resolveBackup(name));
     },
 
     validateFile(file) {
@@ -218,7 +245,7 @@ function build({ paths, appVersion, getDb, setDb, log = () => {} }) {
        scratch directory. */
     async restore(ctx, { name }) {
       guard.requireCapability(ctx, 'backup.restore');
-      const file = path.join(paths.backups, String(name));
+      const file = service.resolveBackup(name);
       const { manifest, entries } = service.validateFile(file);
 
       /* Before anything else: a safety copy of what is here now, so a restore

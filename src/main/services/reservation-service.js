@@ -23,10 +23,35 @@ function decorate(row) {
 
 /* ------------------------------------------------------------------ read */
 
+/* Two different questions share this verb, and they take different scopes.
+ *
+ *   "show me the bookings"          → MY invitations. Scoped by invited_by.
+ *   "show me THIS guest's stays"    → the guest's history, all of it.
+ *
+ * The second is what the guest inspector asks, and the inspector's own headline
+ * figures — reservation count, last visit, next visit — have always covered the
+ * guest's whole history, in this product and in the one it replaced. Leaving the
+ * list beneath them scoped by invited_by produced the exact contradiction this
+ * product already fixed once elsewhere: the panel said three stays and the list
+ * under it showed one.
+ *
+ * Widening here discloses nothing new. Reaching this branch at all requires
+ * `customerId` to name a guest the caller may already read in full, which the
+ * scope check below establishes; a marketer still cannot ask about a guest
+ * outside their book.
+ */
 function list(ctx, params = {}) {
   guard.requireCapability(ctx, 'reservations.read');
   const view = params.view === 'cancelled' ? 'cancelled' : 'active';
-  const result = repo.list(ctx.db, params, guard.scopeOf(ctx), view);
+
+  let scope = guard.scopeOf(ctx);
+  if (params.customerId) {
+    const customer = customersRepo.findById(ctx.db, Number(params.customerId));
+    guard.requireCustomerInScope(ctx, customer);
+    scope = null;
+  }
+
+  const result = repo.list(ctx.db, params, scope, view);
   return { ...result, rows: result.rows.map(decorate) };
 }
 
@@ -42,18 +67,42 @@ function listDeleted(ctx, params = {}) {
   return { ...result, rows: result.rows.map(decorate) };
 }
 
-function get(ctx, { id }) {
-  guard.requireCapability(ctx, 'reservations.read');
+/* The single doorway every id-addressed verb goes through.
+ *
+ * The order of these questions is load-bearing, and getting it wrong is how a
+ * refusal turns into an answer. `update` and `cancel` used to test the row's
+ * lifecycle BEFORE asking whether the caller could touch the record at all,
+ * which meant a marketer walking ids got four distinguishable refusals —
+ * nonexistent, deleted, cancelled, live — and could classify every row in the
+ * table, including other marketers'. The error message was the leak.
+ *
+ * So: reachability first (a row the caller may not see is simply not there),
+ * then scope, and only then anything about the row's own state.
+ */
+function requireReachable(ctx, id) {
   const raw = repo.findRaw(ctx.db, Number(id));
   if (!raw) throw notFound('Reservation not found.');
 
   /* Deleted rows answer "not found" to anyone who may not see deleted history,
      which is the same answer they would get for a nonexistent id. */
-  if (raw.deleted_at) {
-    guard.requireDeletedVisible(ctx);
-    guard.requireCapability(ctx, 'reservations.deleted.read');
+  if (raw.deleted_at
+      && !(domain.canSeeDeleted(ctx.sessions.get()) && ctx.sessions.can('reservations.deleted.read'))) {
+    throw notFound('Reservation not found.');
   }
+  /* A booking whose guest has been archived is not operational either. Leaving
+     it reachable is what produced rows carrying a guest name and Guest ID that
+     `customers.get` answers NOT_FOUND for — a dead link the operator can still
+     click, and in the case of `update`, still write through. */
+  if (!customersRepo.findById(ctx.db, raw.customer_id)) throw notFound('Reservation not found.');
+
   guard.requireReservationInScope(ctx, raw);
+  return raw;
+}
+
+function get(ctx, { id }) {
+  guard.requireCapability(ctx, 'reservations.read');
+  const raw = requireReachable(ctx, id);
+  if (raw.deleted_at) guard.requireCapability(ctx, 'reservations.deleted.read');
   return decorate(repo.findById(ctx.db, Number(id), { includeDeleted: !!raw.deleted_at }));
 }
 
@@ -108,6 +157,17 @@ function syncOwnership(ctx, customerId, { reservationId = null, source = 'reserv
   });
 }
 
+/* A conflict tells the operator which dates clash so they can resolve it. When
+   the clashing stay belongs to a marketer the caller cannot see, its id and
+   exact dates are exactly what `reservations.list` deliberately withholds —
+   so the conflict still fires, it just stops carrying the evidence.
+   `reservations.create` is intentionally unscoped (any marketer may book a
+   guest whose protection has lapsed), which is what makes this reachable. */
+function visibleConflicts(ctx, clashes) {
+  const session = ctx.sessions.get();
+  return clashes.filter((r) => domain.reservationInScope(session, r));
+}
+
 function create(ctx, params) {
   const session = guard.requireCapability(ctx, 'reservations.create');
   const { customerId, checkIn, checkOut, note } = params;
@@ -143,7 +203,7 @@ function create(ctx, params) {
   const clashes = repo.overlapping(ctx.db, customer.id, checkIn, checkOut);
   if (clashes.length && !params.force) {
     throw conflict('This guest already has a reservation overlapping those dates.',
-      { field: 'checkIn', conflicts: clashes });
+      { field: 'checkIn', conflicts: visibleConflicts(ctx, clashes) });
   }
 
   const now = nowIso();
@@ -165,13 +225,11 @@ function create(ctx, params) {
 
 function update(ctx, params) {
   const session = guard.requireCapability(ctx, 'reservations.update');
-  const existing = repo.findRaw(ctx.db, Number(params.id));
-  if (!existing) throw notFound('Reservation not found.');
+  const existing = requireReachable(ctx, params.id);
   if (existing.deleted_at) throw validation('A deleted reservation cannot be edited.');
   if (existing.cancelled_at) {
     throw validation('A cancelled reservation cannot be edited. Create a new reservation instead.');
   }
-  guard.requireReservationInScope(ctx, existing);
 
   const checkIn = params.checkIn ?? existing.check_in;
   const checkOut = params.checkOut ?? existing.check_out;
@@ -197,7 +255,7 @@ function update(ctx, params) {
   const clashes = repo.overlapping(ctx.db, customerId, checkIn, checkOut, existing.id);
   if (clashes.length && !params.force) {
     throw conflict('This guest already has a reservation overlapping those dates.',
-      { field: 'checkIn', conflicts: clashes });
+      { field: 'checkIn', conflicts: visibleConflicts(ctx, clashes) });
   }
 
   const patch = {
@@ -226,10 +284,8 @@ function update(ctx, params) {
 
 function cancel(ctx, params) {
   const session = guard.requireCapability(ctx, 'reservations.update');
-  const existing = repo.findRaw(ctx.db, Number(params.id));
-  if (!existing) throw notFound('Reservation not found.');
+  const existing = requireReachable(ctx, params.id);
   if (existing.deleted_at) throw validation('A deleted reservation cannot be cancelled.');
-  guard.requireReservationInScope(ctx, existing);
   /* Idempotent: a double submit must not rewrite the reason somebody recorded. */
   if (existing.cancelled_at) return { id: existing.id, status: 'CANCELLED' };
 
