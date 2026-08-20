@@ -37,7 +37,9 @@ continue deterministically. Delete when the migration is fully complete.
 | B3 | `logo.png` is referenced 3× by the renderer but is not in the repo | In-app brand mark is a broken reference | Owner must supply |
 | B4 | No Windows host in this container | Installer and Squirrel update not executed here | Windows CI job packages and smoke-tests; end-to-end update still needs one manual run |
 | B5 | No code-signing certificate | Artifacts unsigned; SmartScreen will warn | Hooks configured, driven by CI secrets; `release.json` records `signed:false` honestly |
-| B6 | No update-host credentials | Feed not published | Provider abstraction complete, configured by `MERIT_UPDATE_URL` |
+| B6 | No update-host credentials | Feed not published | Provider abstraction complete, configured by `MERIT_UPDATE_URL` (HTTPS enforced) |
+| B8 | The downloaded installer is **not signature-verified** | Whoever controls the feed would get code execution | `electron-updater` skips its check without an electron-builder `app-update.yml`, which forge does not produce. Needs B5 plus the publisher name wired through. **Updates must stay off until this is resolved** — see `docs/UPDATE.md`. |
+| B9 | Squirrel.Windows maker vs `electron-updater`'s NSIS path | The update flow cannot work as configured | Decide maker-or-client before publishing a feed. Documented, not papered over. |
 | B7 | `www.electronjs.org` is policy-blocked by the proxy | `electron-rebuild` cannot fetch headers | **Resolved by design change**: switched to `node:sqlite`, so there is no native module to rebuild |
 
 ## Environment notes for the next session

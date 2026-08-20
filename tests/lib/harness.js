@@ -207,9 +207,16 @@ class Suite {
     if (this.browser) await this.browser.close();
   }
 
-  /** Suites call this last; it folds console/page errors into the result. */
+  /* Suites call this last; it folds console/page errors into the result.
+   *
+   * Only for suites that actually drive a browser. A suite that never opened a
+   * page has no console to have errored, so asserting "no console errors" there
+   * is an assertion no input can make fail — it was quietly adding a guaranteed
+   * pass to every database and IPC suite, inflating the count with nothing. */
   finish() {
-    this.check('no console or page errors', this.errors.length === 0, this.errors.join(' | '));
+    if (this.page) {
+      this.check('no console or page errors', this.errors.length === 0, this.errors.join(' | '));
+    }
     return { name: this.name, passed: this.passed, failed: this.failed, results: this.results };
   }
 }

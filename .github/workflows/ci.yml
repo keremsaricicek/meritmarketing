@@ -35,6 +35,13 @@ jobs:
       - name: Verify the security surface document is current
         run: npm run surface:check
 
+      # BEFORE the tests, so the packaged-hygiene suite has an archive to
+      # inspect. Without one it fails — it used to pass while checking nothing,
+      # which meant the gate against shipping demo credentials, the prototype
+      # HTML or a developer's database was green on every clean checkout.
+      - name: Package the application so its contents can be inspected
+        run: npm run package
+
       # xvfb gives the Electron launch suite a display. The suite itself runs
       # under Electron's own Node so that it uses the production SQLite runtime.
       - name: Run the full suite

@@ -43,10 +43,48 @@ not as an error. The technical reason goes to the log.
 - Recreate the database because a migration failed — a failed migration rolls
   back and the previous version's data is intact
 
+## Before this can be switched on — read this first
+
+The update path is **implemented but never executed end to end**, and three
+things must be resolved before it is. None of them is a small detail, and the
+honest position is that automatic updates are not ready to enable:
+
+1. **There is no signature verification of the downloaded installer.**
+   `electron-updater`'s `NsisUpdater.verifySignature` reads `publisherName` from
+   an `app-update.yml` that **electron-builder** produces. This project packages
+   with **electron-forge**, so that file does not exist, and the check returns
+   `null` — meaning *skip*. The only integrity check left is the SHA-512 in
+   `latest.yml`, which is served by the same host as the payload, so it proves
+   the download was not corrupted and nothing about who wrote it. **Whoever
+   controls the feed gets code execution on every installation.** A real
+   deployment needs a code-signing certificate (blocker B5) and the publisher
+   name wired through, or a different verification step entirely.
+
+2. **The maker and the updater do not compose as configured.** `forge.config.js`
+   builds with Squirrel.Windows; `electron-updater`'s Windows path is
+   `NsisUpdater`, which runs the downloaded executable with NSIS arguments and
+   expects a `latest.yml` and blockmap that `Release-Merit.ps1` does not emit.
+   Either the maker changes to NSIS or the update client changes to Squirrel's
+   own. This has to be decided before a feed is published, not after.
+
+3. **No end-to-end update between two versions has ever been performed.** It
+   needs a published feed and a Windows host, neither of which exists yet.
+
+Until those are settled, leave `MERIT_UPDATE_URL` unset. With no feed the
+application never checks, which is a supported configuration — see below.
+
 ## Configuring the feed
 
 The client only ever **reads** update metadata. Set `MERIT_UPDATE_URL` to an
-HTTPS base URL at build time.
+HTTPS base URL.
+
+**It is read from the environment at startup, not baked into the build.** That
+is worth being clear-eyed about: anything able to set an environment variable
+for that user — including a persistent `HKCU\Environment` entry — can point the
+application at a host of its choosing. The application refuses a non-HTTPS feed
+outright and logs the host it accepted, so the choice is at least visible in the
+log; it does not make an attacker-supplied HTTPS feed safe. Combined with (1)
+above, this is the reason updates stay off until signature verification is real.
 
 **A private repository does not mean an embedded token.** Never ship a GitHub
 PAT or any write credential inside the application — it is trivially extractable

@@ -15,6 +15,7 @@ const path = require('path');
 const connection = require('../../src/main/database/connection');
 const { SessionManager } = require('../../src/main/auth/session');
 const authService = require('../../src/main/services/auth-service');
+const auditSink = require('../../src/main/services/audit-sink');
 
 class TestApp {
   constructor(name = 'mmh-test') {
@@ -32,25 +33,19 @@ class TestApp {
     this.db = connection.open(this.paths.database);
     this.sessions = new SessionManager();
     this.auditLog = [];
+    this.auditErrors = [];
   }
 
-  /** Audit sink that also writes the real row, so audit queries have data. */
+  /* The PRODUCTION audit sink, not a copy of it.
+     A harness that reimplements the sink tests the harness. That is exactly how
+     the manager activity feed shipped with no producer: the feed hangs off the
+     sink, this file used to have its own INSERT instead, and so every test that
+     touched notifications exercised a code path the application never runs. */
   audit(entry) {
     this.auditLog.push(entry);
-    const session = this.sessions.get();
-    this.db.prepare(`
-      INSERT INTO audit_log (action, entity_type, entity_id, actor_user_id, actor_username, description, metadata, created_at)
-      VALUES (@action, @entity_type, @entity_id, @actor_user_id, @actor_username, @description, @metadata, @created_at)`)
-      .run({
-        action: entry.action,
-        entity_type: entry.entity_type ?? null,
-        entity_id: entry.entity_id ?? null,
-        actor_user_id: entry.actor_user_id ?? (session ? session.id : null),
-        actor_username: entry.actor_username ?? (session ? session.username : null),
-        description: entry.description ?? null,
-        metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
-        created_at: new Date().toISOString(),
-      });
+    auditSink.record(this.db, entry, this.sessions.get(), (stage, err) => {
+      this.auditErrors.push({ stage, message: err.message });
+    });
   }
 
   ctx() {

@@ -215,9 +215,33 @@ const SCHEMAS = {
     to: text(40).optional(),
   }).strict(),
 
+  /* The one channel whose payload reaches four different query builders, and it
+     used to be the one exempted from validation: `z.record(z.string(),
+     z.unknown())` accepted anything and spread it into
+     customerService.list / reservationService.list / audit.list. Nothing was
+     injectable — the repositories whitelist `sort` and clamp paging — but a
+     boundary that admits arbitrary keys into a query builder is not a boundary,
+     it is a gap that happens to be empty today. The union below is the actual
+     set of filters the report screens offer. */
   'export:run': z.object({
     entity: z.enum(['customerlist', 'norecord', 'reservations', 'cancelled', 'deleted', 'profiles', 'audit']),
-    params: z.record(z.string(), z.unknown()).optional(),
+    params: z.object({
+      ...paging,
+      status: z.enum(['ACTIVE', 'COLD', 'NO_RECORD', 'UPCOMING', 'CHECKED_IN', 'COMPLETED']).optional(),
+      view: z.enum(['active', 'cancelled']).optional(),
+      registeredOnly: z.boolean().optional(),
+      unregisteredOnly: z.boolean().optional(),
+      noRecord: z.boolean().optional(),
+      assignedTo: profileRef,
+      createdBy: profileRef,
+      invitedBy: profileRef,
+      customerId: idLike.optional(),
+      includeStaff: z.boolean().optional(),
+      action: text(60).optional(),
+      entityType: text(40).optional(),
+      from: text(40).optional(),
+      to: text(40).optional(),
+    }).strict().optional(),
   }).strict(),
 
   'photos:import': empty,

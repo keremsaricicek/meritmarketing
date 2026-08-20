@@ -52,6 +52,13 @@ module.exports = {
       /^\/\.env/,
       /^\/README\.md$/,
       /^\/package-lock\.json$/,
+      /* The rules above are anchored at the package root, which is right for
+         this project's own directories and wrong for everything vendored. Zod
+         alone ships 146 .test.ts files. These are deliberately unanchored. */
+      /(^|\/)node_modules\/.*\/(tests?|__tests__|spec)(\/|$)/,
+      /(^|\/)node_modules\/.*\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/,
+      /(^|\/)node_modules\/.*\/(CHANGELOG|CONTRIBUTING|SECURITY|HISTORY)\.md$/i,
+      /(^|\/)node_modules\/.*\.(ts|tsx|flow|map)$/,
     ],
     win32metadata: {
       CompanyName: 'Merit Marketing',
@@ -104,6 +111,10 @@ module.exports = {
       [FuseV1Options.EnableNodeCliInspectArguments]: false,               // no --inspect debugger attach
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,        // a tampered asar refuses to load
       [FuseV1Options.OnlyLoadAppFromAsar]: true,                          // no loose-file override
+      /* This application's entire UI is a file:// document, so the extra
+         privileges the file protocol gets by default apply to the page an
+         attacker would most want them on. Nothing here needs them. */
+      [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
     }),
   ],
 };

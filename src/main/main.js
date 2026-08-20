@@ -19,6 +19,7 @@ const { Logger } = require('./diagnostics/logger');
 const connection = require('./database/connection');
 const { currentVersion, targetVersion } = require('./database/migrator');
 const { SessionManager } = require('./auth/session');
+const auditSink = require('./services/audit-sink');
 const { registerAll, makeSenderValidator } = require('./ipc/registry');
 const handlerFactory = require('./ipc/handlers');
 const backupFactory = require('./backup/backup-service');
@@ -53,24 +54,9 @@ const sessions = new SessionManager();
 
 function audit(entry) {
   if (!db) return;
-  const session = sessions.get();
-  try {
-    db.prepare(`
-      INSERT INTO audit_log (action, entity_type, entity_id, actor_user_id, actor_username, description, metadata, created_at)
-      VALUES (@action, @entity_type, @entity_id, @actor_user_id, @actor_username, @description, @metadata, @created_at)`)
-      .run({
-        action: entry.action,
-        entity_type: entry.entity_type ?? null,
-        entity_id: entry.entity_id ?? null,
-        actor_user_id: entry.actor_user_id ?? (session ? session.id : null),
-        actor_username: entry.actor_username ?? (session ? session.username : null),
-        description: entry.description ?? null,
-        metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
-        created_at: nowIso(),
-      });
-  } catch (err) {
-    logger.error('audit.write-failed', { message: err.message, action: entry.action });
-  }
+  auditSink.record(db, entry, sessions.get(), (stage, err) => {
+    logger.error(stage, { message: err.message, action: entry.action });
+  });
 }
 
 const getContext = () => ({ db, sessions, audit, paths, logger });
@@ -114,20 +100,40 @@ async function start() {
       onBeforeMigrate: ({ from, to }) => {
         logger.warn('database.migration-pending', { from, to });
         if (from === 0) return; // nothing to protect on a brand-new install
-        const tempDb = connection.open(paths.database, { readonly: true });
+        const snapshot = path.join(paths.backups,
+          `MeritBackup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}-premigration.mmhbackup`);
+
+        /* Read the database THROUGH SQLite, not off the disk.
+           In WAL mode the .sqlite3 file is only half the story: committed
+           transactions can still live entirely in the -wal sidecar. Copying the
+           main file alone silently produces a backup missing the most recent
+           work — and this is the snapshot taken after an unclean shutdown,
+           which is precisely when the WAL is most likely to be holding it. */
+        const source = connection.open(paths.database, { readonly: false });
+        let raw;
         try {
-          const snapshot = path.join(paths.backups,
-            `MeritBackup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}-premigration.mmhbackup`);
-          const raw = fs.readFileSync(paths.database);
-          fs.writeFileSync(snapshot, backupFactory.pack(
-            { format: backupFactory.MAGIC, appVersion: app.getVersion(), schemaVersion: from,
-              createdAt: nowIso(), kind: 'automatic', label: 'premigration',
-              databaseSha256: backupFactory.sha256(raw), photoCount: 0, entries: [] },
-            [{ name: 'database.sqlite3', data: raw }]));
-          logger.warn('database.premigration-backup', { snapshot, from, to });
+          source.pragma('wal_checkpoint(TRUNCATE)');
+          raw = fs.readFileSync(paths.database);
         } finally {
-          tempDb.close();
+          source.close();
         }
+
+        const digest = backupFactory.sha256(raw);
+        fs.writeFileSync(snapshot, backupFactory.pack(
+          { format: backupFactory.MAGIC, appVersion: app.getVersion(), schemaVersion: from,
+            createdAt: nowIso(), kind: 'automatic', label: 'premigration',
+            databaseSha256: digest, photoCount: 0,
+            /* The manifest used to describe an empty archive while the archive
+               contained a database. A backup that misdescribes itself is worse
+               than no backup: it is one nobody checks. */
+            entries: [{ name: 'database.sqlite3', byteSize: raw.length, sha256: digest }] },
+          [{ name: 'database.sqlite3', data: raw }]));
+
+        /* Read it back before trusting it. Every other backup in the product is
+           verified after writing; this one — the one taken at the single moment
+           the schema can go wrong irreversibly — was not. */
+        backupFactory.verifyFile(snapshot);
+        logger.warn('database.premigration-backup', { snapshot, from, to, bytes: raw.length });
       },
     });
   } catch (err) {
@@ -166,14 +172,32 @@ async function start() {
   const photos = photoFactory.build({ dialog, paths, getWindow: () => win });
   const exporter = exportFactory.build({ dialog, getWindow: () => win });
 
+  /* The update feed decides where this machine will download and RUN code from,
+     so the value is treated as a security decision rather than a setting.
+     Anything that can set an environment variable for this user — including a
+     persistent HKCU\\Environment entry — can otherwise point the application at
+     a host of its choosing. This does not make the feed trustworthy; it refuses
+     the obviously untrustworthy and records what was accepted. */
   let autoUpdater = null;
-  const feedConfigured = !!process.env.MERIT_UPDATE_URL;
-  if (feedConfigured && app.isPackaged) {
-    try {
-      ({ autoUpdater } = require('electron-updater'));
-      autoUpdater.setFeedURL({ provider: 'generic', url: process.env.MERIT_UPDATE_URL, channel: RELEASE_CHANNEL });
-    } catch (err) {
-      logger.warn('update.provider-unavailable', { message: err.message });
+  const configuredFeed = process.env.MERIT_UPDATE_URL || '';
+  let feedConfigured = false;
+  if (configuredFeed) {
+    let url = null;
+    try { url = new URL(configuredFeed); } catch (_) { url = null; }
+    if (!url || url.protocol !== 'https:') {
+      /* Plain HTTP means anybody on the network chooses the next version. */
+      logger.error('update.feed-rejected', { reason: 'not https', feed: configuredFeed.slice(0, 120) });
+    } else {
+      feedConfigured = true;
+      logger.warn('update.feed-configured', { host: url.host, channel: RELEASE_CHANNEL });
+      if (app.isPackaged) {
+        try {
+          ({ autoUpdater } = require('electron-updater'));
+          autoUpdater.setFeedURL({ provider: 'generic', url: url.toString(), channel: RELEASE_CHANNEL });
+        } catch (err) {
+          logger.warn('update.provider-unavailable', { message: err.message });
+        }
+      }
     }
   }
   const updates = updateFactory.build({

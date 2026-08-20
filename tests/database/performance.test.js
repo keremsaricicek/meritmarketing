@@ -181,7 +181,13 @@ module.exports = async function () {
       `seed ${seedMs}ms for ${GUESTS} guests / ${RESERVATIONS} reservations / ${NOTES} notes`,
       ...Object.entries(timings).map(([k, v]) => `${k} ${v}ms`),
     ].join(' · ');
-    s.check(`measured: ${report}`, true);
+    /* A report line, not an assertion — printed so the numbers are in the run
+       output, and asserted on something that can actually fail: every budgeted
+       operation must have produced a measurement. A missing timing means the
+       call above silently did not happen. */
+    s.check(`every budgeted operation was measured — ${report}`,
+      Object.keys(BUDGET_MS).every((k) => Number.isFinite(timings[k])),
+      JSON.stringify(timings));
   } finally {
     app.close();
   }

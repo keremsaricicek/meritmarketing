@@ -96,6 +96,12 @@ if ($SkipTests) {
   npm ci --no-audit --no-fund
   if ($LASTEXITCODE -ne 0) { Block 'npm ci failed.' 'Fix the dependency install before releasing.' }
 
+  # Package first, so the packaged-hygiene suite has a real archive to inspect.
+  # It fails without one — the check that nothing dangerous ships must never be
+  # able to pass by having looked at nothing.
+  npm run package
+  if ($LASTEXITCODE -ne 0) { Block 'Packaging failed.' 'The hygiene suite cannot inspect what was not built.' }
+
   npm test
   if ($LASTEXITCODE -ne 0) {
     Block 'The test suite failed.' 'Fix the failing tests. A release is never made over a red suite.'
@@ -109,11 +115,15 @@ if ($SkipTests) {
 
 # ----------------------------------------------------------------- signing
 Step 'Code signing'
-$signed = $false
+# `$signed` is set LATER, from the artifacts themselves. A certificate sitting
+# on disk is a configuration, not a signature: recording signed:true because the
+# variable is set would put a claim in release.json that nobody verified, which
+# is exactly the kind of statement this file exists to avoid making.
+$certConfigured = $false
 if ($env:WINDOWS_CERT_FILE) {
   if (Test-Path $env:WINDOWS_CERT_FILE) {
-    Write-Host '  certificate configured' -ForegroundColor Green
-    $signed = $true
+    Write-Host '  certificate configured — signatures will be verified after the build' -ForegroundColor Green
+    $certConfigured = $true
   } else {
     Block "WINDOWS_CERT_FILE points at a file that does not exist: $env:WINDOWS_CERT_FILE" 'Fix the path or unset the variable.'
   }
@@ -161,7 +171,28 @@ Step 'Provenance'
 $schemaVersion = (Get-ChildItem 'database/migrations' -Filter '*.sql' |
   Sort-Object Name | Select-Object -Last 1).Name -replace '^(\d+).*', '$1'
 
+New-Item -ItemType Directory -Force -Path 'out/make' | Out-Null
 $artifacts = Get-ChildItem 'out/make' -Recurse -File -Include '*.exe', '*.zip', '*.nupkg' -ErrorAction SilentlyContinue
+if (-not $artifacts) {
+  Block 'No artifacts were produced in out/make.' 'The build did not emit anything to publish.'
+}
+
+# Ask Windows whether each executable is ACTUALLY signed. Only every signable
+# artifact carrying a Valid signature earns signed:true. A .zip cannot be
+# Authenticode-signed at all, so it is reported separately rather than being
+# quietly covered by a flag it never satisfied.
+$signable = $artifacts | Where-Object { $_.Extension -in '.exe', '.nupkg' }
+$signatureReport = foreach ($a in $signable) {
+  $sig = Get-AuthenticodeSignature -FilePath $a.FullName
+  [ordered]@{ artifact = $a.Name; status = $sig.Status.ToString(); signer = $sig.SignerCertificate.Subject }
+}
+$signed = ($signable.Count -gt 0) -and
+          (@($signatureReport | Where-Object { $_.status -ne 'Valid' }).Count -eq 0)
+
+if ($certConfigured -and -not $signed) {
+  Block 'A certificate was configured but the artifacts are not validly signed.' (
+    'Signature status: ' + (($signatureReport | ForEach-Object { "$($_.artifact)=$($_.status)" }) -join ', '))
+}
 $checksums = foreach ($a in $artifacts) {
   $hash = (Get-FileHash -Algorithm SHA256 $a.FullName).Hash.ToLower()
   "$hash  $($a.Name)"
@@ -176,10 +207,11 @@ $release = [ordered]@{
   builtAt       = (Get-Date).ToUniversalTime().ToString('o')
   node          = $nodeVersion
   signed        = $signed
+  signatures    = @($signatureReport)
+  unsignedArtifacts = @($artifacts | Where-Object { $_.Extension -notin '.exe', '.nupkg' } | ForEach-Object { $_.Name })
   testsRun      = (-not $SkipTests)
   artifacts     = @($artifacts | ForEach-Object { $_.Name })
 }
-New-Item -ItemType Directory -Force -Path 'out/make' | Out-Null
 $release | ConvertTo-Json -Depth 10 | Set-Content 'out/make/release.json' -Encoding UTF8
 Set-Content 'out/make/SHA256SUMS.txt' -Value $checksums -Encoding UTF8
 
@@ -189,7 +221,7 @@ Write-Host "  Version : $Version"
 Write-Host "  Channel : $Channel"
 Write-Host "  Commit  : $commit"
 Write-Host "  Schema  : $schemaVersion"
-Write-Host "  Signed  : $(if ($signed) { 'YES' } else { 'NO — internal/QA artifact' })"
+Write-Host "  Signed  : $(if ($signed) { 'YES — verified with Get-AuthenticodeSignature' } else { 'NO — internal/QA artifact' })"
 Write-Host "  Output  : out/make"
 Write-Host ''
 Write-Host 'Next: commit the version bump, tag it, and push.' -ForegroundColor Cyan

@@ -12,6 +12,7 @@ const reservationsRepo = require('../repositories/reservations');
 const domain = require('./domain');
 const guard = require('./guard');
 const passwords = require('../auth/passwords');
+const notificationService = require('./notification-service');
 const { nowIso, today, addDays } = require('../../shared/contracts/dates');
 const { ROLES, CONFIGURABLE, ADMIN_ONLY } = require('../../shared/contracts/roles');
 const { validation, forbidden, notFound } = require('../../shared/errors');
@@ -374,13 +375,28 @@ const settings = {
 
 /* ========================================================== notifications */
 
+/* Two audiences, one table.
+ *
+ * A broadcast notification has no target profile and is meant for everybody; a
+ * targeted one belongs to exactly one profile. The old predicate read
+ * `(@scope IS NULL AND (target_profile_id IS NULL OR 1=1)) OR target_profile_id = @scope`
+ * — the `OR 1=1` makes the first half unconditional, so it said "unscoped sees
+ * everything", which is right, while silently deciding that a MARKETING session
+ * never sees a broadcast, which is not. Written out plainly the bug has nowhere
+ * to hide. */
+const VISIBLE_TO_SCOPE = '(@scope IS NULL OR target_profile_id = @scope OR target_profile_id IS NULL)';
+
 const notifications = {
   list(ctx) {
     const session = guard.requireCapability(ctx, 'notifications.read');
     const scope = domain.scopeProfileId(session);
+    /* Standing conditions — cold guests, imminent arrivals — are recomputed on
+       read rather than stored, because they stop being true on their own as
+       the calendar moves. */
+    notificationService.refreshDerived(ctx.db, scope ?? session.profile_id ?? null);
     return ctx.db.prepare(`
       SELECT * FROM notifications
-      WHERE (@scope IS NULL AND (target_profile_id IS NULL OR 1=1)) OR target_profile_id = @scope
+      WHERE ${VISIBLE_TO_SCOPE}
       ORDER BY created_at DESC LIMIT 100`).all({ scope });
   },
 
@@ -389,7 +405,7 @@ const notifications = {
     const scope = domain.scopeProfileId(session);
     return ctx.db.prepare(`
       SELECT COUNT(*) n FROM notifications
-      WHERE read_at IS NULL AND ((@scope IS NULL) OR target_profile_id = @scope)`).get({ scope }).n;
+      WHERE read_at IS NULL AND ${VISIBLE_TO_SCOPE}`).get({ scope }).n;
   },
 
   /* A foreign id and a missing id answer identically, so this cannot be walked
@@ -407,7 +423,7 @@ const notifications = {
     const session = guard.requireCapability(ctx, 'notifications.update');
     const scope = domain.scopeProfileId(session);
     ctx.db.prepare(`UPDATE notifications SET read_at = @now
-      WHERE read_at IS NULL AND ((@scope IS NULL) OR target_profile_id = @scope)`).run({ now: nowIso(), scope });
+      WHERE read_at IS NULL AND ${VISIBLE_TO_SCOPE}`).run({ now: nowIso(), scope });
     return { ok: true };
   },
 

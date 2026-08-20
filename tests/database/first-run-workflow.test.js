@@ -147,8 +147,26 @@ module.exports = async function () {
       customers.list(app.ctx(), { pageSize: 50 }).total === 1
       && reservations.list(app.ctx(), { pageSize: 50 }).total === 1);
 
-    // Nothing in this workflow required editing a file or a database row.
-    s.check('the whole workflow completed with no manual database edit', true);
+    /* "No manual database edit" has to be checked, not asserted. Every write in
+       this suite went through a service, and each one leaves an audit row naming
+       its actor — so a row that exists with no audit trail behind it is exactly
+       what a hand-edit looks like. `s.check(..., true)` here used to make the
+       claim without testing it. */
+    const audited = support.audit.list(app.ctx(), { pageSize: 500 }).rows;
+    const createdEntities = new Set(audited
+      .filter((r) => r.action.endsWith('_CREATE') && r.entity_id)
+      .map((r) => `${r.entity_type}:${r.entity_id}`));
+    const liveEntities = [
+      ...app.db.prepare("SELECT 'customer' t, id FROM customers").all(),
+      ...app.db.prepare("SELECT 'reservation' t, id FROM reservations").all(),
+      ...app.db.prepare("SELECT 'profile' t, id FROM profiles").all(),
+      ...app.db.prepare("SELECT 'crm_note' t, id FROM crm_notes").all(),
+    ].map((r) => `${r.t}:${r.id}`);
+    const unexplained = liveEntities.filter((k) => !createdEntities.has(k));
+    s.check('every row in the database was created through the application, not by hand',
+      unexplained.length === 0, `no audit trail for: ${unexplained.join(', ')}`);
+    s.check('and the audit log is not empty, so the check above could have failed',
+      createdEntities.size >= 4, String(createdEntities.size));
   } finally {
     app.close();
   }

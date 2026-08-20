@@ -1,7 +1,17 @@
-# API Security Surface Matrix
+# API Security Surface Matrix — PROTOTYPE BASELINE
 
 Every operation exposed on `window.api` in `merit-marketing-hub.html`, with the
 authorization contract each one is required to honour.
+
+> **This documents the PROTOTYPE, not the shipping application.** It is the
+> behavioural baseline the Electron migration had to preserve, and the suites that
+> still run against `merit-marketing-hub.html` are enforced by it. The security
+> matrix for the product that ships is
+> [`docs/IPC-SECURITY-SURFACE.md`](../docs/IPC-SECURITY-SURFACE.md), generated from
+> `src/shared/contracts/ipc-surface.js`. Sixty-odd verbs listed below — `auth.firstRun`,
+> `export.filtered`, `photos.pick`, `dialog.confirm` — do not exist on the IPC
+> surface at all; the renderer's adapter layer maps them. Reading this file to
+> approve a change to the Electron app would be reading about the wrong artifact.
 
 **Generated from [`tests/api-surface/surface.js`](api-surface/surface.js) — do not edit by
 hand.** Run `npm run surface:doc` after changing the matrix.

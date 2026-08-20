@@ -231,6 +231,9 @@ function assign(ctx, params) {
       event_type: 'explicit', source: params.reason || 'reassignment', reservation_id: null,
       actor_user_id: session.id, changed_at: now,
     });
+    /* The marketer receiving the guest is told. The one losing them is not:
+       that conversation belongs to management, not to a bell icon. */
+    require('./notification-service').emitAssignment(ctx.db, { customer, profileId });
     ctx.audit({
       action: 'CUSTOMER_ASSIGN', entity_type: 'customer', entity_id: customer.id,
       description: `Reassigned ${customer.full_name} → ${profile ? profile.full_name : 'unassigned'}`,

@@ -376,8 +376,120 @@ uyarı gösterebilir — bu, sertifika alınana kadar normaldir.
 
 ## 29. Independent code review
 
-*(Completed after two adversarial reviews — findings, fixes and the regression
-tests written for each are recorded in this section.)*
+Two adversarial reviews were commissioned, deliberately split so neither ran out
+of budget mid-audit: one on backend and data, one on the Electron boundary and
+release. Both were told to attack, not to approve, and to prove findings by
+running code rather than by reading it. Between them they confirmed **28
+defects**. Every one is fixed, and every one has a regression test that was red
+first.
+
+### The finding that matters most
+
+**The application did not work, and 1016 assertions could not see it.**
+
+Every service suite called the services directly. Every IPC suite built payloads
+by hand. Every UI suite drove the *original prototype HTML*. Nothing anywhere
+asked the question that decides whether the product functions: does the migrated
+renderer send payloads the migrated boundary accepts?
+
+It did not.
+
+- `auth:setup` omitted `passwordConfirm`, so a fresh installation could never
+  create its administrator. A clean install was a brick.
+- `bridge.js` assigned `window.api`, which `contextBridge` defines
+  **non-writable**. In strict mode that throws on the file's first statement, so
+  the entire adapter layer died — taking every destructive-action confirmation
+  dialog, every export, photo import, and the session-expiry subscription with it.
+- The guest and reservation lists sent `status:''` and a field name the surface
+  does not have, so both screens failed validation and rendered nothing at all.
+- Under `style-src 'self'` a style attribute written in markup is inert, so the
+  sign-in card and the setup card rendered on top of each other, and every
+  element hidden only that way was permanently visible.
+
+Each is a one-word fix. All of them shipped. That is not a testing gap at the
+margin; it is the difference between a test suite that measures the product and
+one that measures the parts of the product that were convenient to reach.
+
+`tests/electron/workflow.test.js` now starts the real binary, drives the real
+first-run form, and checks the payload each screen actually builds against the
+schema that actually receives it.
+
+### Data integrity
+
+| Finding | Why it mattered |
+|---|---|
+| `update` and `cancel` checked lifecycle before scope | Four distinguishable refusals let a marketer classify every row in the table — including other marketers' — from the error message alone |
+| Derived ownership outlived the booking that derived it | A guest stayed assigned with nothing left in the database to explain why; the profile card's guest count and reservation count stopped agreeing about the same person |
+| Soft delete was complete for reservations, absent for customers | An archived guest's name, ID and dates went on being rendered by the reservation list, both calendar views and the CSV, while `customers:get` answered NOT_FOUND for the id those rows carried |
+| The stay list under the inspector was scoped by inviter | The panel said three stays, the list under it showed one |
+| `profiles:get`/`list` masked metrics, then returned `SELECT p.*` | Every marketer received a colleague's passport number, phone, email, and the free-text field where management records an employment warning |
+| The migrator's `foreign_key_check` ran after the commit | A migration that left an orphan row was committed, recorded as applied, and reported with "Your data has not been changed" |
+| A UTC instant was sliced to make a business date | Every assignment made between midnight and 03:00 in Turkey landed on the previous day, expiring guest protection a day early |
+| An archived Guest ID stayed claimed forever | Re-entry surfaced as a raw UNIQUE failure: "An unexpected error occurred", no field named, nothing to act on |
+| `photos:remove` checked the capability, never the record | |
+| Booking conflicts disclosed a foreign stay's id and dates | The record `reservations:list` deliberately hides |
+
+The inspector's own counts were **not** changed: the prototype's helper is
+unscoped too, so covering the guest's whole history is verified baseline
+behaviour, and owning a guest is exactly what entitles a marketer to know when
+that guest last came. The list widened to match, rather than the counts
+narrowing to match the list.
+
+### Boundary and release
+
+| Finding | Why it mattered |
+|---|---|
+| `backup:restore` joined a caller-supplied name onto the backups directory | `../Downloads/planted.mmhbackup` restored an attacker's archive over the live database — users table included. `safeJoin` is what every other path in the app already used |
+| The backup reader capped the compressed file, not its expansion | A ~10 MB archive could exhaust the main process during `inspect`, before the operator confirmed anything |
+| `updates:install` performed no capability check at all | Its pre-update backup runs as `system: true`, which is exempt, so nothing downstream caught it either |
+| `autoInstallOnAppQuit` was on | electron-updater would install silently on quit, bypassing the pre-update backup and its audit row entirely |
+| Two `data-act`/`data-on`/`data-args` triples on one row | HTML keeps the first and drops the rest: double-click-to-edit was dead on three tables, Enter-to-open on two more |
+| The action dispatcher fell back to `window[name]` | `eval` is a global |
+| `idLike` transformed its string branch without re-validating | `"0"` and a 21-digit string passed a check for a positive integer |
+| The backup list read `created_at`/`size` from a service returning `createdAt`/`byteSize` | "Invalid Date · NaN KB" |
+| The pre-migration snapshot was a raw file copy | In WAL mode the committed work can live entirely in the sidecar — and this is the snapshot taken *after an unclean shutdown*. Its manifest also described an empty archive while the archive contained a database |
+| `GrantFileProtocolExtraPrivileges` was left at its default | The whole UI is a `file://` document |
+| `recover-push.js` built shell strings from git refs | A hostile branch name in a cloned repo ran as a command on the maintainer's machine |
+| The nested `node_modules/**/tests` were not covered by the ignore list | 146 `.test.ts` files shipped; the archive is now 698 entries instead of 1104 |
+
+### Two things the reviews found that were worse than bugs
+
+**The manager notification feature was complete and inert.** The table, its
+index, five IPC channels and all of the scope logic were carried across; every
+producer was left behind. Nothing ever wrote a row, and no test noticed because
+every notification test asserted on how notifications are *read*. All four
+producers from the baseline are restored, and the first assertion in the new
+suite is the one that was missing: does anything write?
+
+The root cause was structural. The activity feed hangs off the audit sink, and
+the test harness had its **own copy** of that sink — so the tests exercised a
+code path the application does not run. There is now one sink,
+`src/main/services/audit-sink.js`, used by both.
+
+**The security matrix a reviewer reads described the prototype.** The generated
+document opens with "Every operation exposed on `window.api` in
+`merit-marketing-hub.html`", and the CI gate compared it to the prototype's
+matrix — so it passed, every run, while documenting the wrong artifact. Sixty-odd
+of its rows name verbs the IPC surface does not have. A gate that can only tell
+you whether two copies of the wrong thing match is worse than no gate, because
+it produces confidence. `docs/IPC-SECURITY-SURFACE.md` is now generated from the
+shipping contract, checked by its own suite, and the prototype document says what
+it is in its title.
+
+### Assertions that could not fail
+
+Four were found and replaced with assertions that can:
+
+- `packaged/hygiene` passed vacuously whenever nothing had been packaged — which
+  is every clean CI checkout. The one gate against shipping demo credentials or
+  a developer's database was green precisely when it had inspected nothing. It
+  now fails, and CI and the release script package first.
+- `first-run-workflow` asserted "no manual database edit" as a literal `true`.
+  It now checks it: every live row must have an audit trail behind it.
+- `performance` asserted a report string as `true`. It now asserts that every
+  budgeted operation actually produced a measurement.
+- The shared harness asserted "no console errors" in suites that never opened a
+  page, adding a guaranteed pass to every database and IPC suite.
 
 ## 30. Scorecard
 

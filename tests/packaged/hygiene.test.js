@@ -29,8 +29,25 @@ module.exports = async function () {
   const s = new Suite('packaged/hygiene');
   const asar = findAsar();
 
+  /* Never skip silently.
+     This suite is the only thing standing between the repository and a
+     released installer containing demo credentials, the prototype HTML or a
+     developer's database. It used to pass with `s.check(..., true)` whenever
+     `out/` was absent — which is every run that has not packaged, including
+     every clean CI checkout. The one assertion that proves nothing dangerous
+     ships was therefore green precisely when it had checked nothing.
+
+     A missing package is now a FAILURE with the command that fixes it. Local
+     runs that genuinely cannot package must say so out loud by setting
+     MERIT_ALLOW_UNPACKAGED=1, and even then the run is marked, not hidden. */
   if (!asar) {
-    s.check('no package built — hygiene check skipped (run npm run package)', true);
+    if (process.env.MERIT_ALLOW_UNPACKAGED === '1') {
+      s.check('PACKAGE HYGIENE NOT VERIFIED — MERIT_ALLOW_UNPACKAGED=1 was set for this run',
+        false, 'Nothing was inspected. Run: npm run package');
+    } else {
+      s.check('a packaged application exists to inspect', false,
+        'out/ contains no app.asar. Run: npm run package (CI and the release script do this first).');
+    }
     return s.finish();
   }
 

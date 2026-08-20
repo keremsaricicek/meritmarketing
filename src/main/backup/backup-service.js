@@ -347,4 +347,22 @@ function build({ paths, appVersion, getDb, setDb, log = () => {} }) {
   return service;
 }
 
-module.exports = { build, pack, unpack, sha256, EXTENSION, MAGIC };
+/* Read an archive back and confirm it is what it claims to be. Standalone,
+   because the pre-migration snapshot is written before any service exists —
+   and it was the one backup in the product that nothing ever verified. */
+function verifyFile(file) {
+  const { manifest, entries } = unpack(fs.readFileSync(file));
+  if (!manifest || manifest.format !== MAGIC) {
+    throw new AppError(CODES.BACKUP_INVALID, 'The snapshot that was just written is not a valid Merit backup.');
+  }
+  const database = entries.get('database.sqlite3');
+  if (!database) {
+    throw new AppError(CODES.BACKUP_INVALID, 'The snapshot that was just written contains no database.');
+  }
+  if (manifest.databaseSha256 !== sha256(database)) {
+    throw new AppError(CODES.BACKUP_INVALID, 'The snapshot that was just written failed its own integrity check.');
+  }
+  return { manifest, byteSize: database.length };
+}
+
+module.exports = { build, pack, unpack, sha256, verifyFile, EXTENSION, MAGIC };
