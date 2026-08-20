@@ -293,8 +293,12 @@ having its own copy is precisely why the missing producers went unnoticed.
 Tests run on the **production runtime**, not system Node:
 
 ```
-ELECTRON_RUN_AS_NODE=1 ./node_modules/electron/dist/electron tests/run-all.js
+npm test            # scripts/run-tests.js — Electron's binary, ELECTRON_RUN_AS_NODE=1
 ```
+
+The launcher exists because the environment assignment above is POSIX shell
+syntax that cmd.exe rejects, and because the binary is `electron.exe` on
+Windows. Same command on all three platforms.
 
 Largest suites: `ipc/surface-enforcement` (127), `ipc/attack-matrix` (81),
 `database/review-findings` (50), `electron/workflow` (39).

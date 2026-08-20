@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "description": "Merit Marketing Hub — casino marketing CRM desktop application.",
+  "author": {
+    "name": "Merit Marketing"
+  },
   "scripts": {
-    "test": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js",
-    "test:verbose": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js --verbose",
-    "test:security": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js api-surface authorization regression",
-    "test:business": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js business integrity",
-    "test:ui": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js ui",
+    "test": "node scripts/run-tests.js",
+    "test:verbose": "node scripts/run-tests.js --verbose",
+    "test:security": "node scripts/run-tests.js api-surface authorization regression",
+    "test:business": "node scripts/run-tests.js business integrity",
+    "test:ui": "node scripts/run-tests.js ui",
     "browser": "playwright install chromium",
     "surface:doc": "node tests/api-surface/generate-doc.js && node scripts/generate-ipc-doc.js",
     "ipc:doc": "node scripts/generate-ipc-doc.js",
@@ -17,10 +20,10 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "test:database": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js database",
-    "test:electron": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js electron ipc",
-    "test:migrations": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js migrations",
-    "test:backup": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/electron tests/run-all.js backup",
+    "test:database": "node scripts/run-tests.js database",
+    "test:electron": "node scripts/run-tests.js electron ipc",
+    "test:migrations": "node scripts/run-tests.js migrations",
+    "test:backup": "node scripts/run-tests.js backup",
     "extract:renderer": "node scripts/extract-renderer.js"
   },
   "devDependencies": {

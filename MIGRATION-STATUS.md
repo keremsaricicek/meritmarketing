@@ -44,9 +44,10 @@ continue deterministically. Delete when the migration is fully complete.
 
 ## Environment notes for the next session
 
-- Tests **must** run on Electron's Node, not system Node:
-  `ELECTRON_RUN_AS_NODE=1 ./node_modules/electron/dist/electron tests/run-all.js`
-  (`npm test` does this.) System Node 22 has `node:sqlite` only behind an
+- Tests **must** run on Electron's Node, not system Node. `npm test` does this
+  through `scripts/run-tests.js`, which finds Electron's binary and sets
+  `ELECTRON_RUN_AS_NODE` itself — the old inline `VAR=value ...` form was a
+  POSIX shell construct and could not run on Windows. System Node 22 has `node:sqlite` only behind an
   experimental flag; production uses Electron's Node 24.
 - The Electron launch suite spawns the binary and must **delete**
   `ELECTRON_RUN_AS_NODE` from the child env, or Electron starts as bare Node.

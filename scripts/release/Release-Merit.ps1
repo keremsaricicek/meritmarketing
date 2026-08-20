@@ -164,9 +164,19 @@ Step 'Build'
 $env:MERIT_CHANNEL = $Channel
 $env:MERIT_COMMIT = $commit
 
-$package = Get-Content 'package.json' -Raw | ConvertFrom-Json
-$package.version = $Version
-$package | ConvertTo-Json -Depth 20 | Set-Content 'package.json' -Encoding UTF8
+# The version bump is a TEXT edit, not a re-serialisation. Round-tripping
+# package.json through ConvertFrom-Json/ConvertTo-Json rewrites the whole file:
+# on Windows PowerShell 5.1 `Set-Content -Encoding UTF8` also prepends a byte
+# order mark, and a BOM in package.json is enough to fail the JSON parse that
+# forge does before it builds anything. Replacing the one field leaves every
+# other byte alone.
+$packageText = Get-Content 'package.json' -Raw
+$bumped = [regex]::Replace($packageText, '("version"\s*:\s*")[^"]+(")', "`${1}$Version`${2}", 1)
+if ($bumped -notmatch ('"version"\s*:\s*"' + [regex]::Escape($Version) + '"')) {
+  Write-Host "`nBLOCKED — could not set the version in package.json." -ForegroundColor Red
+  exit 1
+}
+[System.IO.File]::WriteAllText((Join-Path $repoRoot 'package.json'), $bumped, (New-Object System.Text.UTF8Encoding($false)))
 
 npm run make
 if ($LASTEXITCODE -ne 0) {
@@ -180,7 +190,12 @@ $schemaVersion = (Get-ChildItem 'database/migrations' -Filter '*.sql' |
   Sort-Object Name | Select-Object -Last 1).Name -replace '^(\d+).*', '$1'
 
 New-Item -ItemType Directory -Force -Path 'out/make' | Out-Null
-$artifacts = Get-ChildItem 'out/make' -Recurse -File -Include '*.exe', '*.zip', '*.nupkg' -ErrorAction SilentlyContinue
+# Filtered after listing rather than with -Include: -Include is only applied to
+# the items INSIDE a recursed directory, so what it matches depends on where the
+# maker happened to put the file. An empty artifact list here reads as "the
+# build produced nothing" and blocks a build that actually succeeded.
+$artifacts = @(Get-ChildItem 'out/make' -Recurse -File -ErrorAction SilentlyContinue |
+  Where-Object { $_.Extension -in '.exe', '.zip', '.nupkg' })
 if (-not $artifacts) {
   Block 'No artifacts were produced in out/make.' 'The build did not emit anything to publish.'
 }
@@ -221,6 +236,21 @@ if ($Channel -eq 'stable' -and -not $signed) {
   Block 'A stable release requires validly signed artifacts.' (
     "$why`n`nBuild with -Channel internal for an unsigned QA artifact.")
 }
+# The verdict gate runs BEFORE the build, so anything blocked since then — a
+# certificate that produced no valid signature, a stable channel with nothing
+# signed — has been recorded and not yet acted on. Act on it HERE: before
+# release.json is written and before BUILD COMPLETE is printed. A gate that
+# records a refusal and then prints success is not a gate.
+if ($blocked.Count -gt 0) {
+  Write-Host "`nBLOCKED — the build ran but the release is refused." -ForegroundColor Red
+  foreach ($b in $blocked) {
+    Write-Host "`n  x $($b.Reason)" -ForegroundColor Red
+    Write-Host "    -> $($b.Fix)" -ForegroundColor Yellow
+  }
+  Write-Host "`nThe artifacts are in out/make and are NOT a release." -ForegroundColor Yellow
+  exit 1
+}
+
 $checksums = foreach ($a in $artifacts) {
   $hash = (Get-FileHash -Algorithm SHA256 $a.FullName).Hash.ToLower()
   "$hash  $($a.Name)"

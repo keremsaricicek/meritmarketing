@@ -86,7 +86,19 @@ module.exports = {
       config: {
         name: 'MeritMarketingHub',
         setupExe: 'MeritMarketingHub-Setup.exe',
-        ...(hasIcon ? { setupIcon: ICON, iconUrl: undefined } : {}),
+        /* The installer is a NuGet package underneath, and NuGet REFUSES a
+           nuspec with an empty <authors>. electron-winstaller derives it from
+           package.json's `author`, which npm does not create, so a project
+           without one fails at `nuget pack` — after packaging, with no
+           installer produced. Stated here as well so neither file can silently
+           drop it. */
+        authors: 'Merit Marketing',
+        owners: 'Merit Marketing',
+        description: 'Merit Marketing Hub — casino marketing CRM desktop application.',
+        /* setupIcon only. `iconUrl: undefined` was still an own property, so it
+           overwrote electron-winstaller's default with nothing and put an empty
+           <iconUrl> into the same nuspec. */
+        ...(hasIcon ? { setupIcon: ICON } : {}),
         ...(process.env.WINDOWS_CERT_FILE ? {
           certificateFile: process.env.WINDOWS_CERT_FILE,
           certificatePassword: process.env.WINDOWS_CERT_PASSWORD,
