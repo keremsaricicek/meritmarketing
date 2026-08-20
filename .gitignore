@@ -7,7 +7,7 @@ dist/
 *.pem
 *.pfx
 *.p12
-recovery/
+/recovery/
 coverage/
 *.log
 .DS_Store
