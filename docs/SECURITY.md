@@ -145,3 +145,32 @@ rather than a list of names: any `on*=` attribute, any construct that turns a
 string into code, any attribute repeated within one start tag, and every literal
 `data-act` resolving to something the renderer defines. The gate was verified by
 reintroducing each defect and confirming it goes red.
+
+## The file:// fuse, and why it is on
+
+`GrantFileProtocolExtraPrivileges` is **enabled** in `forge.config.js`. It was
+disabled once, and the result was an installed application that opened a blank
+white window: Electron's ability to serve a `file://` URL out of an asar
+archive comes from those privileges, so `loadFile('…/app.asar/src/renderer/
+index.html')` failed with `ERR_FILE_NOT_FOUND` while the main process — which
+reads the same archive through Node's patched `fs` — started the database, ran
+the migrations and wrote a backup. Everything worked except the part a person
+can see.
+
+Causation was established on one binary, flipping only that fuse with
+`@electron/fuses write`: enabled → the first-run screen renders and
+`window.api` is present; disabled → `chrome-error://chromewebdata/`, a
+zero-length body, and no bridge.
+
+What being on re-grants is bounded by the window's CSP, which is unchanged:
+`connect-src 'none'` forbids fetch and XHR outright, `script-src 'self'` and
+`style-src 'self'` forbid remote and inline code, and the renderer has no
+network API of its own. The other five fuses are untouched.
+
+**The durable fix** is to stop serving the UI over `file://` at all: register a
+custom `app://` scheme in the main process with `protocol.handle`, read each
+file with `fs` (which works inside the asar regardless of any fuse), and load
+`app://renderer/index.html`. Then this fuse can go back off and CSP `'self'`
+refers to a scheme nothing else can reach. That is a deliberate change to the
+window and the navigation guards, and it must be made with
+`tests/packaged/launch-packaged.test.js` green before and after.

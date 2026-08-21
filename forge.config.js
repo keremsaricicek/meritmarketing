@@ -123,10 +123,30 @@ module.exports = {
       [FuseV1Options.EnableNodeCliInspectArguments]: false,               // no --inspect debugger attach
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,        // a tampered asar refuses to load
       [FuseV1Options.OnlyLoadAppFromAsar]: true,                          // no loose-file override
-      /* This application's entire UI is a file:// document, so the extra
-         privileges the file protocol gets by default apply to the page an
-         attacker would most want them on. Nothing here needs them. */
-      [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
+      /* MUST STAY ON WHILE THE UI IS A file:// DOCUMENT INSIDE THE ASAR.
+       *
+       * Turning this off is what made the installed application open a blank
+       * white window. Electron's ability to serve a file:// URL out of an asar
+       * archive comes from exactly these extra privileges; without them
+       * Chromium's ordinary file handler does not know what an asar is, and
+       * `loadFile('…/app.asar/src/renderer/index.html')` fails with
+       * ERR_FILE_NOT_FOUND. Nothing else breaks — the main process reads the
+       * same archive through Node's patched fs, which is why migrations ran,
+       * the database opened and the automatic backup was written while the
+       * window showed nothing at all.
+       *
+       * It was off because it looked like free hardening. It is not free, and
+       * no test caught it: every suite launched the app from source, where
+       * there is no asar and the fuse changes nothing.
+       *
+       * What it re-grants is bounded by the CSP already on the window:
+       * `connect-src 'none'` forbids fetch and XHR entirely, `script-src
+       * 'self'` and `style-src 'self'` forbid remote and inline code. The
+       * durable fix is to stop using file:// for the UI and serve it from a
+       * custom app:// scheme handled in the main process — see
+       * docs/SECURITY.md. Until then this stays ON, because a hardened
+       * application that will not display is not a hardened application. */
+      [FuseV1Options.GrantFileProtocolExtraPrivileges]: true,
     }),
   ],
 };
