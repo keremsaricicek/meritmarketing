@@ -1,0 +1,31 @@
+# Line endings are LF in this repository, on every platform.
+#
+# Not a style preference. Files here are GENERATED and then compared byte for
+# byte against a fresh render — docs/IPC-SECURITY-SURFACE.md by
+# tests/ipc/doc-freshness.test.js and by `npm run ipc:check`, which the release
+# script blocks on. The generators write "\n". A Windows checkout with git's
+# default core.autocrlf=true rewrites that to "\r\n" on the way to disk, so the
+# on-disk file no longer equals what the generator produces and the freshness
+# gate fails on Windows while passing everywhere else — reporting a document as
+# out of date when it is identical.
+#
+# eol=lf makes the checkout match what the generators write, so the comparison
+# means what it says on all three platforms.
+* text=auto eol=lf
+
+# Never normalised — a byte changed inside any of these corrupts the file.
+# The two owner-supplied assets are named explicitly because they are not in
+# the repository yet and must not be touched when they arrive.
+*.ico  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.gz   binary
+*.zip  binary
+*.exe  binary
+*.dll  binary
+*.node binary
+*.sqlite3 binary
+assets/crm.ico          binary
+src/renderer/logo.png   binary
