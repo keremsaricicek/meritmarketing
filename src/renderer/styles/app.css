@@ -1562,3 +1562,11 @@ body.density-compact .stat-cell{ padding:var(--sp-3) var(--sp-4); }
 .tag-deleted{ color:var(--danger); }
 .tag-deleted .tag-dot{ background:var(--danger); }
 .deleted-meta{ font-size:11px; color:var(--ink-4); white-space:nowrap; }
+
+/* ------------------------------------------------------------------ */
+/* 16 · CRM NOTE PREVIEW                                               */
+/* ------------------------------------------------------------------ */
+td.note-cell{ max-width:420px; min-width:220px; padding-top:7px; padding-bottom:7px; line-height:1.35; }
+.note-line{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
+.note-meta{ font-size:var(--t-sm); color:var(--ink-3); white-space:nowrap; }
+.note-more{ color:var(--accent); font-weight:600; }

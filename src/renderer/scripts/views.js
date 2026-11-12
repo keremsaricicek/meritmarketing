@@ -552,6 +552,16 @@ async function refreshReservationViews(customerId){
     customerId != null ? refreshOpenInspectors(customerId) : Promise.resolve()
   ]);
 }
+/* The newest CRM note, readable in the row: its text on one line, then when
+   and by whom, then how many more there are. A count alone said nothing. */
+function latestNoteHTML(c){
+  if (!c.note_count || !c.last_note_text) return '<span class="muted">—</span>';
+  const more = c.note_count > 1 ? ` · <span class="note-more">+${c.note_count - 1} more</span>` : '';
+  const when = c.last_note_at ? fmtDateTime(c.last_note_at) : fmtDate(c.last_note_date);
+  return `<div class="note-line" title="${escapeHtml(c.last_note_text)}">${escapeHtml(c.last_note_text)}</div>
+    <div class="note-meta">${escapeHtml(when)}${c.last_note_by ? ' · ' + escapeHtml(c.last_note_by) : ''}${more}</div>`;
+}
+
 async function renderCustomers(){
   const s = state.cust;
   s.search = el('custSearch')?.value.trim() || '';
@@ -567,7 +577,7 @@ async function renderCustomers(){
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
-      <td class="muted">${c.note_count ? `${c.note_count} note${c.note_count > 1 ? 's' : ''}` : '—'}</td>
+      <td class="note-cell">${latestNoteHTML(c)}</td>
       <td>
         <div class="status-cell">
           ${statusTagHTML(c.status)}
@@ -581,7 +591,7 @@ async function renderCustomers(){
             </span>` : ''}
         </div>
       </td>
-      <td class="muted">${fmtDate(c.updated_at)}</td>
+      <td class="muted n">${fmtDateTime(c.updated_at)}</td>
     </tr>`).join('')
     : emptyRow(6, s.search
         ? emptyState({ icon:'search', title:'No matching guests',

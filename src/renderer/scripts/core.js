@@ -617,13 +617,13 @@ function updateCrumbs(){
 function closeAllFilterMenus(){ document.querySelectorAll('.filter-menu').forEach(m => m.classList.remove('open')); }
 function closeAllRowMenus(){ document.querySelectorAll('.row-menu').forEach(m => m.classList.remove('open')); }
 function toggleFilterMenu(id, ev){
-  ev?.stopPropagation();
+  ev?.stopPropagation(); if (ev) ev.__menuToggle = true;
   const node = el(id); const was = node.classList.contains('open');
   closeAllFilterMenus(); closeAllRowMenus();
   if (!was) node.classList.add('open');
 }
 function toggleRowMenu(id, ev){
-  ev?.stopPropagation();
+  ev?.stopPropagation(); if (ev) ev.__menuToggle = true;
   const node = el(id); const was = node.classList.contains('open');
   closeAllRowMenus(); closeAllFilterMenus();
   if (!was){
@@ -795,7 +795,16 @@ function finderKeydown(e){
 }
 
 /* ---------- global wiring ---------- */
-document.addEventListener('click', () => { closeAllFilterMenus(); closeAllRowMenus(); });
+/* Close open menus on an outside click. The action dispatcher is ALSO a
+   document-level click listener, so stopPropagation() in a toggle cannot keep
+   this one from running: the toggle marks the event instead, and clicks that
+   land inside an open menu are left alone. Without this, the filter and row
+   menus opened and were closed again by the same click — they never appeared. */
+document.addEventListener('click', (e) => {
+  if (e.__menuToggle) return;
+  if (e.target?.closest?.('.filter-menu, .row-menu')) return;
+  closeAllFilterMenus(); closeAllRowMenus();
+});
 el('palette')?.addEventListener('click', (e) => { if (e.target.id === 'palette') closePalette(); });
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target === ov) closeModal(ov.id); });

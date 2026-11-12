@@ -39,6 +39,17 @@ const DERIVED = `
        AND r.check_in > date('now','localtime')) AS next_visit,
   (SELECT MAX(COALESCE(n.note_date, date(n.created_at,'localtime'))) FROM crm_notes n
      WHERE n.customer_id = c.id AND n.deleted_at IS NULL) AS last_note_date,
+  /* The newest note itself, so a list can show what was said rather than how
+     many times something was said. Same ordering as the guest's own note list. */
+  (SELECT n.note FROM crm_notes n
+     WHERE n.customer_id = c.id AND n.deleted_at IS NULL
+     ORDER BY COALESCE(n.note_date, date(n.created_at,'localtime')) DESC, n.created_at DESC, n.id DESC LIMIT 1) AS last_note_text,
+  (SELECT n.created_at FROM crm_notes n
+     WHERE n.customer_id = c.id AND n.deleted_at IS NULL
+     ORDER BY COALESCE(n.note_date, date(n.created_at,'localtime')) DESC, n.created_at DESC, n.id DESC LIMIT 1) AS last_note_at,
+  (SELECT COALESCE(u.full_name, u.username) FROM crm_notes n LEFT JOIN users u ON u.id = n.created_by
+     WHERE n.customer_id = c.id AND n.deleted_at IS NULL
+     ORDER BY COALESCE(n.note_date, date(n.created_at,'localtime')) DESC, n.created_at DESC, n.id DESC LIMIT 1) AS last_note_by,
   p.full_name AS marketing_name
 `;
 
