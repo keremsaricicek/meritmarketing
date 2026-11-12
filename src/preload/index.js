@@ -89,6 +89,9 @@ const api = {
   dashboard: { load: call('dashboard:load') },
   calendar: { month: call('calendar:month'), day: call('calendar:day') },
   audit: { list: call('audit:list') },
+  activity: { feed: call('activity:feed') },
+  search: { global: call('search:global') },
+  team: { overview: call('team:overview') },
   export: { run: call('export:run') },
   photos: {
     import: call('photos:import'),

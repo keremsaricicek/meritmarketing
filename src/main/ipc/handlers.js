@@ -11,6 +11,7 @@ const customers = require('../services/customer-service');
 const reservations = require('../services/reservation-service');
 const authService = require('../services/auth-service');
 const support = require('../services/support-services');
+const oversight = require('../services/oversight-service');
 const guard = require('../services/guard');
 const { CONFIGURABLE } = require('../../shared/contracts/roles');
 const { validation } = require('../../shared/errors');
@@ -95,6 +96,10 @@ function build({ app, backup, photos, updates, exporter }) {
     'calendar:day': (ctx, p) => support.calendar.day(ctx, p),
 
     'audit:list': (ctx, p) => support.audit.list(ctx, p),
+
+    'activity:feed': (ctx, p) => oversight.activity.feed(ctx, p),
+    'search:global': (ctx, p) => oversight.search.global(ctx, p),
+    'team:overview': (ctx) => oversight.team.overview(ctx),
 
     'export:run': (ctx, p) => exporter.run(ctx, p),
 

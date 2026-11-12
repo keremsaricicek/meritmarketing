@@ -133,6 +133,14 @@ const SURFACE = {
   'audit:list':          { auth: 'required', capability: 'audit.read', roles: ['ADMIN','MANAGER'], scope: 'none', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
                            notes: 'Read-only: there is deliberately no audit update or delete verb anywhere.' },
 
+  // ----------------------------------------------------------- oversight
+  'activity:feed':       { auth: 'required', capability: 'dashboard.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: "Everyone's work only with activity.team; otherwise the caller's own actions, whatever is asked." },
+  'search:global':       { auth: 'required', capability: 'customers.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Partial, case-insensitive match over guests, CRM notes, reservations and profiles, through the same record scope as the lists.' },
+  'team:overview':       { auth: 'required', capability: 'team.control', roles: ['ADMIN'], scope: 'none', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Read-only summary. No non-admin role holds team.control until an administrator grants it.' },
+
   // ------------------------------------------------------------- export
   'export:run':          { auth: 'required', capability: 'export.run', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',
                            notes: 'Scope applies to the dataset; the file path comes from a native Save dialog, never the renderer.' },

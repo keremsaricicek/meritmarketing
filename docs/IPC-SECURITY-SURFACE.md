@@ -16,13 +16,13 @@ do not edit by hand.** Run `npm run ipc:doc` after changing the contract;
 
 | | |
 |---|---|
-| Channels | **62** |
+| Channels | **65** |
 | Callable with no session | 6 |
-| Record- or query-scoped | 34 |
+| Record- or query-scoped | 36 |
 | Destructive | 9 |
 | Written to the audit log | 31 |
 | Enforcing guest protection | 4 |
-| Reachable by MARKETING | 41 |
+| Reachable by MARKETING | 43 |
 
 ## This file is load-bearing
 
@@ -140,6 +140,9 @@ table, including other marketers'.
 | `calendar:month` | required | `calendar.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
 | `calendar:day` | required | `calendar.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
 | `audit:list` | required | `audit.read` | ADMIN, MANAGER | `none` | — | — | — | `FORBIDDEN` |
+| `activity:feed` | required | `dashboard.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `search:global` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
+| `team:overview` | required | `team.control` | ADMIN | `none` | — | — | — | `FORBIDDEN` |
 | `export:run` | required | `export.run` | ADMIN, MANAGER, MARKETING | `query` | — | — | yes | `FORBIDDEN` |
 | `photos:import` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | — | yes | `FORBIDDEN` |
 | `app:openDataFolder` | required | `backup.read` | ADMIN, MANAGER | `none` | — | — | yes | `FORBIDDEN` |
@@ -188,6 +191,9 @@ table, including other marketers'.
 - `notifications:markRead` — A foreign id and a missing id answer identically.
 - `dashboard:load` — Active Marketing is included for ADMIN and MANAGER only.
 - `audit:list` — Read-only: there is deliberately no audit update or delete verb anywhere.
+- `activity:feed` — Everyone's work only with activity.team; otherwise the caller's own actions, whatever is asked.
+- `search:global` — Partial, case-insensitive match over guests, CRM notes, reservations and profiles, through the same record scope as the lists.
+- `team:overview` — Read-only summary. No non-admin role holds team.control until an administrator grants it.
 - `export:run` — Scope applies to the dataset; the file path comes from a native Save dialog, never the renderer.
 - `photos:import` — Opens a native picker in the main process; validates type, signature and size.
 - `app:openDataFolder` — Opens the FIXED application data folder. Takes no arguments: the renderer supplies no path, so there is nothing to traverse. Uses shell.openPath, never a shell command or a URL.

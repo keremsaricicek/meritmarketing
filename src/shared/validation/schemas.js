@@ -236,6 +236,15 @@ const SCHEMAS = {
     to: text(40).optional(),
   }).strict(),
 
+  'activity:feed': z.object({
+    from: businessDate.optional(),
+    to: businessDate.optional(),
+    actorUserId: idLike.optional(),
+    kind: z.enum(['guest', 'note', 'stay', 'assign']).optional(),
+  }).strict(),
+  'search:global': z.object({ q: text(120) }).strict(),
+  'team:overview': empty,
+
   /* The one channel whose payload reaches four different query builders, and it
      used to be the one exempted from validation: `z.record(z.string(),
      z.unknown())` accepted anything and spread it into
