@@ -26,21 +26,21 @@
 :root{
   /* surface — five warm steps */
   --s0:#ffffff;
-  --s1:#faf9f6;
-  --s2:#f2f0ea;
-  --s3:#e8e5db;
-  --s4:#dad6c8;
+  --s1:#f5f5f3;
+  --s2:#f0f0ed;
+  --s3:#e8e8e4;
+  --s4:#dad9d3;
 
   /* rules */
-  --line:#e6e2d6;
-  --line-2:#d1ccba;
-  --line-3:#b3ac96;
+  --line:#e3e3df;
+  --line-2:#d4d4ce;
+  --line-3:#b5b5ad;
 
   /* ink — warm near-black, never pure #000 */
-  --ink:#1c1a16;
-  --ink-2:#4a4639;
-  --ink-3:#6b6656;
-  --ink-4:#928c78;
+  --ink:#1a1a19;
+  --ink-2:#45453f;
+  --ink-3:#6e6e67;
+  --ink-4:#9a9a92;
 
   /* the one reserved accent: deep oxblood. Used only where the eye
      must land first — primary action, focus, selection, orientation. */
@@ -53,7 +53,8 @@
   /* signals — muted, meaning only, never decoration */
   --ok:#3d6b49;          --ok-soft:rgba(61,107,73,.09);
   --warn:#8a6a2c;        --warn-soft:rgba(138,106,44,.10);
-  --cold:#7a7566;        --cold-soft:rgba(122,117,102,.10);
+  --cold:#4f6475;        --cold-soft:#edf1f4;
+  --info:#2c5d8f;        --info-soft:#eaf1f8;
   --danger:#8a3a2c;      --danger-soft:rgba(138,58,44,.09);
 
   /* type scale — six steps, ~1.12–1.2 progression, nothing between */
@@ -74,12 +75,13 @@
   --shadow-md:0 10px 28px rgba(28,24,18,.09);
   --shadow-dialog:0 26px 60px rgba(28,24,18,.20);
 
-  --font:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font:"Segoe UI Variable Text","Segoe UI",ui-sans-serif,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
   --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
   --ease:cubic-bezier(.2,.6,.2,1);
   --ease-emphasized:cubic-bezier(.16,.8,.24,1);
 
-  --topbar-h:54px;
+  --topbar-h:56px;
+  --sidebar-w:232px;
   --tabstrip-h:38px;
   --row-h:44px;
   --pad-x:28px;          /* the page's left/right breathing room */
@@ -131,12 +133,21 @@ button{ font-family:inherit; }
 /* 03 · CHROME — topbar, sidebar, session                              */
 /* ------------------------------------------------------------------ */
 .topbar{
-  position:fixed; inset:0 0 auto 0; height:var(--topbar-h); z-index:60;
+  position:fixed; inset:0 0 auto var(--sidebar-w); height:var(--topbar-h); z-index:60;
   display:flex; align-items:center; gap:var(--sp-4);
   padding:0 var(--pad-x);
   background:var(--s0); border-bottom:1px solid var(--line);
 }
-.topbar-brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+.topbar-brand{
+  position:fixed; top:0; left:0; width:var(--sidebar-w); height:var(--topbar-h); z-index:61;
+  display:flex; align-items:center; gap:10px; min-width:0; padding:0 16px;
+  background:var(--side-bg, var(--s0)); border-right:1px solid var(--side-line, var(--line)); border-bottom:1px solid var(--side-line, var(--line));
+}
+.topbar-brand .brand-text{ flex-direction:column; align-items:flex-start; gap:0; line-height:1.2; color:var(--side-ink-strong, var(--ink)); font-size:13px; }
+.topbar-brand .brand-text small{ font-size:11px; font-weight:500; letter-spacing:0; text-transform:none; color:var(--side-ink-dim, var(--ink-3)); }
+/* the page path sits where the brand used to be */
+.topbar-crumbs{ font-size:13px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.topbar-crumbs b{ color:var(--ink); font-weight:600; }
 /* the brand mark is the one place the accent appears unearned by an
    action — a signature, not a button. Everywhere else accent = "act here". */
 .brand-mark{
@@ -158,9 +169,9 @@ button{ font-family:inherit; }
 /* the one discoverable entry point to the command palette — a visible
    affordance for guests who never learn the Ctrl K shortcut */
 .topbar-search{
-  display:flex; align-items:center; gap:8px; height:32px; padding:0 10px 0 11px;
+  display:flex; align-items:center; gap:8px; height:36px; padding:0 10px 0 12px; width:420px; max-width:38vw;
   border-radius:var(--r-1); background:var(--s1); border:1px solid var(--line);
-  color:var(--ink-3); font-family:inherit; font-size:var(--t-sm); cursor:pointer;
+  color:var(--ink-3); font-family:inherit; font-size:13.5px; cursor:pointer;
   transition:.14s var(--ease); min-width:150px;
 }
 .topbar-search:hover{ background:var(--s2); border-color:var(--line-3); color:var(--ink-2); }
@@ -188,13 +199,14 @@ button{ font-family:inherit; }
 /* a desktop application menu, not a website dropdown: compact, opaque,
    precise — restrained shadow instead of elevation theatrics */
 .app-menu{
-  position:fixed; z-index:90; width:248px; max-height:calc(100vh - var(--topbar-h) - 24px);
-  overflow-y:auto; background:var(--s0); border:1px solid var(--line-2); border-radius:var(--r-2);
-  box-shadow:var(--shadow-dialog); padding:var(--sp-3);
-  display:none; opacity:0; transform:translateY(-4px);
-  transition:opacity .12s var(--ease), transform .12s var(--ease);
+  /* a permanent left sidebar: every destination visible, nothing hidden
+     behind the brand mark. It sits under the login screen until sign-in. */
+  position:fixed; z-index:58; left:0; top:var(--topbar-h); bottom:0; width:var(--sidebar-w);
+  overflow-y:auto; background:var(--side-bg, var(--s0)); border-right:1px solid var(--side-line, var(--line));
+  padding:6px 10px 10px; display:flex; flex-direction:column;
 }
-.app-menu.show{ display:block; opacity:1; transform:none; }
+.app-menu.show{ display:flex; }
+.app-menu-trigger{ pointer-events:none; }
 
 .app-submenu{
   position:fixed; z-index:91; width:220px; background:var(--s0); border:1px solid var(--line-2);
@@ -228,25 +240,29 @@ button{ font-family:inherit; }
 /* navigation is grouped by task, not listed flat — ten destinations
    read faster as small clusters than one long column */
 .nav-group{ display:flex; flex-direction:column; gap:1px; }
-.nav-group + .nav-group{ margin-top:var(--sp-4); padding-top:var(--sp-4); border-top:1px solid var(--line); }
+.nav-group + .nav-group{ margin-top:6px; }
 .nav-group-label{
-  font-size:9.5px; font-weight:700; letter-spacing:var(--tracking-wide); text-transform:uppercase;
-  color:var(--ink-4); padding:0 12px; margin-bottom:6px;
+  font-size:11px; font-weight:600; letter-spacing:.02em;
+  color:var(--side-ink-dim, var(--ink-4)); padding:10px 10px 6px;
 }
 .nav{ display:flex; flex-direction:column; gap:1px; }
 .nav-item{
-  position:relative; display:flex; align-items:center; gap:11px;
-  padding:8px 12px; border-radius:var(--r-1); cursor:pointer;
-  color:var(--ink-2); font-size:var(--t-md); font-weight:500; letter-spacing:-.05px; user-select:none;
+  position:relative; display:flex; align-items:center; gap:10px;
+  padding:0 10px; min-height:34px; border-radius:6px; cursor:pointer;
+  color:var(--side-ink, var(--ink-2)); font-size:13.5px; font-weight:500; letter-spacing:-.05px; user-select:none;
   transition:background .12s var(--ease), color .12s var(--ease);
 }
 .nav-item svg{ width:15px; height:15px; flex-shrink:0; opacity:.85; transition:opacity .12s var(--ease); }
-.nav-item:hover{ background:var(--s2); color:var(--ink); }
+.nav-item:hover{ background:var(--side-hover, var(--s2)); color:var(--side-ink-strong, var(--ink)); }
 .nav-item:hover svg{ opacity:1; }
 .nav-item:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
 /* active state is a confident, quiet fill — the tab itself is the
    indicator, not an extra bar bolted to the edge */
-.nav-item.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.nav-item.active{ background:var(--side-active-bg, var(--accent-soft)); color:var(--side-active-ink, var(--accent)); font-weight:600; }
+/* CRM Panel's views live inline under their parent — no fly-out */
+.nav-sub{ display:flex; flex-direction:column; gap:1px; margin:2px 0 4px 26px; padding-left:8px; border-left:1px solid var(--side-line, var(--line)); }
+.nav-sub .nav-item{ min-height:30px; font-size:13px; }
+.nav-sub .nav-item.active{ background:none; color:var(--side-active-ink, var(--accent)); }
 .nav-item.active svg{ opacity:1; }
 .nav-item.has-submenu{ padding-right:8px; }
 .nav-item-caret{ margin-left:auto; color:var(--ink-4); flex-shrink:0; }
@@ -259,7 +275,7 @@ button{ font-family:inherit; }
 }
 .nav-badge.show{ display:flex; }
 .nav-badge.has{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
-.app-menu-footer{ margin-top:var(--sp-4); padding-top:var(--sp-3); border-top:1px solid var(--line); }
+.app-menu-footer{ margin-top:auto; padding-top:var(--sp-3); border-top:1px solid var(--side-line, var(--line)); }
 
 /* ------------------------------------------------------------------ */
 /* 04 · BUTTONS — text first, wells only where an action must lead     */
@@ -327,7 +343,7 @@ button{ font-family:inherit; }
 /* 05 · LAYOUT & TOOLBAR                                               */
 /* ------------------------------------------------------------------ */
 .main{
-  padding:calc(var(--topbar-h) + var(--tabstrip-h) + var(--sp-6)) var(--pad-x) var(--sp-10);
+  padding:calc(var(--topbar-h) + var(--tabstrip-h) + var(--sp-5)) var(--sp-6) var(--sp-10) calc(var(--sidebar-w) + var(--sp-6));
   /* wide enough that none of the three target desktop widths (1920/1600/1366)
      ever hit this cap — it only stops the workspace from stretching absurdly
      wide on a larger display than the app is designed for */
@@ -337,9 +353,9 @@ button{ font-family:inherit; }
 /* the workspace strip is a second hairline-bordered row under the top
    bar — thin, single-line, and always present once a session exists */
 .workspace-strip{
-  position:fixed; top:var(--topbar-h); left:0; right:0; z-index:55; height:var(--tabstrip-h);
+  position:fixed; top:var(--topbar-h); left:var(--sidebar-w); right:0; z-index:55; height:var(--tabstrip-h);
   display:flex; align-items:stretch; gap:2px; padding:0 var(--sp-4);
-  background:var(--s1); border-bottom:1px solid var(--line);
+  background:var(--s0); border-bottom:1px solid var(--line);
   overflow-x:auto; overflow-y:hidden; white-space:nowrap; scrollbar-width:thin;
 }
 .workspace-strip::-webkit-scrollbar{ height:4px; }
@@ -1371,6 +1387,30 @@ tbody tr:hover .row-actions, tbody tr:focus-within .row-actions, tbody tr.row-cu
 /* ------------------------------------------------------------------ */
 /* 15 · DARK VARIANT, DENSITY, RESPONSIVE                              */
 /* ------------------------------------------------------------------ */
+/* Navy Corporate — dark navigation, cool neutral content, blue accent.
+   Same structure as Merit Classic; only the palette and sidebar change. */
+body.theme-navy{
+  --s1:#f3f5f8; --s2:#edf0f4; --s3:#e4e8ee; --s4:#d5dbe4;
+  --line:#e1e5eb; --line-2:#cdd3dc; --line-3:#a9b2c0;
+  --ink:#151b26; --ink-2:#3d4656; --ink-3:#667085; --ink-4:#98a1b0;
+  --accent:#1f4e8c; --accent-hover:#25599f; --accent-ink:#ffffff;
+  --accent-soft:#eaf0f8; --accent-line:#c3d3e8;
+  --side-bg:#14213d; --side-line:#22315a; --side-ink:#c9d2e6; --side-ink-strong:#ffffff;
+  --side-ink-dim:#7d8db3; --side-hover:#1c2c50; --side-active-bg:#24375f; --side-active-ink:#ffffff;
+}
+body.theme-navy .topbar-brand .brand-mark{ background:#fff; color:#14213d; }
+body.theme-navy .app-menu .nav-badge{ background:#24375f; color:#fff; border-color:#2b3c66; }
+/* Slate Compact — cool gray, teal accent, tighter rhythm for long lists */
+body.theme-slate{
+  --s1:#eef1f1; --s2:#e9eded; --s3:#e0e5e5; --s4:#d0d7d7;
+  --line:#dce2e2; --line-2:#c7cfcf; --line-3:#9eaaa9;
+  --ink:#16201f; --ink-2:#3b4847; --ink-3:#5f6e6c; --ink-4:#8e9b99;
+  --accent:#1e6b66; --accent-hover:#237a74; --accent-ink:#ffffff;
+  --accent-soft:#e3f0ef; --accent-line:#b7d6d3;
+  --r-1:4px; --r-2:5px; --row-h:38px; --topbar-h:50px; --tabstrip-h:34px;
+}
+body.theme-slate{ font-size:13px; }
+body.theme-slate .nav-item{ min-height:30px; font-size:13px; }
 body.theme-dark{
   --s0:#1a1918; --s1:#141312; --s2:#201f1c; --s3:#2a2925; --s4:#38362f;
   --line:#2c2a26; --line-2:#3a3833; --line-3:#4d4a42;

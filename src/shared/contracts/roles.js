@@ -61,6 +61,11 @@ const CONFIGURABLE = Object.freeze({
   'export.run': 'Export data',
   'reservations.deleted.read': 'View deleted reservations',
   'settings.write': 'Change shared settings',
+  /* Oversight views. Off for every non-admin role by default: an administrator
+     decides who may watch the team, rather than the product deciding it. */
+  'team.control': 'Open Team control',
+  'activity.team': "See everyone's activity (Today's activity)",
+  'notifications.admin': 'Receive administrator alerts',
 });
 
 /** Resolve a role's effective capability map, applying stored overrides. */

@@ -1538,8 +1538,10 @@ async function exportCurrentView(entity){
 
 /* ---------------- appearance ---------------- */
 /* Light is the default surface; dark is the variant. */
+const THEMES = ['light', 'dark', 'navy', 'slate'];
 function applyTheme(theme, persist){
-  document.body.classList.toggle('theme-dark', theme === 'dark');
+  const t = THEMES.includes(theme) ? theme : 'light';
+  THEMES.forEach(name => document.body.classList.toggle('theme-' + name, name === t && name !== 'light'));
   if (persist) saveSetting('appearance.theme', theme);
 }
 function applyDensity(density, persist){

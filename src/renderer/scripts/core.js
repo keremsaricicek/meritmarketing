@@ -411,24 +411,19 @@ async function refreshProfiles(){
 /* ---------- navigation ---------- */
 /* ---------- application menu (M trigger) ---------- */
 let submenuCloseTimer = null;
+/* The application menu is now a permanent sidebar. These entry points stay
+   so keyboard shortcuts and older call sites keep working: "open" moves focus
+   into the sidebar, "close" has nothing left to hide. */
 function toggleAppMenu(ev){
   ev?.stopPropagation();
-  el('appMenu').classList.contains('show') ? closeAppMenu() : openAppMenu();
+  openAppMenu();
 }
 function openAppMenu(){
-  const trigger = el('appMenuTrigger');
-  const r = trigger.getBoundingClientRect();
-  const menu = el('appMenu');
-  menu.style.top = (r.bottom + 6) + 'px';
-  menu.style.left = r.left + 'px';
-  menu.classList.add('show');
-  el('appMenuBackdrop').classList.add('show');
-  trigger.setAttribute('aria-expanded', 'true');
+  el('appMenu').classList.add('show');
+  (document.querySelector('#appMenu .nav-item.active') || document.querySelector('#appMenu .nav-item'))?.focus();
 }
 function closeAppMenu(){
-  el('appMenu').classList.remove('show');
-  el('appMenuBackdrop').classList.remove('show');
-  el('appMenuTrigger').setAttribute('aria-expanded', 'false');
+  el('appMenuBackdrop')?.classList.remove('show');
   closeCrmSubmenu();
 }
 /* the submenu is positioned relative to its parent item and repositioned
@@ -449,10 +444,7 @@ function positionSubmenu(anchorEl){
 }
 function openCrmSubmenu(ev){
   ev?.stopPropagation();
-  cancelCloseSubmenu();
-  const item = el('appMenuCrmItem');
-  el('crmSubmenu').classList.add('show');
-  positionSubmenu(item);
+  el('crmSubmenuOverview')?.focus();
 }
 function scheduleOpenCrmSubmenu(){
   cancelCloseSubmenu();
@@ -554,6 +546,8 @@ async function setCrmView(view, btn){
   tabs.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
   const activeBtn = btn || tabs.find(b => actionArgMatches(b, view));
   if (activeBtn){ activeBtn.classList.add('active'); activeBtn.setAttribute('aria-selected','true'); }
+  document.querySelectorAll('#crmInlineNav .nav-item').forEach(n => n.classList.toggle('active', n.dataset.crmView === view));
+  updateCrumbs();
   if (view === 'overview') await renderCustomers();
   else if (view === 'customerlist') await renderCustomerList();
   else if (view === 'norecord') await renderNoRecord();
@@ -594,7 +588,9 @@ async function switchTab(page, opts = {}){
   activeNav?.classList.add('active');
   activeNav?.setAttribute('aria-current', 'page');
   closeAppMenu(); closeAllFilterMenus(); closeAllRowMenus(); resetRowCursor();
+  if (page !== 'customers') document.querySelectorAll('#crmInlineNav .nav-item').forEach(n => n.classList.remove('active'));
   renderWorkspaceStrip();
+  updateCrumbs();
   const forceReload = opts.forceReload ?? (page === 'dashboard' || !wasOpen);
   if (forceReload){
     window.scrollTo(0,0);
@@ -602,6 +598,19 @@ async function switchTab(page, opts = {}){
   }
   workspace.loaded.add(page);
   el('page-' + page).querySelector('h1')?.focus();
+}
+
+/* the page path in the top bar — where you are, without reading the tabs */
+const CRM_VIEW_LABELS = { overview:'Overview', customerlist:'Customer List', norecord:'No Record' };
+function updateCrumbs(){
+  const node = el('topbarCrumbs'); if (!node) return;
+  const page = workspace.active;
+  const label = escapeHtml(PAGE_LABELS[page] || page);
+  if (page === 'customers' && state.crmView){
+    node.innerHTML = `${label} <span aria-hidden="true">/</span> <b>${escapeHtml(CRM_VIEW_LABELS[state.crmView] || '')}</b>`;
+  } else {
+    node.innerHTML = `<b>${label}</b>`;
+  }
 }
 
 /* ---------- popovers ---------- */

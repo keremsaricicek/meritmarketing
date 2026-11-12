@@ -68,6 +68,7 @@
     </button>
     <div class="brand-text">MERIT MARKETING HUB<small>Casino CRM</small></div>
   </div>
+  <div class="topbar-crumbs" id="topbarCrumbs" aria-live="polite"></div>
   <div class="topbar-actions">
     <button class="topbar-search" id="topbarSearchBtn" data-act="openPalette" data-on="click" data-args='[]' aria-label="Search everything">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -110,11 +111,15 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
         Action Calendar
       </div>
-      <div class="nav-item has-submenu" data-page="customers" id="appMenuCrmItem" role="menuitem" aria-haspopup="true" tabindex="0" data-activatable
-           data-act-click="openCrmSubmenu" data-args-click='[{"$":"event"}]' data-act-keydown="arrowRightOpensCrmSubmenu" data-args-keydown='[{"$":"event"}]' data-act-mouseenter="scheduleOpenCrmSubmenu" data-act-mouseleave="scheduleCloseSubmenu">
+      <div class="nav-item" data-page="customers" id="appMenuCrmItem" role="menuitem" tabindex="0" data-activatable
+           data-act="openWorkspaceTab" data-on="click" data-args='["customers","overview"]'>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v4h4"/><path d="M9 13h6M9 17h6"/></svg>
         CRM Panel<span class="nav-badge" id="norecBadge">0</span>
-        <span class="nav-item-caret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="nav-sub" id="crmInlineNav" role="group" aria-label="CRM Panel views">
+        <div class="nav-item" id="crmSubmenuOverview" data-crm-view="overview" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","overview"]'>Overview</div>
+        <div class="nav-item" id="crmSubmenuCustomerList" data-crm-view="customerlist" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","customerlist"]'>Customer List</div>
+        <div class="nav-item" id="crmSubmenuNoRecord" data-crm-view="norecord" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","norecord"]'>No Record<span class="nav-badge" id="norecSubmenuBadge">0</span></div>
       </div>
     </div>
   </div>
@@ -165,14 +170,9 @@
   </div>
 </div>
 
-<div class="app-submenu" id="crmSubmenu" role="menu" aria-label="CRM Panel" data-act-mouseenter="cancelCloseSubmenu" data-act-mouseleave="scheduleCloseSubmenu">
-  <div class="app-submenu-title">CRM Panel</div>
-  <div class="nav">
-    <div class="nav-item" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","overview"]'>Overview</div>
-    <div class="nav-item" id="crmSubmenuCustomerList" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","customerlist"]'>Customer List</div>
-    <div class="nav-item" id="crmSubmenuNoRecord" role="menuitem" tabindex="0" data-activatable data-act="openWorkspaceTab" data-on="click" data-args='["customers","norecord"]'>No Record<span class="nav-badge" id="norecSubmenuBadge">0</span></div>
-  </div>
-</div>
+<!-- CRM Panel's views moved inline into the sidebar; the element stays so
+     older call sites that close it remain harmless. -->
+<div class="app-submenu" id="crmSubmenu" aria-hidden="true"></div>
 
 <main class="main" id="mainContent">
 
@@ -594,8 +594,10 @@
           <div><div class="setting-label">Theme</div></div>
           <div class="setting-control">
             <select id="setTheme" data-act="applyTheme" data-on="change" data-args='[{"$":"value"},true]'>
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
+              <option value="light">Merit Classic (light)</option>
+              <option value="navy">Navy Corporate</option>
+              <option value="slate">Slate Compact</option>
+              <option value="dark">Graphite Dark</option>
             </select>
           </div>
         </div>
