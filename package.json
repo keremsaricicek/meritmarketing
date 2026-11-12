@@ -24,7 +24,8 @@
     "test:electron": "node scripts/run-tests.js electron ipc",
     "test:migrations": "node scripts/run-tests.js migrations",
     "test:backup": "node scripts/run-tests.js backup",
-    "extract:renderer": "node scripts/extract-renderer.js"
+    "extract:renderer": "node scripts/extract-renderer.js",
+    "reset-password": "node scripts/recovery/run-with-electron.js scripts/recovery/reset-password.js"
   },
   "devDependencies": {
     "@electron-forge/cli": "7.11.2",
