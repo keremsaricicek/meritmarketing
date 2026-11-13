@@ -1584,6 +1584,9 @@ async function renderSettings(){
 async function renderPermissionMatrix(){
   const m = await call(window.api.settings.permissions, {});
   if (!m) return;
+  /* The service answers { labels, matrix, adminOnly }. This screen read
+     `m.roles`, which never existed, so it threw and the grid stayed empty. */
+  m.roles = m.matrix || m.roles || { MANAGER:{}, MARKETING:{} };
   const rows = Object.entries(m.labels).map(([key, label]) => `
     <div class="perm-row">
       <div class="perm-name">${escapeHtml(label)}</div>
@@ -1605,6 +1608,8 @@ async function renderPermissionMatrix(){
 }
 async function togglePermission(role, key, value){
   const m = await call(window.api.settings.permissions, {}, { silent:true });
+  if (!m) return;
+  m.roles = m.matrix || m.roles || { MANAGER:{}, MARKETING:{} };
   const matrix = { MANAGER:{}, MARKETING:{} };
   ['MANAGER','MARKETING'].forEach(r => Object.keys(m.labels).forEach(k => { matrix[r][k] = m.roles[r][k]; }));
   matrix[role][key] = value;
