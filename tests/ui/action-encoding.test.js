@@ -29,8 +29,9 @@ module.exports = async function () {
   const core = fs.readFileSync(path.join(RENDERER, 'scripts', 'core.js'), 'utf8');
   const views = fs.readFileSync(path.join(RENDERER, 'scripts', 'views.js'), 'utf8');
   const screens = fs.readFileSync(path.join(RENDERER, 'scripts', 'screens.js'), 'utf8');
+  const oversight = fs.readFileSync(path.join(RENDERER, 'scripts', 'oversight.js'), 'utf8');
   const html = fs.readFileSync(path.join(RENDERER, 'index.html'), 'utf8');
-  const all = [core, views, screens, html].join('\n');
+  const all = [core, views, screens, oversight, html].join('\n');
 
   // ------------------------------------------------------------ the helper
   s.check('core.js defines the JSON-attribute escaper', /function jsonAttr\(/.test(core));

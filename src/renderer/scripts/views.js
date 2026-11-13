@@ -826,7 +826,8 @@ async function showCustomerDetail(customerId, panelId){
     </div>`).join('')}</div>`
     : emptyState({ icon:'check', title:'Nothing has happened yet' });
 
-  const lastActivity = events[0]?.when || null;
+  /* a booked future stay is not activity that already happened */
+  const lastActivity = events.find(e => String(e.when).slice(0, 10) <= todayYMD())?.when || null;
   const nextStay = stays.find(r => r.status === 'UPCOMING' || r.status === 'CHECKED_IN');
 
   /* Overview answers "where do things stand" without switching tabs: the
@@ -935,7 +936,7 @@ function crmNoteListHTML(notes, { limit = 3, uid = '' } = {}){
   const rest = notes.slice(limit).map(crmNoteCardHTML).join('');
   return `<div class="crm-note-list">${head}
     <div class="crm-note-more hidden" id="${uid}_morenotes">${rest}</div>
-    <button class="btn-link cn-show-all" data-act="toggleMoreNotes" data-on="click" data-args='["${uid}_morenotes",{"$":"this"},${notes.length}]'>Show all ${notes.length} notes</button>
+    <button class="btn-link cn-show-all" data-act="toggleMoreNotes" data-on="click" data-args='["${jsonAttr(uid + '_morenotes')}",{"$":"this"},${Number(notes.length)}]'>Show all ${notes.length} notes</button>
   </div>`;
 }
 function toggleMoreNotes(id, btn, total){
@@ -948,7 +949,7 @@ function noteComposerHTML(customerId, inputId, withDate){
     <label class="visually-hidden" for="${inputId}">Write a CRM note</label>
     <textarea id="${inputId}" rows="2" maxlength="4000" placeholder="Write a CRM note…"></textarea>
     ${withDate ? `<label class="visually-hidden" for="${inputId}_date">Note date</label><input type="date" id="${inputId}_date" value="${todayYMD()}">` : ''}
-    <button class="btn btn-outline btn-sm" data-act="saveInlineCrmNote" data-on="click" data-args='[${Number(customerId)},"${inputId}",{"$":"this"}]'>Save</button>
+    <button class="btn btn-outline btn-sm" data-act="saveInlineCrmNote" data-on="click" data-args='[${Number(customerId)},"${jsonAttr(inputId)}",{"$":"this"}]'>Save</button>
     <div class="field-error" id="err-${inputId}" role="alert"></div>
   </div>`;
 }

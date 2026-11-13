@@ -234,7 +234,7 @@ function renderCustFilterChips(){
   wrap.classList.toggle('hidden', filters.length === 0);
   wrap.innerHTML = filters.map(f => `
     <span class="chip">${escapeHtml(f.label)}
-      <button class="chip-x" data-act="removeCustFilter" data-on="click" data-args='["${f.key}"]' aria-label="Remove ${escapeHtml(f.label)}">×</button>
+      <button class="chip-x" data-act="removeCustFilter" data-on="click" data-args='["${jsonAttr(f.key)}"]' aria-label="Remove ${escapeHtml(f.label)}">×</button>
     </span>`).join('') + (filters.length ? '<button class="btn-link chip-clear" data-act="clearCustFilters" data-on="click" data-args=\'[]\'>Clear all</button>' : '');
 }
 function removeCustFilter(key){
@@ -298,8 +298,8 @@ async function renderActivity(){
   if (seq !== activitySeq || !data) return;
 
   const teamWide = !!data.teamWide;
-  const rangeBtn = (val, label) => `<button class="${state.act.range === val ? 'active' : ''}" data-act="setActivityRange" data-on="click" data-args='["${val}"]'>${label}</button>`;
-  const kindBtn = (val, label) => `<button class="${state.act.kind === val ? 'active' : ''}" data-act="setActivityKind" data-on="click" data-args='["${val}"]'>${label}</button>`;
+  const rangeBtn = (val, label) => `<button class="${state.act.range === val ? 'active' : ''}" data-act="setActivityRange" data-on="click" data-args='["${jsonAttr(val)}"]'>${label}</button>`;
+  const kindBtn = (val, label) => `<button class="${state.act.kind === val ? 'active' : ''}" data-act="setActivityKind" data-on="click" data-args='["${jsonAttr(val)}"]'>${label}</button>`;
   const k = data.byKind || {};
   const actor = teamWide && state.act.actorUserId ? (data.byActor || []).find(a => String(a.userId) === String(state.act.actorUserId)) : null;
   const scopeLabel = !teamWide ? 'Only your actions' : (actor ? escapeHtml(actor.name) : 'Everyone');
@@ -400,7 +400,7 @@ async function renderTeamControl(){
       <div class="ac-head">${kindIcon(icon)}<span>${title}</span></div>
       <div class="ac-n">${Number(n) || 0}</div>
       <div class="ac-sub">${sub ? escapeHtml(sub) : '<span class="muted">Nothing to review</span>'}</div>
-      <button class="btn-link" data-act="${act}" data-on="click" data-args='${JSON.stringify(args)}'>${link} →</button>
+      <button class="btn-link" data-act="${act}" data-on="click" data-args='${JSON.stringify(args).replace(/'/g, '&#39;')}'>${link} →</button>
     </div>`;
   const arrivals = (a.arrivals48h?.items || []).map(i => `${i.full_name} · ${fmtDate(i.check_in)}`).join(', ');
   const alerts = [
@@ -534,7 +534,7 @@ function renderAuditChips(){
   if (!wrap) return;
   wrap.classList.toggle('hidden', chips.length === 0);
   wrap.innerHTML = chips.map(c => `<span class="chip">${escapeHtml(c.label)}
-      <button class="chip-x" data-act="removeAuditFilter" data-on="click" data-args='["${c.key}"]' aria-label="Remove ${escapeHtml(c.label)}">×</button></span>`).join('')
+      <button class="chip-x" data-act="removeAuditFilter" data-on="click" data-args='["${jsonAttr(c.key)}"]' aria-label="Remove ${escapeHtml(c.label)}">×</button></span>`).join('')
     + (chips.length ? '<button class="btn-link chip-clear" data-act="clearAuditFilters" data-on="click" data-args=\'[]\'>Clear all</button>' : '');
 }
 /* The export carries the same filters as the table, so the file matches the screen. */
