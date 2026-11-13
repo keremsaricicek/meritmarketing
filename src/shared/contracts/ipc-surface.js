@@ -131,13 +131,13 @@ const SURFACE = {
 
   // -------------------------------------------------------------- audit
   'audit:list':          { auth: 'required', capability: 'audit.read', roles: ['ADMIN','MANAGER'], scope: 'none', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
-                           notes: 'Read-only: there is deliberately no audit update or delete verb anywhere.' },
+                           notes: 'Read-only: there is deliberately no audit update or delete verb anywhere. Optional actorUserId filter; facets: true adds the distinct actions and actors for filter menus.' },
 
   // ----------------------------------------------------------- oversight
   'activity:feed':       { auth: 'required', capability: 'dashboard.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
-                           notes: "Everyone's work only with activity.team; otherwise the caller's own actions, whatever is asked." },
+                           notes: "Everyone's work only with activity.team; otherwise the caller's own actions, whatever is asked. A scoped caller never sees the guest detail of work outside its own book." },
   'search:global':       { auth: 'required', capability: 'customers.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
-                           notes: 'Partial, case-insensitive match over guests, CRM notes, reservations and profiles, through the same record scope as the lists.' },
+                           notes: 'Partial, case-insensitive match over guests, CRM notes, reservations and profiles, through the same record scope as the lists; each section also needs its own read capability.' },
   'team:overview':       { auth: 'required', capability: 'team.control', roles: ['ADMIN'], scope: 'none', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
                            notes: 'Read-only summary. No non-admin role holds team.control until an administrator grants it.' },
 

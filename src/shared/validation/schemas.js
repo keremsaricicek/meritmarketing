@@ -232,8 +232,11 @@ const SCHEMAS = {
     ...paging,
     action: text(60).optional(),
     entityType: text(40).optional(),
+    actorUserId: idLike.optional(),
     from: text(40).optional(),
     to: text(40).optional(),
+    /* Ask for the distinct actions and actors as well, for the filter menus. */
+    facets: z.boolean().optional(),
   }).strict(),
 
   'activity:feed': z.object({
@@ -269,6 +272,7 @@ const SCHEMAS = {
       includeStaff: z.boolean().optional(),
       action: text(60).optional(),
       entityType: text(40).optional(),
+      actorUserId: idLike.optional(),
       from: text(40).optional(),
       to: text(40).optional(),
     }).strict().optional(),

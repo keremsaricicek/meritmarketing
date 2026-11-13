@@ -190,9 +190,9 @@ table, including other marketers'.
 - `notifications:unreadCount` — Fails closed rather than answering 0 without a session.
 - `notifications:markRead` — A foreign id and a missing id answer identically.
 - `dashboard:load` — Active Marketing is included for ADMIN and MANAGER only.
-- `audit:list` — Read-only: there is deliberately no audit update or delete verb anywhere.
-- `activity:feed` — Everyone's work only with activity.team; otherwise the caller's own actions, whatever is asked.
-- `search:global` — Partial, case-insensitive match over guests, CRM notes, reservations and profiles, through the same record scope as the lists.
+- `audit:list` — Read-only: there is deliberately no audit update or delete verb anywhere. Optional actorUserId filter; facets: true adds the distinct actions and actors for filter menus.
+- `activity:feed` — Everyone's work only with activity.team; otherwise the caller's own actions, whatever is asked. A scoped caller never sees the guest detail of work outside its own book.
+- `search:global` — Partial, case-insensitive match over guests, CRM notes, reservations and profiles, through the same record scope as the lists; each section also needs its own read capability.
 - `team:overview` — Read-only summary. No non-admin role holds team.control until an administrator grants it.
 - `export:run` — Scope applies to the dataset; the file path comes from a native Save dialog, never the renderer.
 - `photos:import` — Opens a native picker in the main process; validates type, signature and size.

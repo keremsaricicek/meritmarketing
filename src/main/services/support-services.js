@@ -13,7 +13,7 @@ const domain = require('./domain');
 const guard = require('./guard');
 const passwords = require('../auth/passwords');
 const notificationService = require('./notification-service');
-const { nowIso, today, addDays } = require('../../shared/contracts/dates');
+const { nowIso, today, addDays, isBusinessDate } = require('../../shared/contracts/dates');
 const { ROLES, CONFIGURABLE, ADMIN_ONLY } = require('../../shared/contracts/roles');
 const { validation, forbidden, notFound } = require('../../shared/errors');
 
@@ -280,8 +280,12 @@ const users = {
     if (patch.role !== undefined || patch.active === 0 || patch.profile_id !== undefined) {
       ctx.sessions.invalidateIfAffected(row.id);
     }
+    const roleChanged = patch.role !== undefined && patch.role !== row.role;
     ctx.audit({ action: 'USER_UPDATE', entity_type: 'user', entity_id: row.id,
-      description: `Updated account ${row.username}` });
+      description: roleChanged
+        ? `Changed role of ${row.username} from ${row.role} to ${patch.role}`
+        : `Updated account ${row.username}`,
+      metadata: roleChanged ? { role_changed: true, role_from: row.role, role_to: patch.role } : undefined });
     return { id: row.id };
   },
 
@@ -392,52 +396,81 @@ const settings = {
  * to hide. */
 const VISIBLE_TO_SCOPE = '(@scope IS NULL OR target_profile_id = @scope OR target_profile_id IS NULL)';
 
+/* A row addressed to a PERSON (target_user_id — administrator alerts) is that
+ * person's alone, whatever their role: an unscoped MANAGER must not read, mark
+ * or delete an administrator's alert any more than a marketer may. An admin
+ * alert additionally needs 'notifications.admin' at the time it is read, so
+ * revoking the grant hides the alerts already delivered. Every other row keeps
+ * the profile/broadcast rule above, narrowed by target_role when one is set. */
+const VISIBLE = `(
+  (target_user_id IS NULL AND (target_role IS NULL OR target_role = @role) AND ${VISIBLE_TO_SCOPE})
+  OR (target_user_id = @me AND (type <> '${notificationService.ADMIN_ALERT_TYPE}' OR @alerts = 1))
+)`;
+
+function audience(ctx, session) {
+  return {
+    scope: domain.scopeProfileId(session),
+    role: session.role,
+    me: session.id,
+    alerts: ctx.sessions.can('notifications.admin') ? 1 : 0,
+  };
+}
+
+/* The same rule as VISIBLE, for one row, with the stricter pre-existing rule
+   for profile rows: a scoped session may touch only rows addressed to it. */
+function mayTouch(ctx, session, row) {
+  if (!row) return false;
+  if (row.target_user_id !== null && row.target_user_id !== undefined) {
+    if (row.target_user_id !== session.id) return false;
+    return row.type !== notificationService.ADMIN_ALERT_TYPE || ctx.sessions.can('notifications.admin');
+  }
+  if (row.target_role && row.target_role !== session.role) return false;
+  const scope = domain.scopeProfileId(session);
+  return scope === null || row.target_profile_id === scope;
+}
+
 const notifications = {
   list(ctx) {
     const session = guard.requireCapability(ctx, 'notifications.read');
-    const scope = domain.scopeProfileId(session);
+    const who = audience(ctx, session);
     /* Standing conditions — cold guests, imminent arrivals — are recomputed on
        read rather than stored, because they stop being true on their own as
        the calendar moves. */
-    notificationService.refreshDerived(ctx.db, scope ?? session.profile_id ?? null);
+    notificationService.refreshDerived(ctx.db, who.scope ?? session.profile_id ?? null);
     return ctx.db.prepare(`
       SELECT * FROM notifications
-      WHERE ${VISIBLE_TO_SCOPE}
-      ORDER BY created_at DESC LIMIT 100`).all({ scope });
+      WHERE ${VISIBLE}
+      ORDER BY created_at DESC, id DESC LIMIT 100`).all(who);
   },
 
   unreadCount(ctx) {
     const session = guard.requireCapability(ctx, 'notifications.read');
-    const scope = domain.scopeProfileId(session);
     return ctx.db.prepare(`
       SELECT COUNT(*) n FROM notifications
-      WHERE read_at IS NULL AND ${VISIBLE_TO_SCOPE}`).get({ scope }).n;
+      WHERE read_at IS NULL AND ${VISIBLE}`).get(audience(ctx, session)).n;
   },
 
   /* A foreign id and a missing id answer identically, so this cannot be walked
      to discover which notification ids exist. */
   markRead(ctx, { id }) {
     const session = guard.requireCapability(ctx, 'notifications.update');
-    const scope = domain.scopeProfileId(session);
     const row = ctx.db.prepare('SELECT * FROM notifications WHERE id = ?').get(Number(id));
-    if (!row || (scope !== null && row.target_profile_id !== scope)) throw forbidden();
+    if (!mayTouch(ctx, session, row)) throw forbidden();
     ctx.db.prepare('UPDATE notifications SET read_at = ? WHERE id = ?').run(nowIso(), row.id);
     return { ok: true };
   },
 
   markAllRead(ctx) {
     const session = guard.requireCapability(ctx, 'notifications.update');
-    const scope = domain.scopeProfileId(session);
     ctx.db.prepare(`UPDATE notifications SET read_at = @now
-      WHERE read_at IS NULL AND ${VISIBLE_TO_SCOPE}`).run({ now: nowIso(), scope });
+      WHERE read_at IS NULL AND ${VISIBLE}`).run({ now: nowIso(), ...audience(ctx, session) });
     return { ok: true };
   },
 
   remove(ctx, { id }) {
     const session = guard.requireCapability(ctx, 'notifications.update');
-    const scope = domain.scopeProfileId(session);
     const row = ctx.db.prepare('SELECT * FROM notifications WHERE id = ?').get(Number(id));
-    if (!row || (scope !== null && row.target_profile_id !== scope)) throw forbidden();
+    if (!mayTouch(ctx, session, row)) throw forbidden();
     ctx.db.prepare('DELETE FROM notifications WHERE id = ?').run(row.id);
     return { ok: true };
   },
@@ -458,14 +491,51 @@ const audit = {
     const bind = {};
     if (params.action) { where.push('action = @action'); bind.action = params.action; }
     if (params.entityType) { where.push('entity_type = @entityType'); bind.entityType = params.entityType; }
-    if (params.from) { where.push('created_at >= @from'); bind.from = params.from; }
-    if (params.to) { where.push('created_at <= @to'); bind.to = params.to; }
+    if (params.actorUserId !== undefined && params.actorUserId !== null && params.actorUserId !== '') {
+      where.push('actor_user_id = @actorUserId'); bind.actorUserId = Number(params.actorUserId);
+    }
+    /* `created_at` is a UTC instant. A bare YYYY-MM-DD from a date picker is the
+       operator's LOCAL day, so it becomes that day's local-midnight bounds —
+       and `to` includes the whole of its day rather than stopping at 00:00. A
+       full timestamp is still compared as given. */
+    if (params.from) {
+      where.push('created_at >= @from');
+      bind.from = isBusinessDate(params.from) ? new Date(`${params.from}T00:00:00`).toISOString() : params.from;
+    }
+    if (params.to) {
+      if (isBusinessDate(params.to)) {
+        where.push('created_at < @to');
+        bind.to = new Date(`${addDays(params.to, 1)}T00:00:00`).toISOString();
+      } else {
+        where.push('created_at <= @to'); bind.to = params.to;
+      }
+    }
     const sql = where.length ? ` WHERE ${where.join(' AND ')}` : '';
     const total = ctx.db.prepare(`SELECT COUNT(*) n FROM audit_log${sql}`).get(bind).n;
     const rows = ctx.db.prepare(
       `SELECT * FROM audit_log${sql} ORDER BY created_at DESC, id DESC LIMIT @limit OFFSET @offset`)
       .all({ ...bind, limit: pageSize, offset: (page - 1) * pageSize });
-    return { rows, total, page, pageSize };
+    const result = { rows, total, page, pageSize };
+    if (params.facets) result.facets = audit.facets(ctx.db);
+    return result;
+  },
+
+  /* The values a filter UI can offer: every action and every signed-in actor
+     that appears anywhere in the log. Deliberately unfiltered by the current
+     selection, so choosing one action does not empty the other menus. Actors
+     with no account id (a failed sign-in for an unknown username) cannot be
+     filtered by id and are left out. */
+  facets(db) {
+    const actions = db.prepare('SELECT DISTINCT action FROM audit_log ORDER BY action').all().map((r) => r.action);
+    const actors = db.prepare(`
+      SELECT a.actor_user_id AS id,
+             COALESCE(u.full_name, u.username, MAX(a.actor_username)) AS name,
+             COALESCE(u.username, MAX(a.actor_username)) AS username
+      FROM audit_log a LEFT JOIN users u ON u.id = a.actor_user_id
+      WHERE a.actor_user_id IS NOT NULL
+      GROUP BY a.actor_user_id
+      ORDER BY name COLLATE NOCASE`).all();
+    return { actions, actors };
   },
 };
 

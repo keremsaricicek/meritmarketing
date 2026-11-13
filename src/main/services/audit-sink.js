@@ -49,6 +49,14 @@ function record(db, entry, session, onError = () => {}) {
   } catch (err) {
     onError('notification.emit-failed', err);
   }
+
+  /* Administrator alerts hang off the same sink for the same reason: anything
+     sensitive enough to alert on is audited, so the two cannot drift apart. */
+  try {
+    notificationService.emitAdminAlert(db, entry, session);
+  } catch (err) {
+    onError('notification.admin-alert-failed', err);
+  }
 }
 
 module.exports = { record };
