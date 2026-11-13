@@ -67,62 +67,23 @@ module.exports = async function () {
   s.check('there is no analytics or telemetry in the renderer', !telemetry.test(scripts));
   s.check('there is no analytics or telemetry in the markup', !telemetry.test(html));
 
-  /* ------------------------------------------ what v1 actually does
+  /* ------------------------------------------- the update check is quiet
    *
-   * `build` is the only entry point the application uses, and in v1 it returns
-   * a service that never reaches the network at all. These assertions are
-   * about the SHIPPING behaviour: a configured feed changes nothing, no
-   * listener is attached, and the updater object is left unable to install
-   * behind the operator's back. */
-  const armed = {
-    autoDownload: true,
-    autoInstallOnAppQuit: true,
-    on: () => { throw new Error('v1 must not subscribe to updater events'); },
-    checkForUpdates: async () => { throw new Error('v1 must not reach the network'); },
-  };
-  const shipping = updateFactory.build({
-    autoUpdater: armed,
-    backup: { create: async () => ({ name: 'x' }) },
-    getContext: () => ({ audit: () => {} }),
-    feedConfigured: true,
-    log: () => {},
-    notify: () => {},
-  });
-  s.check('v1 ships with automatic updates off in code',
-    updateFactory.V1_UPDATES_DISABLED === true, String(updateFactory.V1_UPDATES_DISABLED));
-  const shippingStatus = await shipping.check();
-  s.check('a configured feed does not arm the updater in v1',
-    shippingStatus.state === updateFactory.STATES.UNAVAILABLE && shippingStatus.disabled === true,
-    JSON.stringify(shippingStatus));
-  s.check('and the updater cannot install silently on quit',
-    armed.autoInstallOnAppQuit === false && armed.autoDownload === false,
-    JSON.stringify({ quit: armed.autoInstallOnAppQuit, download: armed.autoDownload }));
-  let shippingInstall = null;
-  try { await shipping.install(); } catch (err) { shippingInstall = err.code; }
-  s.check('installing is refused for everyone, not only for the wrong role',
-    shippingInstall === 'UPDATE_FAILED', String(shippingInstall));
-
-  /* -------------------------- the updater that v1 keeps switched off
-   *
-   * Everything below drives `buildUpdater` directly. It is unreachable while
-   * the v1 switch is on, but its rules — degrade offline, never install
-   * without a backup, ADMIN only — are the reason updates can be turned back
-   * on later, and untested code does not survive being left alone. */
-  const events = {};
-  const fakeUpdater = {
-    autoDownload: true,
-    autoInstallOnAppQuit: false,
-    on: (name, fn) => { events[name] = fn; },
-    checkForUpdates: async () => { throw new Error('getaddrinfo ENOTFOUND updates.example.com'); },
-  };
+   * The one place the application reaches out. A failed check — offline being
+   * the normal case in a back office — is a status and a log line, never a
+   * throw and never a dialog. The detailed updater rules (hard-coded feed,
+   * packaged Windows only, backup-gated install) live in updates.test.js. */
+  const { EventEmitter } = require('events');
+  const offlineUpdater = new EventEmitter();
+  offlineUpdater.setFeedURL = () => {};
+  offlineUpdater.checkForUpdates = () => { throw new Error('getaddrinfo ENOTFOUND github.com'); };
   const notices = [];
-  const updates = updateFactory.buildUpdater({
-    autoUpdater: fakeUpdater,
+  const updates = updateFactory.build({
+    autoUpdater: offlineUpdater, isPackaged: true, platform: 'win32',
     backup: { create: async () => ({ name: 'x' }) },
     getContext: () => ({ audit: () => {} }),
-    feedConfigured: true,
     log: () => {},
-    notify: (status) => notices.push(status.state),
+    notify: (st) => notices.push(st.state),
   });
 
   let threw = null;
@@ -134,83 +95,9 @@ module.exports = async function () {
   s.check('the failure is surfaced as a status, not a dialog',
     notices.includes(updateFactory.STATES.UNAVAILABLE), JSON.stringify(notices));
 
-  /* An offline network error arriving on the updater's error channel is the
-     normal case in a back office, not an incident. */
-  events.error(new Error('net::ERR_INTERNET_DISCONNECTED'));
+  offlineUpdater.emit('error', new Error('net::ERR_INTERNET_DISCONNECTED'));
   s.check('an offline error from the updater is absorbed',
     updates.status().state === updateFactory.STATES.UNAVAILABLE, JSON.stringify(updates.status()));
-
-  // With no feed configured at all, checking is a no-op rather than a failure.
-  /* Installing an update restarts the app and replaces the program on disk, so
-     it needs a real session to authorize against — the surface documents it as
-     ADMIN with `backup.create`. */
-  const sessionFor = (role) => ({
-    get: () => (role ? { id: 1, username: 'someone', role, profile_id: role === 'MARKETING' ? 7 : null } : null),
-    touch: () => {},
-    can: () => true,
-  });
-  const ctxFor = (role) => ({ sessions: sessionFor(role), audit: () => {} });
-
-  const unconfigured = updateFactory.buildUpdater({
-    autoUpdater: null, backup: {}, getContext: () => ctxFor('ADMIN'), feedConfigured: false, log: () => {},
-  });
-  const noFeed = await unconfigured.check();
-  s.check('an installation with no update feed simply never checks',
-    noFeed.feedConfigured === false && noFeed.state === updateFactory.STATES.UNAVAILABLE, JSON.stringify(noFeed));
-
-  // Installing without a downloaded update must be refused, not attempted.
-  let installError = null;
-  try { await unconfigured.install(); } catch (err) { installError = err.code; }
-  s.check('installing with nothing downloaded is refused',
-    installError === 'UPDATE_FAILED', String(installError));
-
-  /* The service enforces the capability itself. The registry only checks that a
-     session exists, and the pre-update backup runs as `system: true` — which is
-     deliberately exempt from `backup.create` — so nothing downstream would have
-     caught an unauthorised caller either. */
-  for (const role of ['MARKETING', 'MANAGER']) {
-    const asRole = updateFactory.buildUpdater({
-      autoUpdater: null, backup: {}, getContext: () => ctxFor(role), feedConfigured: false, log: () => {},
-    });
-    let code = null;
-    try { await asRole.install(); } catch (err) { code = err.code; }
-    s.check(`a ${role} user cannot install an update`, code === 'FORBIDDEN', `${role} → ${code}`);
-  }
-  const signedOut = updateFactory.buildUpdater({
-    autoUpdater: null, backup: {}, getContext: () => ctxFor(null), feedConfigured: false, log: () => {},
-  });
-  let anonCode = null;
-  try { await signedOut.install(); } catch (err) { anonCode = err.code; }
-  s.check('and nor can a caller with no session at all',
-    anonCode === 'AUTH_REQUIRED' || anonCode === 'FORBIDDEN', String(anonCode));
-
-  /* Silent install on quit would bypass install() entirely, taking the
-     pre-update backup and the audit row with it. */
-  const quitProbe = { autoDownload: true, autoInstallOnAppQuit: true, on: () => {} };
-  updateFactory.buildUpdater({
-    autoUpdater: quitProbe, backup: {}, getContext: () => ctxFor('ADMIN'),
-    feedConfigured: true, log: () => {}, notify: () => {},
-  });
-  s.check('the updater never installs silently on quit',
-    quitProbe.autoInstallOnAppQuit === false, String(quitProbe.autoInstallOnAppQuit));
-
-  // ------------------------------------- the update install is backup-gated
-  const failingBackup = updateFactory.buildUpdater({
-    autoUpdater: { on: () => {}, quitAndInstall: () => { throw new Error('should not be reached'); } },
-    backup: { create: async () => { throw new Error('disk full'); } },
-    getContext: () => ({ audit: () => {} }),
-    feedConfigured: true, log: () => {}, notify: () => {},
-  });
-  /* Drive it to DOWNLOADED so install() gets past its own state check. */
-  const downloadedHandlers = {};
-  updateFactory.buildUpdater({
-    autoUpdater: { on: (n, f) => { downloadedHandlers[n] = f; }, quitAndInstall: () => {} },
-    backup: { create: async () => { throw new Error('disk full'); } },
-    getContext: () => ({ audit: () => {} }),
-    feedConfigured: true, log: () => {}, notify: () => {},
-  });
-  s.check('the updater exposes a state machine rather than installing on its own',
-    typeof failingBackup.install === 'function' && typeof failingBackup.check === 'function');
 
   return s.finish();
 };

@@ -12,7 +12,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, autoUpdater } = require('electron');
 
 const pathsModule = require('./paths');
 const { Logger } = require('./diagnostics/logger');
@@ -27,6 +27,7 @@ const autoBackup = require('./backup/auto-backup');
 const photoFactory = require('./services/photo-service');
 const exportFactory = require('./services/export-service');
 const updateFactory = require('./updates/update-service');
+const squirrelStartup = require('./updates/squirrel-startup');
 const mainWindow = require('./windows/main-window');
 const supportServices = require('./services/support-services');
 const { AppError, CODES } = require('../shared/errors');
@@ -39,6 +40,14 @@ const RELEASE_CHANNEL = process.env.MERIT_CHANNEL || 'stable';
    attribution. Changing it after a release orphans pinned shortcuts, so it is
    set once and left alone. */
 app.setAppUserModelId('com.meritmarketing.hub');
+
+/* Squirrel.Windows runs the application with --squirrel-install / -updated /
+   -uninstall / -obsolete while installing, updating or removing it. Those runs
+   create or remove shortcuts and quit; they must never open the database or a
+   window. Handled before anything else, including the single-instance lock. */
+if (squirrelStartup.handle({ app })) {
+  return;
+}
 
 /* Two copies writing one SQLite file is how a database gets corrupted. The
    second launch hands its focus to the first and exits. */
@@ -188,39 +197,25 @@ async function start() {
   const photos = photoFactory.build({ dialog, paths, getWindow: () => win });
   const exporter = exportFactory.build({ dialog, getWindow: () => win });
 
-  /* The update feed decides where this machine will download and RUN code from,
-     so the value is treated as a security decision rather than a setting.
-     Anything that can set an environment variable for this user — including a
-     persistent HKCU\\Environment entry — can otherwise point the application at
-     a host of its choosing. This does not make the feed trustworthy; it refuses
-     the obviously untrustworthy and records what was accepted. */
-  let autoUpdater = null;
-  const configuredFeed = process.env.MERIT_UPDATE_URL || '';
-  let feedConfigured = false;
-  if (configuredFeed) {
-    let url = null;
-    try { url = new URL(configuredFeed); } catch (_) { url = null; }
-    if (!url || url.protocol !== 'https:') {
-      /* Plain HTTP means anybody on the network chooses the next version. */
-      logger.error('update.feed-rejected', { reason: 'not https', feed: configuredFeed.slice(0, 120) });
-    } else {
-      feedConfigured = true;
-      logger.warn('update.feed-configured', { host: url.host, channel: RELEASE_CHANNEL });
-      if (app.isPackaged) {
-        try {
-          ({ autoUpdater } = require('electron-updater'));
-          autoUpdater.setFeedURL({ provider: 'generic', url: url.toString(), channel: RELEASE_CHANNEL });
-        } catch (err) {
-          logger.warn('update.provider-unavailable', { message: err.message });
-        }
-      }
-    }
-  }
+  /* Automatic updates: Electron's built-in Squirrel.Windows client against a
+     feed HARD-CODED in update-service.js (the repository's GitHub Releases).
+     Nothing here reads an environment variable: the host this machine
+     downloads code from is not something the environment gets to choose.
+     Only the installed Windows application checks; development, test and zip
+     runs never do. */
   const updates = updateFactory.build({
-    autoUpdater, backup, getContext, feedConfigured, channel: RELEASE_CHANNEL,
+    autoUpdater: process.platform === 'win32' && app.isPackaged ? autoUpdater : null,
+    backup, getContext, channel: RELEASE_CHANNEL,
+    isPackaged: app.isPackaged,
+    platform: process.platform,
+    currentVersion: app.getVersion(),
     log: logger.asFunction(),
     notify: (status) => { if (win && !win.isDestroyed()) win.webContents.send('updates:status', status); },
   });
+  {
+    const st = updates.status();
+    logger.info('update.configured', { enabled: st.enabled, feed: st.feed, reason: st.message });
+  }
 
   const appInfo = {
     info: () => ({
@@ -245,6 +240,11 @@ async function start() {
   });
 
   win = mainWindow.create({ isDevelopment, log: logger.asFunction() });
+
+  /* First check after a delay, then every few hours. On Squirrel's first run
+     the installer still holds Update.exe, so the first check waits for the
+     schedule instead. A failed check is a log line, nothing more. */
+  updates.start({ skipInitialCheck: squirrelStartup.isFirstRun() });
 
   /* An idle session is ended in the main process; the renderer is told so it
      can clear the screen rather than leaving a guest's record on a monitor in

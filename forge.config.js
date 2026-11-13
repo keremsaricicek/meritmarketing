@@ -1,9 +1,15 @@
 'use strict';
 /* Electron Forge packaging.
  *
- * Squirrel.Windows is the maker because it is what electron-updater's
- * differential Windows flow expects; choosing something else would mean
- * building the update path twice.
+ * Squirrel.Windows is the maker because Electron's BUILT-IN autoUpdater on
+ * Windows is a Squirrel.Windows client: the installer this produces and the
+ * update client in src/main/updates/update-service.js are the same technology.
+ * `npm run make` writes RELEASES, the -full.nupkg (and -delta.nupkg when a
+ * previous release is available) and MeritMarketingHub-Setup.exe to
+ * out/make/squirrel.windows/x64 — exactly the files the release workflow
+ * uploads to GitHub Releases, which is the application's update feed.
+ *
+ * The version comes from package.json and nowhere else.
  */
 
 const path = require('path');
