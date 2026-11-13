@@ -12,7 +12,7 @@ Schema version **1**. Source of truth: `database/migrations/001-initial-schema.s
 | `reservations` | Stays | **Tombstoned** (`deleted_at`) |
 | `crm_notes` | Guest activity notes | Tombstoned |
 | `assignment_history` | Every ownership change | Never |
-| `notifications` | Per-profile alerts | Hard delete (transient) |
+| `notifications` | Per-profile alerts, broadcasts, and per-user administrator alerts (`target_user_id`, migration 003) | Hard delete (transient) |
 | `audit_log` | What happened, who did it | Never, by any application verb |
 | `settings` | Shared configuration | — |
 | `user_preferences` | Per-user theme and density | Cascades with the user |

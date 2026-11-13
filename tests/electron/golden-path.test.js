@@ -380,7 +380,8 @@ app.whenReady().then(async () => {
     };
   })()\`);
 
-  /* v1 must refuse updates even with a feed configured in the environment. */
+  /* A development run never checks for updates, and an update URL in the
+     environment cannot change the hard-coded feed. */
   out.updates = await js(\`(async () => {
     const c = await window.api.updates.check({});
     const i = await window.api.updates.install({});
@@ -514,8 +515,8 @@ module.exports = async function () {
       a.consoleErrors.length === 0, a.consoleErrors.slice(0, 3).join(' | '));
 
     // ============================================ run two: restart, same data
-    /* A feed URL is set deliberately: v1 must refuse updates even when the
-       environment tries to arm them. */
+    /* A feed URL is set deliberately: the environment must not be able to
+       redirect or arm the updater. */
     const second = await runElectron(userData, RUN_TWO, 'golden-two.js',
       { MERIT_UPDATE_URL: 'https://updates.example.com/merit/' });
     const b = parse(second);
@@ -540,10 +541,13 @@ module.exports = async function () {
     s.check('the backup list carries the fields the screen renders',
       backups.fieldsPresent === true, JSON.stringify(backups));
 
-    // ------------------------------------------------------ v1 updates are off
-    s.check('a configured update feed does not enable checking in v1',
-      /"disabled":true/.test(b.updates.check) || /ERR:/.test(b.updates.check), String(b.updates.check));
-    s.check('and installing an update is refused in v1',
+    // ------------------------------------- updates: packaged Windows only
+    s.check('a development run never checks for updates, even with a feed in the environment',
+      /"enabled":false/.test(b.updates.check) && /"state":"unavailable"/.test(b.updates.check), String(b.updates.check));
+    s.check('the feed reported is the hard-coded one, not the environment\'s',
+      b.updates.check.includes('github.com/keremsaricicek/meritmarketing/releases/latest/download')
+      && !b.updates.check.includes('updates.example.com'), String(b.updates.check));
+    s.check('and installing with nothing downloaded is refused',
       b.updates.install === 'UPDATE_FAILED', String(b.updates.install));
 
     s.check('no strict-schema refusal occurred after the restart',

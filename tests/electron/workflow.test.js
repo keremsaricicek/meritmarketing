@@ -269,13 +269,12 @@ app.whenReady().then(async () => {
     r.crmItemPresent = !!crm;
     if (crm) {
       r.inlineAttrs = crm.getAttributeNames().filter(n => n.startsWith('on'));
-      r.scopedAttrs = crm.getAttributeNames().filter(n => n.startsWith('data-act-'));
-      /* mouseenter does not bubble; the app delegates via mouseover. */
-      crm.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body }));
-      await new Promise(x => setTimeout(x, 500));
-      const sub = document.getElementById('crmSubmenu');
-      r.submenuOpenedOnHover = !!sub && sub.classList.contains('show');
-      r.submenuInlineAttrs = sub ? sub.getAttributeNames().filter(n => n.startsWith('on')) : [];
+      r.delegatedAct = crm.getAttribute('data-act');
+      /* CRM Panel's views are a permanent inline group in the sidebar now —
+         visible without hovering anything. */
+      const sub = document.getElementById('crmInlineNav');
+      r.inlineViews = sub ? [...sub.querySelectorAll('.nav-item')].filter(n => n.offsetParent !== null).map(n => n.dataset.crmView) : [];
+      r.submenuInlineAttrs = sub ? [...sub.querySelectorAll('*')].flatMap(n => n.getAttributeNames().filter(a => a.startsWith('on'))) : [];
     }
     return r;
   })()\`);
@@ -405,7 +404,8 @@ module.exports = async function () {
        attribute WRITTEN IN THE MARKUP, which is inert and therefore a lie about
        what the user will see. */
     for (const file of ['index.html', path.join('scripts', 'core.js'), path.join('scripts', 'views.js'),
-      path.join('scripts', 'screens.js'), path.join('scripts', 'bridge.js'), path.join('scripts', 'actions.js')]) {
+      path.join('scripts', 'screens.js'), path.join('scripts', 'bridge.js'), path.join('scripts', 'actions.js'),
+      path.join('scripts', 'oversight.js')]) {
       const source = fs.readFileSync(path.join(ROOT, 'src', 'renderer', file), 'utf8');
       const hits = source.match(/style="/g) || [];
       s.check(`${file} authors no style attribute`, hits.length === 0, `${hits.length} occurrences`);
@@ -502,10 +502,10 @@ module.exports = async function () {
     const h = p.hover;
     s.check('the CRM menu item carries no inline handler',
       Array.isArray(h.inlineAttrs) && h.inlineAttrs.length === 0, JSON.stringify(h.inlineAttrs));
-    s.check('it uses event-scoped delegated actions instead',
-      Array.isArray(h.scopedAttrs) && h.scopedAttrs.length >= 3, JSON.stringify(h.scopedAttrs));
-    s.check('hovering the CRM item opens the submenu', h.submenuOpenedOnHover === true, JSON.stringify(h));
-    s.check('the submenu itself carries no inline handler',
+    s.check('it uses a delegated action instead', h.delegatedAct === 'openWorkspaceTab', JSON.stringify(h));
+    s.check('the CRM views are visible in the sidebar without hovering',
+      JSON.stringify(h.inlineViews) === JSON.stringify(['overview','customerlist','norecord']), JSON.stringify(h));
+    s.check('the inline CRM views carry no inline handler',
       Array.isArray(h.submenuInlineAttrs) && h.submenuInlineAttrs.length === 0, JSON.stringify(h.submenuInlineAttrs));
 
     const f = p.finder;

@@ -44,13 +44,78 @@ function feedEnabled(db) {
 
 function insert(db, row) {
   return db.prepare(`
-    INSERT INTO notifications (type, title, message, target_profile_id, target_role,
+    INSERT INTO notifications (type, title, message, target_profile_id, target_role, target_user_id,
                                related_customer_id, related_reservation_id, read_at, created_at)
-    VALUES (@type, @title, @message, @target_profile_id, @target_role,
+    VALUES (@type, @title, @message, @target_profile_id, @target_role, @target_user_id,
             @related_customer_id, @related_reservation_id, NULL, @created_at)`).run({
-    target_role: null, related_customer_id: null, related_reservation_id: null,
+    target_profile_id: null, target_role: null, target_user_id: null,
+    related_customer_id: null, related_reservation_id: null,
     message: null, created_at: nowIso(), ...row,
   }).lastInsertRowid;
+}
+
+/* ------------------------------------------------- administrator alerts */
+
+/* EVENT — something an administrator would want to hear about without going
+   looking in the audit log. Each recipient gets their own row (target_user_id),
+   so one person reading an alert does not mark it read for the others; the row
+   is also marked target_role 'ADMIN' so it can never be mistaken for a
+   broadcast. Recipients are every active ADMIN plus every active account whose
+   role an administrator has granted 'notifications.admin'. The capability is
+   checked again when the bell is read, so revoking it hides alerts at once. */
+const ADMIN_ALERT_TYPE = 'admin_alert';
+
+function adminAlertFor(entry) {
+  switch (entry.action) {
+    case 'RESERVATION_DELETE': return 'Reservation deleted';
+    case 'CUSTOMER_DELETE': return 'Guest deleted';
+    case 'ACCOUNT_LOCKED': return 'Account locked';
+    case 'EXPORT': return 'Data exported';
+    case 'USER_UPDATE': return entry.metadata && entry.metadata.role_changed ? 'Role changed' : null;
+    default: return null;
+  }
+}
+
+function permissionOverrides(db) {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'permissions.overrides'").get();
+  if (!row) return {};
+  try { return JSON.parse(row.value) || {}; } catch (_) { return {}; }
+}
+
+/** Active accounts that receive administrator alerts right now. */
+function adminRecipients(db) {
+  const { can } = require('../../shared/contracts/roles');
+  const overrides = permissionOverrides(db);
+  return db.prepare('SELECT id, role, profile_id FROM users WHERE active = 1').all()
+    .filter((u) => can(u, 'notifications.admin', overrides));
+}
+
+function emitAdminAlert(db, entry, session) {
+  if (!entry) return;
+  const title = adminAlertFor(entry);
+  if (!title) return;
+  /* The person who did it is not alerted about their own action. A lockout has
+     no acting session, so an administrator whose own account is being guessed
+     at is told. */
+  const actorId = session ? session.id : null;
+  const recipients = adminRecipients(db).filter((u) => u.id !== actorId);
+  if (!recipients.length) return;
+
+  const who = session && session.username ? `${session.username}: ` : '';
+  const meta = entry.metadata || {};
+  const customerId = entry.entity_type === 'customer' ? entry.entity_id
+    : (entry.entity_type === 'reservation' && meta.customer_id) || null;
+  for (const user of recipients) {
+    insert(db, {
+      type: ADMIN_ALERT_TYPE,
+      title,
+      message: who + (entry.description || entry.action),
+      target_role: 'ADMIN',
+      target_user_id: user.id,
+      related_customer_id: customerId || null,
+      related_reservation_id: entry.entity_type === 'reservation' ? entry.entity_id : null,
+    });
+  }
 }
 
 function titleFor(action) {
@@ -207,4 +272,7 @@ function reconcile(db, profileId, type, column, liveById, build) {
   }
 }
 
-module.exports = { emitActivity, emitAssignment, refreshDerived, FEED, COLD_DAYS, UPCOMING_DAYS };
+module.exports = {
+  emitActivity, emitAssignment, emitAdminAlert, adminRecipients, refreshDerived,
+  FEED, COLD_DAYS, UPCOMING_DAYS, ADMIN_ALERT_TYPE,
+};

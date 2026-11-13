@@ -104,6 +104,13 @@ async function login(db, { username, password }, { audit, sessions }) {
       .run(failed >= MAX_ATTEMPTS ? 0 : failed, lockUntil, user.id);
     audit({ action: 'LOGIN_FAILED', entity_type: 'user', entity_id: user.id, actor_username: name,
       description: `Failed sign-in for "${name}" (attempt ${failed})` });
+    /* Its own audit action, so the lockout is findable in the log and reaches
+       the administrator alerts rather than hiding among ordinary failures. */
+    if (lockUntil) {
+      audit({ action: 'ACCOUNT_LOCKED', entity_type: 'user', entity_id: user.id, actor_username: name,
+        description: `Account "${name}" locked for ${LOCK_MINUTES} minutes after ${failed} failed sign-ins`,
+        metadata: { locked_until: lockUntil, attempts: failed } });
+    }
     throw invalid();
   }
 

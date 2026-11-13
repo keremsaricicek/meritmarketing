@@ -86,12 +86,23 @@ const state = {
   cust: { page:1, pageSize:50, search:'', status:'', marketing:'', sort:'updated', dir:'desc', total:0, rows:[] },
   res:  { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', sort:'check_in', dir:'desc', total:0, rows:[] },
   list: { sort:'created', dir:'desc' },
-  audit:{ page:1, pageSize:50, total:0 },
+  audit:{ page:1, pageSize:50, total:0, action:'', actorUserId:'', from:'', to:'', facets:null },
+  act: { range:'today', from:'', to:'', actorUserId:null, kind:'' },
+  guestPage: { id:null, name:'', from:'customers', filter:'all' },
+  custMode: 'table',
   selectedCustomerId: null,
   dashPeriod: '30',
   crmView: 'overview'
 };
 const isAdmin = () => state.session?.role === 'ADMIN';
+/* A configurable capability, read from the session the main process sent
+   (auth:session → toWire). ADMIN holds every capability. Hiding a control
+   because of this is a courtesy only: every verb is checked again in main. */
+function hasCap(cap){
+  if (!state.session) return false;
+  if (state.session.role === 'ADMIN') return true;
+  return state.session.capabilities?.[cap] === true;
+}
 const canAssign = () => ['ADMIN','MANAGER'].includes(state.session?.role);
 
 /* ---------- IPC call wrapper: one place for error handling ---------- */
@@ -308,7 +319,10 @@ function resetViewState(){
   state.res  = { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', view:'active', sort:'check_in', dir:'desc', total:0, rows:[] };
   state.list = { sort:'created', dir:'desc', status:'', createdBy:'', assignedTo:'',
     hasReservation:'', hasCrm:'', createdFrom:'', createdTo:'' };
-  state.audit = { page:1, pageSize:50, total:0 };
+  state.audit = { page:1, pageSize:50, total:0, action:'', actorUserId:'', from:'', to:'', facets:null };
+  state.act = { range:'today', from:'', to:'', actorUserId:null, kind:'' };
+  state.guestPage = { id:null, name:'', from:'customers', filter:'all' };
+  state.custMode = 'table';
   ['resSearch','custSearch','listSearch','norecSearch'].forEach(id => { const n = el(id); if (n) n.value = ''; });
   ['detailPanel','resDetailPanel','listDetailPanel'].forEach(id => {
     const n = el(id); if (n){ n.classList.add('empty'); n.innerHTML = 'No guest selected'; }
@@ -361,6 +375,8 @@ const PAGE_ROLES = {
   audit:        ['ADMIN','MANAGER']
 };
 function mayOpen(page){
+  /* Team control is a capability an administrator can grant, not a role. */
+  if (page === 'team') return hasCap('team.control');
   const allowed = PAGE_ROLES[page];
   return !allowed || allowed.includes(state.session?.role);
 }
@@ -411,24 +427,19 @@ async function refreshProfiles(){
 /* ---------- navigation ---------- */
 /* ---------- application menu (M trigger) ---------- */
 let submenuCloseTimer = null;
+/* The application menu is now a permanent sidebar. These entry points stay
+   so keyboard shortcuts and older call sites keep working: "open" moves focus
+   into the sidebar, "close" has nothing left to hide. */
 function toggleAppMenu(ev){
   ev?.stopPropagation();
-  el('appMenu').classList.contains('show') ? closeAppMenu() : openAppMenu();
+  openAppMenu();
 }
 function openAppMenu(){
-  const trigger = el('appMenuTrigger');
-  const r = trigger.getBoundingClientRect();
-  const menu = el('appMenu');
-  menu.style.top = (r.bottom + 6) + 'px';
-  menu.style.left = r.left + 'px';
-  menu.classList.add('show');
-  el('appMenuBackdrop').classList.add('show');
-  trigger.setAttribute('aria-expanded', 'true');
+  el('appMenu').classList.add('show');
+  (document.querySelector('#appMenu .nav-item.active') || document.querySelector('#appMenu .nav-item'))?.focus();
 }
 function closeAppMenu(){
-  el('appMenu').classList.remove('show');
-  el('appMenuBackdrop').classList.remove('show');
-  el('appMenuTrigger').setAttribute('aria-expanded', 'false');
+  el('appMenuBackdrop')?.classList.remove('show');
   closeCrmSubmenu();
 }
 /* the submenu is positioned relative to its parent item and repositioned
@@ -449,10 +460,7 @@ function positionSubmenu(anchorEl){
 }
 function openCrmSubmenu(ev){
   ev?.stopPropagation();
-  cancelCloseSubmenu();
-  const item = el('appMenuCrmItem');
-  el('crmSubmenu').classList.add('show');
-  positionSubmenu(item);
+  el('crmSubmenuOverview')?.focus();
 }
 function scheduleOpenCrmSubmenu(){
   cancelCloseSubmenu();
@@ -473,8 +481,13 @@ function cancelCloseSubmenu(){
 const PAGE_LABELS = {
   dashboard:'Dashboard', reservations:'Reservation History', calendar:'Action Calendar',
   profiles:'Profiles', customers:'CRM Panel', reports:'Reports', audit:'Audit Log',
-  users:'Users', settings:'Settings'
+  users:'Users', settings:'Settings', team:'Team control', guest:'Guest record'
 };
+/* The guest record is one page whose tab carries the open guest's name. */
+function pageLabel(page){
+  if (page === 'guest' && state.guestPage?.name) return state.guestPage.name;
+  return PAGE_LABELS[page] || page;
+}
 const workspace = { open:['dashboard'], active:'dashboard', history:['dashboard'], loaded:new Set() };
 function resetWorkspaceState(){
   workspace.open = ['dashboard']; workspace.active = 'dashboard';
@@ -489,7 +502,7 @@ function renderWorkspaceStrip(){
   if (!strip) return;
   strip.innerHTML = workspace.open.map(page => {
     const active = page === workspace.active;
-    const label = escapeHtml(PAGE_LABELS[page] || page);
+    const label = escapeHtml(pageLabel(page));
     return `<button class="ws-tab${active ? ' active' : ''}" role="tab" aria-selected="${active}" data-act="activateWorkspaceTab" data-on="click" data-args='["${page}"]'>
       <span class="ws-tab-label">${label}</span>
       ${page !== 'dashboard' ? `<span class="ws-tab-close" data-act="closeWorkspaceTab" data-on="click" data-args='[{"$":"event"},"${page}"]' title="Close ${label}" aria-label="Close ${label}">✕</span>` : ''}
@@ -538,7 +551,9 @@ const PAGE_LOADERS = {
   reports: () => renderReports(),
   users: () => renderUsers(),
   audit: () => renderAudit(),
-  settings: () => renderSettings()
+  settings: () => renderSettings(),
+  team: () => renderTeamControl(),
+  guest: () => renderGuestPage()
 };
 
 /* CRM Panel's three tabs are one module, one dataset of guests viewed
@@ -554,6 +569,8 @@ async function setCrmView(view, btn){
   tabs.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
   const activeBtn = btn || tabs.find(b => actionArgMatches(b, view));
   if (activeBtn){ activeBtn.classList.add('active'); activeBtn.setAttribute('aria-selected','true'); }
+  document.querySelectorAll('#crmInlineNav .nav-item').forEach(n => n.classList.toggle('active', n.dataset.crmView === view));
+  updateCrumbs();
   if (view === 'overview') await renderCustomers();
   else if (view === 'customerlist') await renderCustomerList();
   else if (view === 'norecord') await renderNoRecord();
@@ -583,6 +600,8 @@ async function goCrmView(view){
 async function switchTab(page, opts = {}){
   if (!state.session) return;
   if (!mayOpen(page)) page = 'dashboard';
+  /* The guest record has nothing to show until a guest is chosen. */
+  if (page === 'guest' && !state.guestPage?.id) page = 'customers';
   const wasOpen = workspace.open.includes(page);
   if (!wasOpen) workspace.open.push(page);
   workspace.active = page;
@@ -594,7 +613,9 @@ async function switchTab(page, opts = {}){
   activeNav?.classList.add('active');
   activeNav?.setAttribute('aria-current', 'page');
   closeAppMenu(); closeAllFilterMenus(); closeAllRowMenus(); resetRowCursor();
+  if (page !== 'customers') document.querySelectorAll('#crmInlineNav .nav-item').forEach(n => n.classList.remove('active'));
   renderWorkspaceStrip();
+  updateCrumbs();
   const forceReload = opts.forceReload ?? (page === 'dashboard' || !wasOpen);
   if (forceReload){
     window.scrollTo(0,0);
@@ -604,17 +625,38 @@ async function switchTab(page, opts = {}){
   el('page-' + page).querySelector('h1')?.focus();
 }
 
+/* the page path in the top bar — where you are, without reading the tabs */
+const CRM_VIEW_LABELS = { overview:'Overview', customerlist:'Customer List', norecord:'No Record' };
+function updateCrumbs(){
+  const node = el('topbarCrumbs'); if (!node) return;
+  const page = workspace.active;
+  const label = escapeHtml(PAGE_LABELS[page] || page);
+  const sep = ' <span aria-hidden="true">/</span> ';
+  if (page === 'customers' && state.crmView){
+    const tail = state.crmView === 'overview' && state.custMode === 'activity'
+      ? `${escapeHtml(CRM_VIEW_LABELS.overview)}${sep}<b>${hasCap('activity.team') ? 'Activity' : 'My activity'}</b>`
+      : `<b>${escapeHtml(CRM_VIEW_LABELS[state.crmView] || '')}</b>`;
+    node.innerHTML = `${label}${sep}${tail}`;
+  } else if (page === 'guest'){
+    node.innerHTML = `CRM Panel${sep}<b>${escapeHtml(pageLabel('guest'))}</b>`;
+  } else if (page === 'team' || page === 'users' || page === 'settings'){
+    node.innerHTML = `Administration${sep}<b>${label}</b>`;
+  } else {
+    node.innerHTML = `<b>${label}</b>`;
+  }
+}
+
 /* ---------- popovers ---------- */
 function closeAllFilterMenus(){ document.querySelectorAll('.filter-menu').forEach(m => m.classList.remove('open')); }
 function closeAllRowMenus(){ document.querySelectorAll('.row-menu').forEach(m => m.classList.remove('open')); }
 function toggleFilterMenu(id, ev){
-  ev?.stopPropagation();
+  ev?.stopPropagation(); if (ev) ev.__menuToggle = true;
   const node = el(id); const was = node.classList.contains('open');
   closeAllFilterMenus(); closeAllRowMenus();
   if (!was) node.classList.add('open');
 }
 function toggleRowMenu(id, ev){
-  ev?.stopPropagation();
+  ev?.stopPropagation(); if (ev) ev.__menuToggle = true;
   const node = el(id); const was = node.classList.contains('open');
   closeAllRowMenus(); closeAllFilterMenus();
   if (!was){
@@ -786,7 +828,16 @@ function finderKeydown(e){
 }
 
 /* ---------- global wiring ---------- */
-document.addEventListener('click', () => { closeAllFilterMenus(); closeAllRowMenus(); });
+/* Close open menus on an outside click. The action dispatcher is ALSO a
+   document-level click listener, so stopPropagation() in a toggle cannot keep
+   this one from running: the toggle marks the event instead, and clicks that
+   land inside an open menu are left alone. Without this, the filter and row
+   menus opened and were closed again by the same click — they never appeared. */
+document.addEventListener('click', (e) => {
+  if (e.__menuToggle) return;
+  if (e.target?.closest?.('.filter-menu, .row-menu')) return;
+  closeAllFilterMenus(); closeAllRowMenus();
+});
 el('palette')?.addEventListener('click', (e) => { if (e.target.id === 'palette') closePalette(); });
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target === ov) closeModal(ov.id); });
@@ -876,7 +927,7 @@ const emptyRow = (cols, html) => `<tr class="empty-row"><td colspan="${cols}">${
 /* =====================================================================
    COMMAND PALETTE
    ===================================================================== */
-const palette = { open:false, items:[], cursor:0, timer:null };
+const palette = { open:false, items:[], cursor:0, timer:null, seq:0, results:null, expanded:new Set() };
 
 function openPalette(){
   palette.open = true;
@@ -884,6 +935,7 @@ function openPalette(){
   el('palette').classList.add('show');
   const input = el('paletteInput');
   input.value = '';
+  palette.results = null; palette.expanded = new Set(); palette.seq++;
   renderPalette(defaultCommands());
   setTimeout(() => {
     input.focus();
@@ -892,6 +944,7 @@ function openPalette(){
 }
 function closePalette(){
   palette.open = false;
+  clearTimeout(palette.timer); palette.seq++;
   el('palette').classList.remove('show');
   document.querySelectorAll('[aria-hidden="true"]').forEach(n => n.removeAttribute('aria-hidden'));
   lastFocused?.focus?.();
@@ -913,71 +966,158 @@ function defaultCommands(){
   if (mayOpen('norecord')) cmds.push({ kind:'Go', title:'No Record', action:'goCrmView', args:['norecord'] });
   if (mayOpen('users')) cmds.push({ kind:'Go', title:'Users', action:'switchTab', args:['users'] });
   if (mayOpen('audit')) cmds.push({ kind:'Go', title:'Audit Log', action:'switchTab', args:['audit'] });
+  if (mayOpen('team')) cmds.push({ kind:'Go', title:'Team control', action:'switchTab', args:['team'] });
+  cmds.push({ kind:'Go', title:hasCap('activity.team') ? "Today's activity" : 'My activity today', action:'openTodaysActivity', args:[] });
   return cmds;
 }
 
+/* Commands render the moment you type; the record search follows after a
+   short pause, so a fast typist sends one request rather than one per key.
+   A sequence number drops answers that arrive after a newer question. */
+const PALETTE_GROUP_LIMIT = 5;
 function onPaletteInput(){
   clearTimeout(palette.timer);
-  palette.timer = setTimeout(runPaletteSearch, 140);
+  const q = el('paletteInput').value.trim();
+  palette.expanded = new Set();
+  palette.results = null;
+  renderPalette(paletteCommands(q), { q, pending: q.length >= 2 });
+  if (q.length < 2){ palette.seq++; return; }
+  palette.timer = setTimeout(runPaletteSearch, 200);
+}
+function paletteCommands(q){
+  if (!q) return defaultCommands();
+  const lower = q.toLowerCase();
+  return defaultCommands().filter(c => c.title.toLowerCase().includes(lower));
 }
 async function runPaletteSearch(){
   const q = el('paletteInput').value.trim();
-  if (!q){ renderPalette(defaultCommands()); return; }
-  const lower = q.toLowerCase();
-  const items = defaultCommands().filter(c => c.title.toLowerCase().includes(lower));
-
-  /* MARKETING can't open Profiles and their profiles.list rows carry no
-     other marketer's real figures anymore (spec §7/§11) — searching people
-     would either be a dead end or show blank counts, so skip the category
-     for them entirely rather than surface something unusable/confusing */
-  const canSearchPeople = mayOpen('profiles');
-  const [guests, reservations, profiles] = await Promise.all([
-    call(window.api.customers.list, { search:q, pageSize:6 }, { silent:true }).catch(() => null),
-    call(window.api.reservations.list, { search:q, pageSize:5 }, { silent:true }).catch(() => null),
-    canSearchPeople ? Promise.resolve(state.profiles.filter(p => p.full_name.toLowerCase().includes(lower)).slice(0,4)) : Promise.resolve([])
-  ]);
-
-  (guests?.rows || []).forEach(c => items.push({
-    kind:'Guest', title:c.full_name, sub:`#${c.code}${c.phone ? ' · ' + c.phone : ''}`,
-    action:'goToGuest', args:[c.id, 'customers'] }));
-  (reservations?.rows || []).forEach(r => items.push({
-    kind:'Stay', title:r.customer_name, sub:`${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}`,
-    action:'openReservationModal', args:[r.id] }));
-  (profiles || []).forEach(p => items.push({
-    kind:'Person', title:p.full_name, sub:`${p.reservation_count} invited · ${p.customer_count} guests`,
-    action:'openProfileDetail', args:[p.id] }));
-
-  renderPalette(items);
+  const seq = ++palette.seq;
+  if (q.length < 2){ renderPalette(paletteCommands(q)); return; }
+  let data = null;
+  try { data = await call(window.api.search.global, { q }, { silent:true }); }
+  catch (_) { data = null; }
+  if (seq !== palette.seq || !palette.open) return;
+  palette.results = data || { guests:[], notes:[], reservations:[], profiles:[] };
+  renderPalette(buildPaletteItems(q), { q, keepCursor:true });
+}
+function newestFirst(rows, key){
+  return [...(rows || [])].sort((a, b) => String(b[key] || '').localeCompare(String(a[key] || '')));
+}
+function buildPaletteItems(q){
+  const items = paletteCommands(q);
+  const r = palette.results;
+  if (!r) return items;
+  const groups = [
+    { group:'Guests', rows:newestFirst(r.guests, 'updated_at'), map:(c) => ({
+        kind:'Guest', title:c.full_name, sub:[`#${c.code}`, c.nationality, c.marketing_name ? 'Assigned to ' + c.marketing_name : 'Unassigned'].filter(Boolean).join(' · '),
+        action:'goToGuest', args:[c.id, 'customers'] }) },
+    { group:'CRM notes', rows:newestFirst(r.notes, 'created_at'), map:(n) => ({
+        kind:'Note', title:n.full_name, quote:noteExcerpt(n.note, q),
+        sub:[`#${n.code}`, n.author, n.created_at ? fmtDateTime(n.created_at) : fmtDate(n.note_date)].filter(Boolean).join(' · '),
+        action:'goToGuest', args:[n.customer_id, 'customers'] }) },
+    { group:'Reservations', rows:newestFirst(r.reservations, 'check_in'), map:(x) => ({
+        kind: x.cancelled_at ? 'Cancelled' : 'Stay', title:x.full_name,
+        sub:[`${fmtDate(x.check_in)} – ${fmtDate(x.check_out)}`, x.invited_by ? 'Invited by ' + x.invited_by : '', x.reservation_note || ''].filter(Boolean).join(' · '),
+        action:'goToGuest', args:[x.customer_id, 'customers'] }) },
+    { group:'Profiles', rows:r.profiles || [], map:(p) => ({
+        kind:'Profile', title:p.full_name,
+        sub:[`${p.guests || 0} guest${p.guests === 1 ? '' : 's'}`, p.employment_status === 'inactive' ? 'inactive' : ''].filter(Boolean).join(' · '),
+        action: mayOpen('profiles') ? 'openProfileDetail' : 'switchTab', args: mayOpen('profiles') ? [p.id] : ['dashboard'] }) }
+  ];
+  for (const g of groups){
+    if (!g.rows.length) continue;
+    const show = palette.expanded.has(g.group) ? g.rows : g.rows.slice(0, PALETTE_GROUP_LIMIT);
+    show.forEach(row => items.push({ ...g.map(row), group:g.group, count:g.rows.length }));
+    if (show.length < g.rows.length){
+      items.push({ kind:'More', group:g.group, count:g.rows.length, title:`Show all ${g.rows.length}`, action:'expandPaletteGroup', args:[g.group], more:true });
+    }
+  }
+  return items;
+}
+function expandPaletteGroup(group){
+  palette.expanded.add(group);
+  const q = el('paletteInput').value.trim();
+  const keep = palette.cursor;
+  renderPalette(buildPaletteItems(q), { q });
+  movePaletteTo(Math.min(keep, palette.items.length - 1));
+}
+/* A long note is cut to a window around the first match, so the match is
+   always in view. */
+function noteExcerpt(text, q){
+  const t = String(text || '');
+  if (t.length <= 180) return t;
+  const i = t.toLowerCase().indexOf(String(q).toLowerCase());
+  if (i < 0) return t.slice(0, 177) + '…';
+  const start = Math.max(0, i - 60);
+  const end = Math.min(t.length, start + 180);
+  return (start > 0 ? '…' : '') + t.slice(start, end) + (end < t.length ? '…' : '');
+}
+/* Escape every piece first, then wrap the matched pieces in <mark>. The
+   query never reaches markup unescaped. */
+function highlightHTML(text, q){
+  const t = String(text ?? '');
+  const needle = String(q || '').trim();
+  if (!needle) return escapeHtml(t);
+  const lowerT = t.toLowerCase(), lowerQ = needle.toLowerCase();
+  /* lower-casing can change length for some letters; fall back to no marks */
+  if (lowerT.length !== t.length || lowerQ.length !== needle.length) return escapeHtml(t);
+  let out = '', from = 0, at;
+  while ((at = lowerT.indexOf(lowerQ, from)) !== -1){
+    out += escapeHtml(t.slice(from, at)) + '<mark>' + escapeHtml(t.slice(at, at + needle.length)) + '</mark>';
+    from = at + needle.length;
+  }
+  return out + escapeHtml(t.slice(from));
 }
 
-function renderPalette(items){
+function renderPalette(items, { q = '', pending = false, keepCursor = false } = {}){
+  const prev = palette.cursor;
   palette.items = items;
-  palette.cursor = 0;
+  palette.cursor = keepCursor ? Math.min(Math.max(prev, 0), Math.max(items.length - 1, 0)) : 0;
   const list = el('paletteList');
+  const meta = el('paletteMeta');
+  if (meta){
+    let text = 'Type at least two letters to search guests, notes, reservations and profiles';
+    if (q.length >= 2 && pending) text = 'Searching guests, notes, reservations and profiles…';
+    else if (q.length >= 2 && palette.results){
+      const total = ['guests','notes','reservations','profiles'].reduce((n, k) => n + (palette.results[k]?.length || 0), 0);
+      text = `${total ? `${total} record${total === 1 ? '' : 's'} found` : 'No records matched'} · partial words, not case-sensitive`;
+    }
+    meta.textContent = text;
+  }
   if (!items.length){
-    list.innerHTML = '<div class="palette-empty">Nothing matched that.</div>';
+    list.innerHTML = `<div class="palette-empty">${pending ? 'Searching…' : 'Nothing matched that.'}</div>`;
     return;
   }
-  let html = '', lastKind = null;
+  let html = '', lastGroup = null;
   items.forEach((it, i) => {
-    if (it.kind !== lastKind){ html += `<div class="palette-group">${escapeHtml(it.kind)}</div>`; lastKind = it.kind; }
-    html += `<div class="palette-item${i === 0 ? ' active' : ''}" data-i="${i}" data-act="runPaletteItem" data-on="click" data-args='[${i}]'>
+    const group = it.group || it.kind;
+    if (group !== lastGroup){
+      html += `<div class="palette-group">${escapeHtml(group)}${it.count ? ` <span class="pg-count">${Number(it.count)}</span>` : ''}</div>`;
+      lastGroup = group;
+    }
+    const active = i === palette.cursor;
+    html += `<div class="palette-item${active ? ' active' : ''}${it.more ? ' more' : ''}" role="option" aria-selected="${active}" data-i="${i}" data-act="runPaletteItem" data-on="click" data-args='[${i}]'>
       <div class="pi-main">
-        <div class="pi-title">${escapeHtml(it.title)}</div>
-        ${it.sub ? `<div class="pi-sub">${escapeHtml(it.sub)}</div>` : ''}
+        <div class="pi-title">${it.group ? highlightHTML(it.title, q) : escapeHtml(it.title)}</div>
+        ${it.quote ? `<div class="pi-quote">“${highlightHTML(it.quote, q)}”</div>` : ''}
+        ${it.sub ? `<div class="pi-sub">${it.group ? highlightHTML(it.sub, q) : escapeHtml(it.sub)}</div>` : ''}
       </div>
-      <div class="pi-kind">${escapeHtml(it.kind)}</div>
+      ${it.more ? '' : `<div class="pi-kind">${escapeHtml(it.kind)}</div>`}
     </div>`;
   });
   list.innerHTML = html;
+  if (keepCursor) movePaletteTo(palette.cursor);
+}
+function movePaletteTo(i){
+  palette.cursor = i;
+  const nodes = [...document.querySelectorAll('#paletteList .palette-item')];
+  nodes.forEach(n => { n.classList.remove('active'); n.setAttribute('aria-selected', 'false'); });
+  const active = nodes.find(n => Number(n.dataset.i) === palette.cursor);
+  if (active){ active.classList.add('active'); active.setAttribute('aria-selected', 'true'); active.scrollIntoView?.({ block:'nearest' }); }
 }
 function movePalette(delta){
   if (!palette.items.length) return;
-  palette.cursor = (palette.cursor + delta + palette.items.length) % palette.items.length;
-  const nodes = [...document.querySelectorAll('#paletteList .palette-item')];
-  nodes.forEach(n => n.classList.remove('active'));
-  const active = nodes.find(n => Number(n.dataset.i) === palette.cursor);
-  if (active){ active.classList.add('active'); active.scrollIntoView?.({ block:'nearest' }); }
+  movePaletteTo((palette.cursor + delta + palette.items.length) % palette.items.length);
 }
 /* Every command the palette can run, by name. A palette entry names one of
    these and supplies structured arguments; it never carries a fragment of
@@ -997,11 +1137,16 @@ const PALETTE_ACTIONS = Object.freeze({
   openCustomerModal:    (...a) => openCustomerModal(...a),
   openProfileModal:     (...a) => openProfileModal(...a),
   openProfileDetail:    (...a) => openProfileDetail(...a),
+  openTodaysActivity:   (...a) => openTodaysActivity(...a),
+  openGuestPage:        (...a) => openGuestPage(...a),
+  expandPaletteGroup:   (...a) => expandPaletteGroup(...a),
 });
 
 function runPaletteItem(i){
   const item = palette.items[i];
   if (!item) return;
+  /* "Show all" expands its group in place; it is not a destination. */
+  if (item.action === 'expandPaletteGroup'){ expandPaletteGroup(...item.args); el('paletteInput')?.focus(); return; }
   closePalette();
   const fn = PALETTE_ACTIONS[item.action];
   if (typeof fn !== 'function'){

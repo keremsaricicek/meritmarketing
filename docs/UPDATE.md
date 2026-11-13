@@ -1,133 +1,272 @@
 # Updates
 
-> **Automatic updates are NOT enabled for v1.**
->
-> A shipped v1 installation has no update feed configured, so the application
-> never checks, never downloads and never installs anything on its own. This is
-> a deliberate release decision, not an oversight.
->
-> The reasons are concrete and were confirmed by independent review:
-> electron-updater's Windows path performs **no signature verification** when
-> the packaging toolchain has not produced an `app-update.yml` (this project
-> packages with Forge, which does not), so the only integrity check would be a
-> hash served by the same host as the payload. Until there is a signing
-> certificate and a trusted feed, an automatic updater is a remote code
-> execution path with extra steps.
->
-> This is enforced in CODE, not only here: `V1_UPDATES_DISABLED` in
-> `src/main/updates/update-service.js` short-circuits the whole service before
-> any listener is attached, so setting `MERIT_UPDATE_URL` cannot arm it.
-> `updates:check` reports `disabled: true` and `updates:install` refuses with
-> `UPDATE_FAILED`. The golden-path suite launches the application with a
-> valid-looking feed URL configured and asserts both.
->
-> `autoInstallOnAppQuit` is off, so nothing installs silently on exit;
-> `updates:install` requires ADMIN and takes a backup first; and with no
-> `MERIT_UPDATE_URL` the check is a no-op. Updating v1 means running a new
-> installer by hand.
->
-> Redesigning the updater properly is a separate project, after the first
-> signed and Windows-tested release.
+Installed copies of Merit Marketing Hub update themselves. Nobody has to
+uninstall or reinstall, and an update never touches the database, photos or
+backups.
+
+This page says how that works, what protects the data, how to publish a
+release, and — honestly — what risk remains.
 
 ## Two rules that outrank everything
 
 1. **The application must work with no Internet.** An update check that fails is
    a log line — never a dialog, never a blocked startup.
 2. **No update is installed without a verified backup.** If the backup cannot be
-   made, the install is blocked. Business data is worth more than being on the
-   newest build.
+   made, "Restart and update" is refused and the reason is reported. Business
+   data is worth more than being on the newest build.
+
+## How it works
+
+| Piece | What it is |
+|---|---|
+| Installer | Squirrel.Windows, built by `@electron-forge/maker-squirrel` (`npm run make`) |
+| Update client | Electron's **built-in** `autoUpdater` — on Windows this *is* Squirrel.Windows, so installer and client match |
+| Feed | GitHub Releases of the public repository `keremsaricicek/meritmarketing`, **hard-coded** in `src/main/updates/update-service.js`: `https://github.com/keremsaricicek/meritmarketing/releases/latest/download` |
+| Who checks | Only the installed (packaged) **Windows** application. `npm start`, the tests, the Linux/zip build and a hand-unzipped copy never check |
+| When | ~60 s after startup (so startup and the automatic backup finish first), then every 4 hours while the app is open. Skipped on Squirrel's very first run after install, when the installer still holds `Update.exe` |
+
+Squirrel reads `<feed>/RELEASES`, sees whether a newer version exists, and
+downloads the `.nupkg` it names. GitHub redirects `releases/latest/download/X`
+to asset `X` on the newest published (non-draft, non-prerelease) release.
+
+The feed is **not** read from an environment variable, a settings file or the
+registry, in any build. The old `MERIT_UPDATE_URL` is gone: anything able to set
+an environment variable for the user could otherwise choose where the
+application downloads code from. Changing the feed means shipping a new build.
+
+`electron-updater` (whose Windows path is NSIS and never matched the Squirrel
+installer) has been removed from the dependencies.
 
 ## Flow
 
 ```
-installed version
-      ↓  check (manual, or on a schedule)
-feed reachable? ──no──→ "Updates unavailable"  (logged, nothing else happens)
+installed app, Windows, packaged
+      ↓  60 s after start, then every 4 h
+GitHub reachable? ──no──→ status "unavailable"  (logged, nothing else happens)
       ↓ yes
-newer version? ──no──→ "You are up to date"
+newer version in RELEASES? ──no──→ "You are up to date"
       ↓ yes
-download  →  user chooses "Restart and update"
+download in the background (status "downloading")
       ↓
-pre-update backup  ──fails──→ BLOCKED, with an explanation. Nothing is installed.
-      ↓ succeeds
-installer runs, app restarts
+Squirrel stages the new version beside the current one
       ↓
-schema migration if needed (its own pre-migration backup)
+VERIFIED BACKUP #1 (label "preupdate") — taken immediately, while the version
+that wrote the data is still the one running
+      ↓
+status "downloaded" sent to the window on `updates:status`
+      ↓
+an ADMIN chooses "Restart and update"   (updates:install)
+      ↓
+VERIFIED BACKUP #2 ──fails──→ REFUSED. UPDATE_FAILED with the reason.
+      ↓ succeeds                 Nothing is installed, nothing restarts.
+audit row UPDATE_INSTALL, then quitAndInstall → app restarts on the new version
+      ↓
+schema migration if needed (its own pre-migration backup, verified)
       ↓
 integrity check  →  normal startup
 ```
 
-## States the user can see
+"Verified" means: the backup service checks the SQLite snapshot's integrity
+before packing it (`backup-service.js`, `create`), and the update service then
+reads the written archive back from disk and validates it (`validateFile`)
+before trusting it. A backup that cannot be written **or** cannot be verified
+refuses the install.
 
-`checking` · `no update` · `downloading` · `ready to restart` · `failed` ·
-`unavailable (offline or not configured)`
+### Why there are two backups
 
-Offline is the normal case in a back office, so it is reported as "unavailable",
-not as an error. The technical reason goes to the log.
+Squirrel.Windows applies a downloaded update to a new `app-x.y.z` folder as part
+of the download. From that moment, **the next launch runs the new version even
+if nobody presses "Restart and update"** — closing and reopening the app is
+enough. Backup #1 exists for exactly that case: it is taken as soon as the
+update is staged, so the new version can never run against data that has no
+fresh backup. Backup #2 is the gate in front of the restart button, and covers
+work done between the download and the restart.
+
+Honest limit: if backup #1 fails (for example, the disk is full), the failure is
+logged (`update.staged-backup-failed`) but Squirrel has already staged the new
+version, and the next ordinary launch will run it. The data is still protected
+by the daily/startup automatic backup and, if the schema changes, by the
+migration's own verified pre-migration backup — but it is not the
+"preupdate" snapshot.
+
+### Who can do what
+
+- Any signed-in user can see the update status (`updates:check`, and the
+  `updates:status` notifications).
+- Only an **ADMIN** can install (`updates:install` requires `backup.create`
+  **and** the ADMIN role, enforced in the service itself).
+
+### The screen
+
+The renderer has no Settings › Updates panel yet. The main process already
+sends everything one needs — `state`, `currentVersion`, `version` (the staged
+one), `lastCheckedAt`, `lastError`, `message`, `stagedBackup` — on
+`updates:status` and from `updates:check`, and `window.api.updates.install()`
+is wired. Until a panel is added, a staged update is applied the next time the
+application is closed and reopened (after backup #1, as above).
+
+## States
+
+`idle` · `checking` · `not-available` · `downloading` · `downloaded` ·
+`installing` · `failed` · `unavailable`
+
+Offline is the normal case in a back office, so it is reported as
+`unavailable`, not as an error. The technical reason goes to the log.
+
+## Where the data lives — and why an update cannot touch it
+
+| What | Where (Windows) | Owned by |
+|---|---|---|
+| Program | `%LOCALAPPDATA%\MeritMarketingHub\app-x.y.z\` (+ `Update.exe`) | Squirrel — replaced on every update, old versions deleted |
+| Database, photos, backups, logs, state | `%APPDATA%\Merit Marketing Hub\` (`app.getPath('userData')`) | The application — Squirrel never reads or writes here |
+
+The two are different trees (`Local` vs `Roaming`, and different folder names:
+the maker's `MeritMarketingHub` vs the product name `Merit Marketing Hub`).
+`src/main/paths.js` resolves every data path under `userData`, and
+`tests/electron/updates.test.js` pins both names.
+
+Squirrel's lifecycle runs (`--squirrel-install`, `--squirrel-updated`,
+`--squirrel-uninstall`, `--squirrel-obsolete`) are handled at the very top of
+`src/main/main.js` by `src/main/updates/squirrel-startup.js`: they create or
+remove the Start-menu/desktop shortcuts through `Update.exe` and quit, before
+the single-instance lock and before the database is opened. **Uninstalling
+leaves `%APPDATA%\Merit Marketing Hub` in place**; reinstalling picks the data
+up again.
+
+Schema migrations, if a new version has them, already take their own snapshot
+first (`onBeforeMigrate` in `src/main/main.js`): it checkpoints the WAL, writes a
+`-premigration.mmhbackup`, reads it back with `verifyFile`, and a failure stops
+the migration. A failed migration rolls back; the database is never recreated.
+
+## Moving to the auto-updating version
+
+For a PC that already runs a hand-installed copy with real data. Do this once;
+after it, the PC updates itself.
+
+The new installer finds the existing data automatically, because the
+application identity is unchanged and pinned by `tests/electron/updates.test.js`:
+product name **Merit Marketing Hub** (so the data folder is still
+`%APPDATA%\Merit Marketing Hub`), Squirrel name **MeritMarketingHub**, Setup
+**MeritMarketingHub-Setup.exe**. Nothing below deletes data; the copies are a
+safety net in case something unexpected happens.
+
+1. **Make a backup inside the app.** Sign in as an administrator, open
+   **Settings › Database** and press **BACKUP**. Wait for "Backup created". The
+   file appears in the list below it (and in `%APPDATA%\Merit Marketing Hub\backups`).
+2. **Close the application completely** (check the taskbar / tray).
+3. **Copy the whole data folder somewhere else.** Press `Win+R`, type
+   `%APPDATA%\Merit Marketing Hub`, Enter. Go up one level and copy the
+   `Merit Marketing Hub` folder to a USB stick or another drive, e.g.
+   `D:\Merit-before-update\`. It contains `data\merit-marketing.sqlite3`,
+   `photos\`, `backups\` and `logs\`.
+4. **Install the new version.** Download `MeritMarketingHub-Setup.exe` from the
+   latest release on
+   `https://github.com/keremsaricicek/meritmarketing/releases/latest` and run it.
+   (Unsigned builds: SmartScreen shows "Windows protected your PC" → *More info*
+   → *Run anyway*.) You do not need to uninstall the old copy first; if the old
+   copy was a plain unzipped folder, you can delete that *program* folder
+   afterwards — never the `%APPDATA%\Merit Marketing Hub` folder.
+5. **Verify.** The app opens from the new Start-menu/desktop shortcut **without
+   asking for first-time setup**. Sign in with the usual account and check a few
+   guests, reservations and photos you know. In **Settings › Database** the
+   backup from step 1 is listed. If the app asks to create the first
+   administrator, stop: it is not seeing the old data — close it and see
+   "Restoring" below.
+6. From now on the PC checks GitHub ~60 s after start and every 4 hours, and
+   updates itself as described above.
+
+### Restoring if something went wrong
+
+- **The app opens and shows old/wrong data:** Settings › Database › *Restore*
+  next to the backup from step 1. A safety copy of the current state is taken
+  first.
+- **The app shows first-time setup, will not start, or the data is missing:**
+  close the app, open `%APPDATA%\`, rename the `Merit Marketing Hub` folder to
+  `Merit Marketing Hub.broken`, copy the folder saved in step 3 back as
+  `%APPDATA%\Merit Marketing Hub`, and start the app again.
+- **To go back to the old program entirely:** uninstall "Merit Marketing Hub"
+  from Windows Settings › Apps (this removes the program and shortcuts only; the
+  data folder stays), put the data folder back as above if needed, and run the
+  old program as before.
 
 ## What an update never does
 
 - Touch the database, photos, backups, logs or preferences
 - Re-seed demo data (there is none)
-- Recreate the database because a migration failed — a failed migration rolls
-  back and the previous version's data is intact
+- Recreate the database because a migration failed
+- Install silently on quit without the staging backup having been attempted
 
-## Before this can be switched on — read this first
+## Cutting a release
 
-The update path is **implemented but never executed end to end**, and three
-things must be resolved before it is. None of them is a small detail, and the
-honest position is that automatic updates are not ready to enable:
+The version lives in **one** place: `"version"` in `package.json`. Forge, the
+installer, the `.nupkg` name and `app.getVersion()` all read it.
 
-1. **There is no signature verification of the downloaded installer.**
-   `electron-updater`'s `NsisUpdater.verifySignature` reads `publisherName` from
-   an `app-update.yml` that **electron-builder** produces. This project packages
-   with **electron-forge**, so that file does not exist, and the check returns
-   `null` — meaning *skip*. The only integrity check left is the SHA-512 in
-   `latest.yml`, which is served by the same host as the payload, so it proves
-   the download was not corrupted and nothing about who wrote it. **Whoever
-   controls the feed gets code execution on every installation.** A real
-   deployment needs a code-signing certificate (blocker B5) and the publisher
-   name wired through, or a different verification step entirely.
+1. Bump the version in `package.json` (`1.0.0 → 1.0.1` fix, `1.1.0` feature,
+   `2.0.0` breaking). Use `X.Y.Z` only — Squirrel compares these.
+2. Commit it: `git commit -am "Release 1.0.1"`.
+3. Tag and push the tag:
+   ```
+   git tag v1.0.1
+   git push origin main v1.0.1
+   ```
+4. `.github/workflows/release.yml` runs on `windows-latest`: checks the tag
+   equals `v` + package.json's version (refuses otherwise), `npm ci`, the
+   database/IPC/Electron suites, `npm run make`, then creates a GitHub Release
+   for the tag with `RELEASES`, `MeritMarketingHub-<version>-full.nupkg`, any
+   `-delta.nupkg`, `MeritMarketingHub-Setup.exe` and `SHA256SUMS.txt`.
+5. Within ~4 hours every open installation has downloaded it.
 
-2. **The maker and the updater do not compose as configured.** `forge.config.js`
-   builds with Squirrel.Windows; `electron-updater`'s Windows path is
-   `NsisUpdater`, which runs the downloaded executable with NSIS arguments and
-   expects a `latest.yml` and blockmap that `Release-Merit.ps1` does not emit.
-   Either the maker changes to NSIS or the update client changes to Squirrel's
-   own. This has to be decided before a feed is published, not after.
+**Pushing a `v*` tag is shipping.** There is no staging step after it.
 
-3. **No end-to-end update between two versions has ever been performed.** It
-   needs a published feed and a Windows host, neither of which exists yet.
+To hold a release back, create it as a draft or pre-release — `latest` ignores
+both — or delete the release. To roll back, publish a *higher* version built
+from the older code; Squirrel never downgrades.
 
-Until those are settled, leave `MERIT_UPDATE_URL` unset. With no feed the
-application never checks, which is a supported configuration — see below.
+The first install on each PC is still `MeritMarketingHub-Setup.exe` from the
+Releases page. A copy that was installed some other way (zip, hand copy) has no
+`Update.exe` and will only log `update.check-failed`; install it once with the
+Setup.exe and it will update itself from then on.
 
-## Configuring the feed
+Delta packages: the workflow does not currently feed the previous release into
+the maker, so it publishes full packages only (each update downloads the whole
+app, ~100 MB). That is correct, just not minimal.
 
-The client only ever **reads** update metadata. Set `MERIT_UPDATE_URL` to an
-HTTPS base URL.
+## Remaining risk — read this
 
-**It is read from the environment at startup, not baked into the build.** That
-is worth being clear-eyed about: anything able to set an environment variable
-for that user — including a persistent `HKCU\Environment` entry — can point the
-application at a host of its choosing. The application refuses a non-HTTPS feed
-outright and logs the host it accepted, so the choice is at least visible in the
-log; it does not make an attacker-supplied HTTPS feed safe. Combined with (1)
-above, this is the reason updates stay off until signature verification is real.
+**The builds are unsigned, and Squirrel.Windows does not verify a publisher.**
+Squirrel checks the SHA-1 listed in `RELEASES` — which is served from the same
+place as the package — so it proves the download was not corrupted, not who
+built it. In practice that means:
 
-**A private repository does not mean an embedded token.** Never ship a GitHub
-PAT or any write credential inside the application — it is trivially extractable
-from an asar. Publish artifacts from CI to static object storage (S3, R2, or
-similar) that is public-read for artifacts and authenticated for writes. The
-application needs read access and nothing more.
+> **Whoever can publish a release on `keremsaricicek/meritmarketing` can run
+> code on every installed copy within hours.**
 
-If no feed is configured, the application simply never checks. That is a valid
-configuration for a hand-installed internal build.
+That is anyone with write access to the repository, anyone holding a token or
+GitHub session with that access, and anyone able to push a `v*` tag through a
+compromised CI dependency. What is in place to narrow that:
+
+- the feed is HTTPS to github.com and cannot be redirected by the environment;
+- the release workflow has only `contents: write` and uses GitHub's own `gh`
+  CLI, not a third-party action holding the token;
+- the tag must match `package.json`, and the core test suites must pass.
+
+Recommended next steps, in order:
+
+1. Protect the repository: 2FA for every account with write access, branch
+   protection on `main`, tag protection rules for `v*`, and as few people with
+   write access as possible.
+2. **Buy a Windows code-signing certificate** and add `WINDOWS_CERT_BASE64` and
+   `WINDOWS_CERT_PASSWORD` as repository secrets; the workflow and
+   `forge.config.js` then sign `MeritMarketingHub.exe`, `Update.exe` and the
+   Setup. That removes the SmartScreen warning and makes a tampered binary
+   visible — though Squirrel itself still will not refuse an unsigned update,
+   so repository protection stays the main control.
+3. Run one end-to-end update between two real versions on a Windows PC before
+   relying on it (install vX, publish vX+1, wait, confirm the backups and the
+   restart).
 
 ## Channels
 
-`internal` · `beta` · `stable`
-
-Set at build time via `MERIT_CHANNEL`. Ordinary users do not switch channels;
-the channel is a property of the build they were given. The current version,
-channel and commit are shown in About.
+`MERIT_CHANNEL` (`internal` · `beta` · `stable`) is still stamped into the build
+for the About/diagnostics information. It does not select a feed: every
+packaged Windows build follows the repository's latest published release.

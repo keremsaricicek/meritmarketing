@@ -240,6 +240,11 @@ would lock the owner out of their own application is refused. Detail in
 
 ## 14. Updates never erase data
 
+> **Superseded (updater redesign):** automatic updates are now ON for installed
+> Windows copies — Electron's built-in Squirrel `autoUpdater`, a hard-coded GitHub
+> Releases feed, backup-gated install. B6 and B9 below are resolved; B8 (no
+> publisher verification) remains and is documented in `docs/UPDATE.md`.
+
 User data lives in `%APPDATA%\Merit Marketing Hub\`, outside the program
 directory. An update replaces the program, not the data. Installing an update
 takes a backup first, and `install()` refuses when nothing was actually

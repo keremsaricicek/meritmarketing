@@ -58,6 +58,16 @@ git push && git push --tags
 
 The script **builds and verifies**; it does not publish. Publishing is CI's job.
 
+Publishing is `.github/workflows/release.yml`: pushing a `v*` tag whose version
+matches `package.json` builds on `windows-latest` and creates a GitHub Release
+with `RELEASES`, the `.nupkg` packages and `MeritMarketingHub-Setup.exe`. That
+release **is the update feed** — installed copies pick it up within hours. See
+[UPDATE.md](UPDATE.md) for the release checklist and the remaining risk.
+
+For CI signing, add repository secrets `WINDOWS_CERT_BASE64` (the `.pfx`,
+base64-encoded) and `WINDOWS_CERT_PASSWORD`; the workflow writes the file and
+sets `WINDOWS_CERT_FILE` for `forge.config.js`.
+
 ## Provenance
 
 Every build writes `out/make/release.json`:

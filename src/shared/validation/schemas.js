@@ -232,9 +232,21 @@ const SCHEMAS = {
     ...paging,
     action: text(60).optional(),
     entityType: text(40).optional(),
+    actorUserId: idLike.optional(),
     from: text(40).optional(),
     to: text(40).optional(),
+    /* Ask for the distinct actions and actors as well, for the filter menus. */
+    facets: z.boolean().optional(),
   }).strict(),
+
+  'activity:feed': z.object({
+    from: businessDate.optional(),
+    to: businessDate.optional(),
+    actorUserId: idLike.optional(),
+    kind: z.enum(['guest', 'note', 'stay', 'assign']).optional(),
+  }).strict(),
+  'search:global': z.object({ q: text(120) }).strict(),
+  'team:overview': empty,
 
   /* The one channel whose payload reaches four different query builders, and it
      used to be the one exempted from validation: `z.record(z.string(),
@@ -260,6 +272,7 @@ const SCHEMAS = {
       includeStaff: z.boolean().optional(),
       action: text(60).optional(),
       entityType: text(40).optional(),
+      actorUserId: idLike.optional(),
       from: text(40).optional(),
       to: text(40).optional(),
     }).strict().optional(),

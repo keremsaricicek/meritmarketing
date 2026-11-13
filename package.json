@@ -43,7 +43,6 @@
   },
   "dependencies": {
     "@node-rs/argon2": "2.0.2",
-    "electron-updater": "6.8.9",
     "zod": "4.1.11"
   },
   "main": "src/main/main.js",
