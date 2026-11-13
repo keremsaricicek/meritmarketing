@@ -115,19 +115,19 @@ by key name, so a field called `password` is redacted wherever it appears.
 | Artifacts are unsigned until a certificate is supplied | See [RELEASE.md](RELEASE.md). SmartScreen will warn until then. |
 
 
-## Automatic updates are disabled in code for v1
+## Automatic updates: hard-coded feed, unsigned packages
 
-`V1_UPDATES_DISABLED` in `src/main/updates/update-service.js` short-circuits the
-service before any listener is attached. Setting `MERIT_UPDATE_URL` cannot arm
-it: `updates:check` reports `disabled: true` and `updates:install` refuses.
+Installed Windows copies update through Electron's built-in Squirrel.Windows
+`autoUpdater` from the repository's GitHub Releases. The feed URL is a constant
+in `src/main/updates/update-service.js`; nothing in the environment, settings or
+registry can change it, and only packaged Windows builds check at all. Installing
+is ADMIN-only and refused unless a verified pre-update backup is written first.
 
-This is deliberate and temporary. `electron-updater`'s Windows path performs no
-signature verification without an electron-builder `app-update.yml`, which this
-project (packaged with Forge) does not produce — so the only integrity check
-would be a hash served by the same host as the payload. Whoever controlled a
-feed would control the operator's machine. Until there is a signing certificate
-(B5) and the maker matches the update client (B9), the honest configuration is
-off, and the code says so rather than the documentation saying so.
+The remaining risk is stated plainly in [UPDATE.md](UPDATE.md): the packages are
+**unsigned** and Squirrel verifies only a hash served alongside the package, so
+**whoever can publish a release on the repository can run code on every
+installation**. Repository protection (2FA, tag protection, few writers) is the
+control today; a code-signing certificate is the recommended next step.
 
 ## Photo cropping crosses no dangerous boundary
 

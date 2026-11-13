@@ -37,10 +37,10 @@ continue deterministically. Delete when the migration is fully complete.
 | B3 | `src/renderer/logo.png` is referenced by the renderer but is not in the repo | In-app brand mark falls back to the letter mark | Owner must supply. The release script **blocks a stable build** without it, alongside `assets/crm.ico`. |
 | B4 | No Windows host in this container | Installer and Squirrel update not executed here | Windows CI job packages and smoke-tests; end-to-end update still needs one manual run |
 | B5 | No code-signing certificate | Artifacts unsigned; SmartScreen will warn | Hooks configured, driven by CI secrets; `release.json` records `signed:false` honestly |
-| B6 | No update-host credentials | Feed not published | Provider abstraction complete, configured by `MERIT_UPDATE_URL` (HTTPS enforced) |
+| B6 | Update feed | Resolved | GitHub Releases of `keremsaricicek/meritmarketing`, hard-coded; published by `.github/workflows/release.yml` on `v*` tags. The first release still has to be published |
 | B7 | `www.electronjs.org` is policy-blocked by the proxy | `electron-rebuild` cannot fetch headers | **Resolved by design change**: switched to `node:sqlite`, so there is no native module to rebuild |
-| B8 | The downloaded installer is **not signature-verified** | Whoever controls the feed would get code execution | `electron-updater` skips its check without an electron-builder `app-update.yml`, which forge does not produce. Needs B5 plus the publisher name wired through. **Updates must stay off until this is resolved** — see `docs/UPDATE.md`. |
-| B9 | Squirrel.Windows maker vs `electron-updater`'s NSIS path | The update flow cannot work as configured | Decide maker-or-client before publishing a feed. Documented, not papered over. |
+| B8 | Updates are **not publisher-verified** | Whoever can publish a release on the repository can ship code to every installation | Squirrel checks only the SHA-1 in `RELEASES`. Accepted for now with repository protection; a code-signing certificate (B5) is recommended. See `docs/UPDATE.md`, "Remaining risk" |
+| B9 | Squirrel.Windows maker vs `electron-updater`'s NSIS path | Resolved | The client is now Electron's built-in Squirrel `autoUpdater`; `electron-updater` was removed |
 
 ## Environment notes for the next session
 
@@ -71,10 +71,10 @@ The engineering is finished. Nothing on this list is code:
    installer once (B4).
 3. Obtain a code-signing certificate and set `WINDOWS_CERT_FILE` /
    `WINDOWS_CERT_PASSWORD` in CI secrets (B5).
-4. **Before enabling updates at all**, resolve B8 (the downloaded installer is
-   not signature-verified) and B9 (Squirrel maker vs electron-updater's NSIS
-   path). Until then leave `MERIT_UPDATE_URL` unset — see `docs/UPDATE.md`.
-5. Publish a feed and run one update end to end between two versions (B6).
+4. Automatic updates are on for installed Windows copies (built-in Squirrel
+   `autoUpdater`, hard-coded GitHub Releases feed). Protect the repository and
+   plan for a code-signing certificate (B8) — see `docs/UPDATE.md`.
+5. Publish the first release (tag `vX.Y.Z`) and run one update end to end between two versions on a Windows PC.
 
 Delete this file once those are done. It is a handoff record, not documentation.
 
@@ -137,7 +137,7 @@ called services directly instead of pressing the buttons.
 | CRM note date | Migration `002-crm-note-date.sql` restores the column the form always showed. |
 | Customer list filters | `createdFrom`, `createdTo`, `hasReservation`, `hasCrm` implemented in SQL. |
 | Data folder | `app:openDataFolder` — no argument, fixed path, `shell.openPath`. |
-| v1 updates | `V1_UPDATES_DISABLED` in `update-service.js`, above the environment. |
+| v1 updates | `V1_UPDATES_DISABLED` in `update-service.js`, above the environment. (superseded: automatic updates are now on — see `docs/UPDATE.md`) |
 | Stable signing | Blocks before `release.json` and BUILD COMPLETE. Internal channel still allows unsigned. |
 | Legacy prototype | Loud in-page banner + file header. Still excluded from the package. |
 
@@ -153,7 +153,7 @@ New gates: `tests/ipc/contract-consistency.test.js`,
 | Golden path | **45 assertions** — setup form → every Save button → cancel → delete → reports → restart → everything persisted |
 | Package | `npm run package` completes on this host; the output carries no test file and no legacy prototype |
 | IPC surface | 62 channels, document regenerated and gate green |
-| v1 updates | Off in code. `build` also disarms the updater object it is handed |
+| v1 updates | Off in code. `build` also disarms the updater object it is handed (superseded: automatic updates are now on — see `docs/UPDATE.md`) |
 
 Two tests had stopped describing the product and were corrected rather than
 deleted: `electron/offline.test.js` still drove the updater through `build`

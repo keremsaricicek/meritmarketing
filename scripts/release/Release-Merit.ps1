@@ -142,11 +142,10 @@ if ($env:WINDOWS_CERT_FILE) {
 
 # ----------------------------------------------------------------- updates
 Step 'Update feed'
-if ($env:MERIT_UPDATE_URL) {
-  Write-Host "  feed $($env:MERIT_UPDATE_URL)" -ForegroundColor Green
-} else {
-  Write-Warning '  MERIT_UPDATE_URL is not set — this build will not check for updates.'
-}
+# The feed is hard-coded in src/main/updates/update-service.js (GitHub Releases
+# of keremsaricicek/meritmarketing) and is not configurable at build time.
+# Publishing happens in .github/workflows/release.yml when a v* tag is pushed.
+Write-Host '  feed: GitHub Releases (hard-coded); published by the release workflow on a v* tag' -ForegroundColor Green
 
 # ------------------------------------------------------------------ verdict
 if ($blocked.Count -gt 0) {

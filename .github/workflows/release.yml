@@ -1,0 +1,129 @@
+name: Release
+
+# Publishes a Windows release to GitHub Releases, which IS the application's
+# update feed: installed copies read
+#   https://github.com/keremsaricicek/meritmarketing/releases/latest/download/RELEASES
+# and then the .nupkg it names (see src/main/updates/update-service.js).
+#
+# How to cut a release (docs/UPDATE.md has the full checklist):
+#   1. bump "version" in package.json (the only place the version lives)
+#   2. commit, then: git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# The moment this workflow publishes, every installed copy will download the
+# new version within a few hours. Treat pushing a v* tag as shipping.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # create the release and upload its assets; nothing else
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Build and publish (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # package.json is the single source of truth for the version. A tag that
+      # disagrees with it would publish an installer whose version Squirrel
+      # compares wrongly, so it is a hard stop.
+      - name: Check the tag matches package.json
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = '${{ github.ref_name }}'
+          if ($tag -ne "v$version") {
+            throw "Tag $tag does not match package.json version $version. Bump package.json, commit, then tag v$version."
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version $version is not X.Y.Z." }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run database, IPC and Electron suites
+        run: |
+          npm run test:database
+          npm run test:electron
+
+      # Optional code signing, driven by repository secrets exactly as
+      # forge.config.js expects (WINDOWS_CERT_FILE / WINDOWS_CERT_PASSWORD).
+      # Without the secrets the build is unsigned and the release says so.
+      - name: Prepare signing certificate (only if configured)
+        shell: pwsh
+        env:
+          CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+        run: |
+          if ($env:CERT_BASE64) {
+            $path = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+            [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:CERT_BASE64))
+            "WINDOWS_CERT_FILE=$path" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            "SIGNED=true" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            Write-Host 'Certificate configured: the build will be signed.'
+          } else {
+            "SIGNED=false" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            Write-Warning 'No WINDOWS_CERT_BASE64 secret: this release is UNSIGNED.'
+          }
+
+      - name: Build the Squirrel installer and update packages
+        env:
+          MERIT_CHANNEL: stable
+          MERIT_COMMIT: ${{ github.sha }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: npm run make
+
+      - name: Collect release assets
+        shell: pwsh
+        run: |
+          $dir = Get-ChildItem out/make/squirrel.windows -Recurse -Filter RELEASES | Select-Object -First 1
+          if (-not $dir) { throw 'RELEASES was not produced: there is no update feed to publish.' }
+          $src = $dir.DirectoryName
+          $dest = 'release-assets'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item (Join-Path $src 'RELEASES') $dest
+          $full = Get-ChildItem $src -Filter '*-full.nupkg'
+          if (-not $full) { throw 'No -full.nupkg was produced.' }
+          $full | Copy-Item -Destination $dest
+          Get-ChildItem $src -Filter '*-delta.nupkg' | Copy-Item -Destination $dest
+          $setup = Join-Path $src 'MeritMarketingHub-Setup.exe'
+          if (-not (Test-Path $setup)) { throw 'MeritMarketingHub-Setup.exe was not produced.' }
+          Copy-Item $setup $dest
+          # Every package RELEASES names must be among the assets, or clients
+          # would follow it to a 404.
+          foreach ($line in Get-Content (Join-Path $dest 'RELEASES')) {
+            $name = ($line -split '\s+')[1]
+            if ($name -and -not (Test-Path (Join-Path $dest $name))) { throw "RELEASES names $name, which is not being uploaded." }
+          }
+          Get-ChildItem $dest | ForEach-Object {
+            $h = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLower()
+            "$h  $($_.Name)"
+          } | Tee-Object -FilePath (Join-Path $dest 'SHA256SUMS.txt')
+
+      # The gh CLI ships on GitHub's runners, so no third-party action is
+      # trusted with a write token.
+      - name: Publish the GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $signedNote = if ($env:SIGNED -eq 'true') { 'Signed build.' } else { 'UNSIGNED build (no code-signing certificate configured).' }
+          $files = Get-ChildItem release-assets | ForEach-Object { $_.FullName }
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+          } else {
+            gh release create $tag @files --title "Merit Marketing Hub $env:VERSION" --notes "Merit Marketing Hub $env:VERSION. $signedNote Installed copies update automatically from this release."
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing the release failed.' }
