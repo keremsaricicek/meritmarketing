@@ -25,7 +25,7 @@ const crmNotes = {
     const customer = customersRepo.findById(ctx.db, Number(customerId));
     guard.requireCustomerInScope(ctx, customer);
     return ctx.db.prepare(`
-      SELECT n.*, u.username AS created_by_username FROM crm_notes n
+      SELECT n.*, u.username AS created_by_username, COALESCE(u.full_name, u.username) AS created_by_name FROM crm_notes n
       LEFT JOIN users u ON u.id = n.created_by
       WHERE n.customer_id = ? AND n.deleted_at IS NULL
       ORDER BY COALESCE(n.note_date, date(n.created_at,'localtime')) DESC, n.created_at DESC`)

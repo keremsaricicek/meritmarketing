@@ -1782,3 +1782,24 @@ td.note-cell{ max-width:420px; min-width:220px; padding-top:7px; padding-bottom:
 .team-table th:nth-child(3){ width:14%; }
 .team-table th:last-child{ width:78px; }
 .team-table td:nth-child(2){ white-space:normal; }
+
+/* On a 1366-wide screen the Overview table shares the row with the guest
+   panel: drop the ID column (the code is in the panel and the search) and
+   let the note and date columns keep readable widths. */
+/* Column widths follow content: the latest note gets the room. */
+#crmPane_overview th:nth-child(1){ width:9%; }
+#crmPane_overview th:nth-child(2){ width:17%; }
+#crmPane_overview th:nth-child(3){ width:14%; }
+#crmPane_overview th:nth-child(4){ width:32%; }
+#crmPane_overview th:nth-child(5){ width:14%; }
+#crmPane_overview th:nth-child(6){ width:14%; }
+td.mod-cell{ line-height:1.35; padding-top:7px; padding-bottom:7px; }
+@media (max-width:1500px){
+  #crmPane_overview th:first-child, #custTableBody td:first-child{ display:none; }
+  #crmPane_overview th:nth-child(2){ width:21%; }
+  #crmPane_overview th:nth-child(3){ width:17%; }
+  #crmPane_overview th:nth-child(4){ width:32%; }
+  #crmPane_overview th:nth-child(5){ width:14%; }
+  #crmPane_overview th:nth-child(6){ width:16%; }
+  td.note-cell{ min-width:0; }
+}

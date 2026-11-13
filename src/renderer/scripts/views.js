@@ -612,7 +612,7 @@ async function renderCustomers(){
             </span>` : ''}
         </div>
       </td>
-      <td class="muted n">${fmtDateTime(c.updated_at)}</td>
+      <td class="muted n mod-cell">${fmtDate(c.updated_at)}<div class="note-meta">${escapeHtml(fmtDateTime(c.updated_at).slice(11))}</div></td>
     </tr>`).join('')
     : emptyRow(6, (s.status || s.marketing) && !s.search
         ? emptyState({ icon:'search', title:'No guests match the active filters',
