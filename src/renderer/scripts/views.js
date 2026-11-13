@@ -79,11 +79,14 @@ async function renderDashboard(){
       <div class="lr-right">${statusTagHTML(r.status)}</div>
     </div>`).join('') : '<div class="panel-empty">No reservations yet</div>';
 
-  el('pendingCount').textContent = s.pending ?? 0;
+  el('pendingCount').textContent = s.pending ?? d.pending.length;
   await resolvePhotos(d.pending.map(r => r.photo_name));
-  el('pendingList').innerHTML = d.pending.length ? d.pending.map(r => {
-    const due = r.days_away === 0 ? 'today' : (r.days_away === 1 ? 'tomorrow' : 'in ' + r.days_away + 'd');
-    const tone = r.days_away <= 1 ? ' urgent' : (r.days_away <= 7 ? ' soon' : '');
+  /* Soonest arrival first, whatever order the rows arrived in. */
+  const pending = [...d.pending].sort((a, b) =>
+    String(a.check_in).localeCompare(String(b.check_in)) || (a.id || 0) - (b.id || 0));
+  el('pendingList').innerHTML = pending.length ? pending.map(r => {
+    const { label:due, days } = pendingDue(r);
+    const tone = days <= 1 ? ' urgent' : (days <= 7 ? ' soon' : '');
     return `
     <div class="list-row" data-act="goToGuest" data-on="click" data-args='[${r.customer_id},"reservations"]'>
       <div class="lr-avatar"${avatarStyle(r.photo_name)}>${photoUrl(r.photo_name) ? '' : escapeHtml(initials(r.customer_name))}</div>
@@ -91,7 +94,7 @@ async function renderDashboard(){
         <div class="lr-name">${escapeHtml(r.customer_name)}</div>
         <div class="lr-sub">${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
       </div>
-      <div class="lr-right"><span class="due-pill${tone}">${due}</span></div>
+      <div class="lr-right"><span class="due-pill${tone}">${escapeHtml(due)}</span></div>
     </div>`; }).join('') : '<div class="panel-empty">No pending reservations</div>';
 
   /* one panel failing should never take the dashboard down with it */
@@ -105,6 +108,21 @@ async function renderDashboard(){
         <div class="lr-sub">${escapeHtml(a.reason)}${a.marketing_name ? ' · ' + escapeHtml(a.marketing_name) : ''}</div>
       </div>
     </div>`).join('') : '<div class="panel-empty">Nothing needs attention</div>';
+}
+/* How far away a pending stay is, computed here from its dates. The dashboard
+   rows carry check_in/check_out only — reading a `days_away` field that the
+   backend never sends is what printed "in undefinedd". Dates are local
+   calendar days (todayYMD), never UTC instants. */
+function pendingDue(r, today = todayYMD()){
+  const checkIn = String(r.check_in || '').slice(0, 10);
+  const checkOut = String(r.check_out || '').slice(0, 10);
+  if (!checkIn) return { label:'', days:Infinity };
+  const days = daysBetween(today, checkIn);
+  if (!Number.isFinite(days)) return { label:'', days:Infinity };
+  if (days < 0) return { label: checkOut && checkOut > today ? 'in house' : 'overdue', days:0 };
+  if (days === 0) return { label:'today', days };
+  if (days === 1) return { label:'tomorrow', days };
+  return { label:`in ${days} days`, days };
 }
 /* Requires Attention identifies what needs a look and opens the guest on
    click — it is not an action-button wall; the actual actions (add
@@ -191,6 +209,8 @@ async function goToGuest(customerId, page){
   let panelId = 'resDetailPanel';
   if (page === 'customers'){
     if (state.crmView === 'norecord') await setCrmView('overview');
+    /* the inspector lives in the table layout, not the activity feed */
+    if (state.crmView === 'overview' && state.custMode === 'activity') await setCustMode('table');
     panelId = state.crmView === 'customerlist' ? 'listDetailPanel' : 'detailPanel';
   }
   await showCustomerDetail(customerId, panelId);
@@ -566,6 +586,7 @@ async function renderCustomers(){
   const s = state.cust;
   s.search = el('custSearch')?.value.trim() || '';
   fillFilterProfileSelects();
+  renderCustFilterChips();
   const data = await call(window.api.customers.list, {
     ...custFilterParams(), page:s.page, pageSize:s.pageSize });
   if (!data) return;
@@ -593,7 +614,10 @@ async function renderCustomers(){
       </td>
       <td class="muted n">${fmtDateTime(c.updated_at)}</td>
     </tr>`).join('')
-    : emptyRow(6, s.search
+    : emptyRow(6, (s.status || s.marketing) && !s.search
+        ? emptyState({ icon:'search', title:'No guests match the active filters',
+            actions:[{ label:'Clear filters', act:'clearCustFilters', actArgs:[] }] })
+        : s.search
         ? emptyState({ icon:'search', title:'No matching guests',
             text:`Nothing matches “${s.search}”.`,
             actions:[{ label:'Clear search', act:'clearSearchAnd', actArgs:['custSearch','onCustSearch'] },
@@ -756,8 +780,8 @@ async function showCustomerDetail(customerId, panelId){
      the same: a cancelled stay is still part of this guest's record, just
      visibly marked, not silently missing from the timeline (spec §15). */
   const [resList, cancelledList, notes] = await Promise.all([
-    call(window.api.reservations.list, { pageSize:200, sort:'check_in', dir:'desc' }, { silent:true }),
-    call(window.api.reservations.list, { pageSize:200, sort:'check_in', dir:'desc', view:'cancelled' }, { silent:true }),
+    call(window.api.reservations.list, { customerId, pageSize:200, sort:'check_in', dir:'desc' }, { silent:true }),
+    call(window.api.reservations.list, { customerId, pageSize:200, sort:'check_in', dir:'desc', view:'cancelled' }, { silent:true }),
     call(window.api.crmNotes.list, { customerId }, { silent:true })
   ]);
   const stays = [...(resList?.rows || []), ...(cancelledList?.rows || [])]
@@ -775,13 +799,9 @@ async function showCustomerDetail(customerId, panelId){
         : r.reservation_note ? `<div class="rz-note">“${escapeHtml(r.reservation_note)}”</div>` : ''}
     </div>`).join('')
     : emptyState({ icon:'calendar', title:'No stays yet',
-        actions:[{ label:'New Reservation', act:'openReservationModal', actArgs:[], primary:true }] });
+        actions:[{ label:'New reservation', act:'openReservationModal', actArgs:[null, c.id], primary:true }] });
 
-  const notesHTML = noteList.length ? noteList.map(n => `
-    <div class="note-block crm">
-      <div class="nb-date"><span>${fmtDate(n.note_date)}</span><span>${escapeHtml(n.created_by_name || '')}</span></div>
-      ${escapeHtml(n.note)}
-    </div>`).join('')
+  const notesHTML = noteList.length ? `<div class="crm-note-list">${sortNotesNewestFirst(noteList).map(crmNoteCardHTML).join('')}</div>`
     : emptyState({ icon:'check', title:'No CRM notes',
         actions:[{ label:'Add note', act:'openCrmNoteModal', actArgs:[c.id], primary:true }] });
 
@@ -792,7 +812,7 @@ async function showCustomerDetail(customerId, panelId){
       body:[r.invited_by_name ? 'Invited by ' + r.invited_by_name : '', r.reservation_note || '']
             .filter(Boolean).join(' · ') })),
     ...noteList.map(n => ({ when:n.note_date, kind:'note',
-      title:'CRM note' + (n.created_by_name ? ' · ' + n.created_by_name : ''), body:n.note })),
+      title:'CRM note' + ((n.created_by_name || n.created_by_username) ? ' · ' + (n.created_by_name || n.created_by_username) : ''), body:n.note })),
     { when:(c.created_at || '').slice(0,10), kind:'assign', title:'Registered',
       body:`Added to the system as #${c.code}` }
   ].filter(e => e.when).sort((a,b) => String(b.when).localeCompare(String(a.when)));
@@ -809,32 +829,29 @@ async function showCustomerDetail(customerId, panelId){
   const lastActivity = events[0]?.when || null;
   const nextStay = stays.find(r => r.status === 'UPCOMING' || r.status === 'CHECKED_IN');
 
-  /* Overview answers "where do things stand" at a glance — facts and the
-     most recent activity, not a duplicate of the full Reservations/Notes/
-     Activity tabs. Quick actions are gated by the same permissions the
-     server enforces, so nothing here promises an action the API refuses. */
+  /* Overview answers "where do things stand" without switching tabs: the
+     guest note, the latest CRM notes in full, a composer, then the facts.
+     Quick actions are gated by the same permissions the server enforces, so
+     nothing here promises an action the API refuses. */
+  const sortedNotes = sortNotesNewestFirst(noteList);
+  const canNote = can1('crmNotes.create');
   const overviewHTML = `
-    <div class="gi-quick-actions">
-      ${can1('reservations.create') ? `<button class="gi-action" data-act="openReservationModal" data-on="click" data-args='[null,${c.id}]'>Add Reservation</button>` : ''}
-      ${can1('crmNotes.create') ? `<button class="gi-action" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]'>Add CRM Note</button>` : ''}
-      ${can1('customers.update') ? `<button class="gi-action" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]'>Edit Guest</button>` : ''}
-      ${canAssign() ? `<button class="gi-action" data-act="openAssignModal" data-on="click" data-args='[${c.id}]'>Reassign</button>` : ''}
-    </div>
+    ${guestNoteHTML(c)}
+    <div class="pane-head"><div class="pane-title">CRM notes · newest first</div>
+      ${sortedNotes.length ? `<span class="muted gi-count">${sortedNotes.length}</span>` : ''}</div>
+    ${canNote ? noteComposerHTML(c.id, `${uid}_composer`, false) : ''}
+    ${crmNoteListHTML(sortedNotes, { limit:3, uid })}
+    ${nextStay ? `<div class="pane-title mt-4">Next stay</div>
+      <div class="rz-item"><div class="rz-dates"><span>${fmtDate(nextStay.check_in)} – ${fmtDate(nextStay.check_out)}</span>${statusTagHTML(nextStay.status)}</div></div>` : ''}
+    <div class="pane-title mt-4">Details</div>
     <div class="gi-facts">
       <div class="gc-field"><div class="gf-l">Phone</div><div class="gf-v">${c.phone ? escapeHtml(c.phone) : '—'}</div></div>
       <div class="gc-field"><div class="gf-l">Email</div><div class="gf-v">${c.email ? escapeHtml(c.email) : '—'}</div></div>
-      <div class="gc-field"><div class="gf-l">Created By</div><div class="gf-v">${escapeHtml(c.created_by_label)}</div></div>
-      <div class="gc-field"><div class="gf-l">Assigned To</div><div class="gf-v">${invitedByHTML(c.marketing_name, c.marketing_status)}</div></div>
+      <div class="gc-field"><div class="gf-l">Created by</div><div class="gf-v">${escapeHtml(c.created_by_label)}</div></div>
+      <div class="gc-field"><div class="gf-l">Assigned to</div><div class="gf-v">${invitedByHTML(c.marketing_name, c.marketing_status)}</div></div>
       <div class="gc-field"><div class="gf-l">Registered</div><div class="gf-v">${fmtDate(c.created_at)}</div></div>
-      <div class="gc-field"><div class="gf-l">Last Activity</div><div class="gf-v">${lastActivity ? fmtDate(lastActivity) : '—'}</div></div>
-    </div>
-    ${nextStay ? `<div class="pane-title mt-4">Next Stay</div>
-      <div class="rz-item"><div class="rz-dates"><span>${fmtDate(nextStay.check_in)} – ${fmtDate(nextStay.check_out)}</span>${statusTagHTML(nextStay.status)}</div></div>` : ''}
-    <div class="pane-title mt-4">Recent Activity</div>
-    ${events.length ? `<div class="timeline">${events.slice(0,3).map(e => `
-      <div class="tl-item t-${e.kind}"><div class="tl-dot"></div><div class="tl-when">${fmtDate(e.when)}</div>
-      <div class="tl-title">${escapeHtml(e.title)}</div></div>`).join('')}</div>`
-      : emptyState({ icon:'check', title:'Nothing has happened yet' })}`;
+      <div class="gc-field"><div class="gf-l">Last activity</div><div class="gf-v">${lastActivity ? fmtDate(lastActivity) : '—'}</div></div>
+    </div>`;
 
   const statusM = statusMeta(c.status);
   panel.classList.remove('empty', 'collapsed');
@@ -846,22 +863,25 @@ async function showCustomerDetail(customerId, panelId){
       <div class="avatar"${avatarStyle(c.photo_name)}>${photoUrl(c.photo_name) ? '' : escapeHtml(initials(c.full_name))}</div>
       <span class="${statusM ? statusM.cls : 'tag-none'}"><span class="dp-rail-status tag-dot"></span></span>
     </button>
-    <div class="detail-head">
-      <button class="detail-collapse-btn" data-act="toggleDetailPanel" data-on="click" data-args='["${panelId}"]' title="Collapse" aria-label="Collapse guest panel">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-      </button>
-      <button class="detail-edit-btn" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]' title="Edit">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-      </button>
-      <div class="avatar xxl"${avatarStyle(c.photo_name)}>${photoUrl(c.photo_name) ? '' : escapeHtml(initials(c.full_name))}</div>
-      <div class="gc-name">${escapeHtml(c.full_name)}</div>
-      <div class="setting-hint">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''}</div>
-      <div class="mt-9">${statusTagHTML(c.status)}</div>
+    <div class="detail-head detail-head-row">
+      <div class="avatar lg"${avatarStyle(c.photo_name)}>${photoUrl(c.photo_name) ? '' : escapeHtml(initials(c.full_name))}</div>
+      <div class="dh-ident">
+        <div class="gc-name">${escapeHtml(c.full_name)}</div>
+        <div class="setting-hint">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''}</div>
+        ${c.status ? `<div class="dh-status">${statusTagHTML(c.status)}</div>` : ''}
+      </div>
+      <div class="dh-tools">
+        <button class="btn btn-outline btn-sm" data-act="openGuestPage" data-on="click" data-args='[${c.id}]' title="Open the full guest record">Full record</button>
+        <button class="detail-collapse-btn" data-act="toggleDetailPanel" data-on="click" data-args='["${panelId}"]' title="Collapse" aria-label="Collapse guest panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+      </div>
     </div>
+    ${guestActionsHTML(c, 'gi-actions-bar')}
     <div class="card-tabs" id="${uid}_tabs">
       <button class="card-tab active" data-act="switchCardTab" data-on="click" data-args='["${uid}","overview",{"$":"this"}]'>Overview</button>
-      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","stays",{"$":"this"}]'>Reservations<span class="ct-count">${stays.length}</span></button>
-      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","notes",{"$":"this"}]'>CRM Notes<span class="ct-count">${noteList.length}</span></button>
+      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","stays",{"$":"this"}]'>Stays<span class="ct-count">${stays.length}</span></button>
+      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","notes",{"$":"this"}]'>CRM notes<span class="ct-count">${noteList.length}</span></button>
       <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","timeline",{"$":"this"}]'>Activity</button>
     </div>
     <div class="card-body-scroll">
@@ -870,12 +890,93 @@ async function showCustomerDetail(customerId, panelId){
       <div class="card-pane" id="${uid}_notes">
         <div class="pane-head">
           <div class="pane-title">${noteList.length} note${noteList.length === 1 ? '' : 's'}</div>
-          <button class="btn btn-outline btn-sm" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]'>ADD NOTE</button>
+          ${canNote ? `<button class="btn btn-outline btn-sm" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]'>Add note</button>` : ''}
         </div>
         ${notesHTML}
       </div>
       <div class="card-pane" id="${uid}_timeline">${timelineHTML}</div>
     </div>`;
+}
+
+/* ---------- shared guest-record pieces (side panel and full page) ---------- */
+function sortNotesNewestFirst(notes){
+  return [...(notes || [])].sort((a, b) =>
+    String(b.note_date || '').localeCompare(String(a.note_date || ''))
+    || String(b.created_at || '').localeCompare(String(a.created_at || ''))
+    || (b.id || 0) - (a.id || 0));
+}
+function guestNoteHTML(c){
+  const text = (c.notes || '').trim();
+  if (!text) return '';
+  return `<div class="guest-note"><span class="gn-label">Guest note</span><span class="gn-text">${escapeHtml(text)}</span></div>`;
+}
+function guestActionsHTML(c, cls){
+  const btns = [
+    can1('crmNotes.create') ? `<button class="btn btn-gold btn-sm" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]' title="Add a CRM note">Add note</button>` : '',
+    can1('reservations.create') ? `<button class="btn btn-outline btn-sm" data-act="openReservationModal" data-on="click" data-args='[null,${c.id}]' title="Add a reservation">Reservation</button>` : '',
+    can1('customers.update') ? `<button class="btn btn-outline btn-sm" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]' title="Edit guest">Edit</button>` : '',
+    canAssign() ? `<button class="btn btn-outline btn-sm" data-act="openAssignModal" data-on="click" data-args='[${c.id}]' title="Reassign this guest">Reassign</button>` : ''
+  ].filter(Boolean);
+  return btns.length ? `<div class="${cls}">${btns.join('')}</div>` : '';
+}
+function crmNoteCardHTML(n){
+  const when = n.created_at ? fmtDateTime(n.created_at) : fmtDate(n.note_date);
+  const dateLabel = n.note_date && n.created_at && n.note_date !== String(n.created_at).slice(0, 10)
+    ? `${fmtDate(n.note_date)} · written ${when}` : when;
+  return `<div class="crm-note">
+    <div class="cn-meta"><b>${escapeHtml(n.created_by_name || n.created_by_username || 'Unknown')}</b><span>${escapeHtml(dateLabel)}</span></div>
+    <div class="cn-text">${escapeHtml(n.note)}</div>
+  </div>`;
+}
+function crmNoteListHTML(notes, { limit = 3, uid = '' } = {}){
+  if (!notes.length) return '<div class="empty-mini">No CRM notes yet.</div>';
+  const head = notes.slice(0, limit).map(crmNoteCardHTML).join('');
+  if (notes.length <= limit) return `<div class="crm-note-list">${head}</div>`;
+  const rest = notes.slice(limit).map(crmNoteCardHTML).join('');
+  return `<div class="crm-note-list">${head}
+    <div class="crm-note-more hidden" id="${uid}_morenotes">${rest}</div>
+    <button class="btn-link cn-show-all" data-act="toggleMoreNotes" data-on="click" data-args='["${uid}_morenotes",{"$":"this"},${notes.length}]'>Show all ${notes.length} notes</button>
+  </div>`;
+}
+function toggleMoreNotes(id, btn, total){
+  const node = el(id); if (!node) return;
+  const open = node.classList.toggle('hidden') === false;
+  if (btn) btn.textContent = open ? 'Show fewer' : `Show all ${total} notes`;
+}
+function noteComposerHTML(customerId, inputId, withDate){
+  return `<div class="note-composer${withDate ? ' with-date' : ''}">
+    <label class="visually-hidden" for="${inputId}">Write a CRM note</label>
+    <textarea id="${inputId}" rows="2" maxlength="4000" placeholder="Write a CRM note…"></textarea>
+    ${withDate ? `<label class="visually-hidden" for="${inputId}_date">Note date</label><input type="date" id="${inputId}_date" value="${todayYMD()}">` : ''}
+    <button class="btn btn-outline btn-sm" data-act="saveInlineCrmNote" data-on="click" data-args='[${Number(customerId)},"${inputId}",{"$":"this"}]'>Save</button>
+    <div class="field-error" id="err-${inputId}" role="alert"></div>
+  </div>`;
+}
+/* The inline composer goes through the same crmNotes.create verb the modal
+   uses, then refreshes everything that shows this guest. */
+async function saveInlineCrmNote(customerId, inputId, btn){
+  const input = el(inputId); if (!input) return;
+  const err = el('err-' + inputId);
+  if (err){ err.textContent = ''; err.classList.remove('show'); }
+  const note = input.value.trim();
+  if (!note){
+    if (err){ err.textContent = 'Write the note first.'; err.classList.add('show'); }
+    input.focus(); return;
+  }
+  const dateInput = el(inputId + '_date');
+  await withBusy(btn, 'Saving…', async () => {
+    try {
+      await call(window.api.crmNotes.create,
+        { customerId, note, noteDate: dateInput?.value || todayYMD() }, { silent:true });
+      input.value = '';
+      toast('success', 'Note added');
+      await refreshOpenInspectors(customerId);
+      await refreshCrmViews();
+    } catch (e){
+      if (err){ err.textContent = e.message || 'Note not saved.'; err.classList.add('show'); }
+      else toast('error', 'Note not saved', e.message);
+    }
+  });
 }
 /* A guest can be open in more than one inspector at once (e.g. Reservation
    History's rail and Customer List's rail both showing the same person) —
@@ -884,9 +985,14 @@ async function showCustomerDetail(customerId, panelId){
    the action happened to be triggered from, so none of them go stale. */
 async function refreshOpenInspectors(customerId){
   const panelIds = ['detailPanel','listDetailPanel','resDetailPanel'];
-  await Promise.all(panelIds
-    .filter(id => el(id)?.dataset.customerId === String(customerId))
-    .map(id => showCustomerDetail(customerId, id)));
+  await Promise.all([
+    ...panelIds
+      .filter(id => el(id)?.dataset.customerId === String(customerId))
+      .map(id => showCustomerDetail(customerId, id)),
+    /* the full guest record is one more view of the same person */
+    workspace.open.includes('guest') && String(state.guestPage?.id) === String(customerId)
+      ? renderGuestPage() : Promise.resolve()
+  ]);
 }
 function switchCardTab(uid, name, btn){
   ['overview','stays','notes','timeline'].forEach(n => el(`${uid}_${n}`)?.classList.toggle('active', n === name));
@@ -1159,9 +1265,10 @@ const NOTIF_ICONS = {
   cold_guest:    '<path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5L4.9 17.5"/>',
   checkin_soon:  '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>',
   checkin_urgent:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>',
-  assignment:    '<path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>'
+  assignment:    '<path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>',
+  admin_alert:   '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6Z"/><path d="M12 8v4M12 16h.01"/>'
 };
-const NOTIF_TONE = { cold_guest:'cold', checkin_soon:'soon', checkin_urgent:'urgent', assignment:'assign' };
+const NOTIF_TONE = { cold_guest:'cold', checkin_soon:'soon', checkin_urgent:'urgent', assignment:'assign', admin_alert:'admin' };
 
 async function renderNotifications(){
   const node = el('notifList');
@@ -1179,6 +1286,7 @@ async function renderNotifications(){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${NOTIF_ICONS[n.type] || NOTIF_ICONS.assignment}</svg>
       </div>
       <div class="notif-main">
+        ${n.type === 'admin_alert' ? '<div class="notif-kind">Administrator alert</div>' : ''}
         <div class="notif-title">${escapeHtml(n.title)}</div>
         <div class="notif-text">${escapeHtml(n.message)}</div>
       </div>
@@ -1429,22 +1537,29 @@ async function renderUsers(){
 function goAuditPage(p){ state.audit.page = p; renderAudit(); }
 async function renderAudit(){
   const s = state.audit;
-  const data = await call(window.api.audit.list, { page:s.page, pageSize:s.pageSize });
+  const data = await call(window.api.audit.list,
+    { page:s.page, pageSize:s.pageSize, ...auditFilterPayload(), facets:true });
   if (!data) return;
   s.total = data.total;
+  if (data.facets){ s.facets = data.facets; fillAuditFacets(data.facets); }
+  renderAuditChips();
   el('auditTableBody').innerHTML = data.rows.length ? data.rows.map(r => `
     <tr>
       <td class="muted">${fmtDateTime(r.created_at)}</td>
-      <td>${r.username ? escapeHtml(r.username) : '<span class="muted">system</span>'}</td>
+      <td>${(r.username || r.actor_username) ? escapeHtml(r.username || r.actor_username) : '<span class="muted">system</span>'}</td>
       <td><span class="audit-action">${escapeHtml(r.action)}</span></td>
       <td class="muted">${r.entity_type ? escapeHtml(r.entity_type) + (r.entity_id ? ' #' + r.entity_id : '') : '—'}</td>
       <td class="muted">${r.description ? escapeHtml(r.description) : '—'}</td>
-    </tr>`).join('') : emptyRow(5, emptyState({ icon:'check', title:'No activity recorded yet' }));
+    </tr>`).join('') : emptyRow(5, (s.actorUserId || s.action || s.from || s.to)
+      ? emptyState({ icon:'search', title:'Nothing matches these filters',
+          actions:[{ label:'Clear filters', act:'clearAuditFilters', actArgs:[] }] })
+      : emptyState({ icon:'check', title:'No activity recorded yet' }));
   pagerHTML('auditPager', s.page, s.pageSize, s.total, 'goAuditPage');
 }
 
 /* ---------------- SETTINGS ---------------- */
 async function renderSettings(){
+  refreshUpdatesSection().catch(() => {});
   const s = await call(window.api.settings.all, {});
   state.settings = s || {};
   el('setTheme').value = s?.['appearance.theme'] || 'light';

@@ -31,7 +31,7 @@ const { Suite } = require('../lib/harness');
 
 const RENDERER = path.join(__dirname, '..', '..', 'src', 'renderer');
 const SOURCES = ['index.html', 'scripts/actions.js', 'scripts/bridge.js',
-  'scripts/core.js', 'scripts/views.js', 'scripts/screens.js'];
+  'scripts/core.js', 'scripts/views.js', 'scripts/screens.js', 'scripts/oversight.js'];
 
 /** Strip /* *​/ and // comments so a discussion of eval is not a use of eval. */
 function stripComments(source) {

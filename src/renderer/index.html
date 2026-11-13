@@ -151,6 +151,10 @@
   <div class="nav-group">
     <div class="nav-group-label" id="navGroupAdmin">Administration</div>
     <div class="nav" role="group" aria-labelledby="navGroupAdmin">
+      <div class="nav-item hidden" data-page="team" id="navTeamControl" data-act="openWorkspaceTab" data-on="click" data-args='["team"]' role="menuitem" tabindex="0" data-activatable>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6Z"/><path d="M9 12l2 2 4-4"/></svg>
+        Team control
+      </div>
       <div class="nav-item" data-page="users" data-act="openWorkspaceTab" data-on="click" data-args='["users"]' role="menuitem" tabindex="0" data-activatable>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="3"/><circle cx="16.3" cy="9.8" r="2.4"/><path d="M3 19.5c.8-3.4 3-5.2 5.5-5.2s4.8 1.8 5.6 5.2"/><path d="M14.8 15c1.9.5 3.4 2.1 3.9 4.5"/></svg>
         Users
@@ -388,6 +392,7 @@
         <div class="filter-wrap">
           <button class="filter-btn" id="custFilterBtn" data-act="toggleFilterMenu" data-on="click" data-args='["custFilterMenu",{"$":"event"}]' aria-label="Filter" aria-haspopup="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+            <span class="filter-count hidden" id="custFilterCount">0</span>
           </button>
           <div class="filter-menu" id="custFilterMenu" role="menu">
             <div class="filter-opt active" data-val="" data-act="setCustFilter" data-on="click" data-args='["",{"$":"this"}]' tabindex="0" role="menuitemradio" aria-checked="true" data-activatable>ALL</div>
@@ -403,8 +408,20 @@
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
           EXPORT
         </button>
+        <div class="toolbar-end">
+          <button class="btn btn-outline btn-sm" id="custTodayBtn" data-act="openTodaysActivity" data-on="click" data-args='[]'>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+            Today's activity
+          </button>
+          <div class="seg" id="custModeSwitch" role="group" aria-label="Overview layout">
+            <button class="active" aria-pressed="true" data-act="setCustMode" data-on="click" data-args='["table"]'>Table</button>
+            <button aria-pressed="false" data-act="setCustMode" data-on="click" data-args='["activity"]'>Activity</button>
+          </div>
+        </div>
       </div>
-      <div class="customer-layout">
+      <div class="chip-row hidden" id="custChips" aria-label="Active filters"></div>
+      <div id="custActivityView" class="hidden"></div>
+      <div class="customer-layout" id="custTableView">
         <div class="table-wrap">
           <div class="table-scroll">
           <table>
@@ -567,9 +584,23 @@
     <div class="page-head">
       <h1 class="page-title" tabindex="-1">Audit Log</h1>
       <div class="head-actions">
-        <button class="btn btn-outline btn-sm" data-act="exportEntity" data-on="click" data-args='["audit_logs"]'>EXPORT</button>
+        <button class="btn btn-outline btn-sm" data-act="exportAuditFiltered" data-on="click" data-args='[]'>EXPORT</button>
       </div>
     </div>
+    <div class="toolbar audit-toolbar">
+      <div class="audit-filters" id="auditFilterBtn">
+        <label class="af-field"><span>Person</span>
+          <select class="fm-input" id="auditFActor" data-act="applyAuditFilters" data-on="change" data-args='[]'><option value="">Anyone</option></select></label>
+        <label class="af-field"><span>Action</span>
+          <select class="fm-input" id="auditFAction" data-act="applyAuditFilters" data-on="change" data-args='[]'><option value="">Any action</option></select></label>
+        <label class="af-field"><span>From</span>
+          <input class="fm-input" type="date" id="auditFFrom" data-act="applyAuditFilters" data-on="change" data-args='[]'></label>
+        <label class="af-field"><span>To</span>
+          <input class="fm-input" type="date" id="auditFTo" data-act="applyAuditFilters" data-on="change" data-args='[]'></label>
+        <span class="filter-count hidden" id="auditFilterCount">0</span>
+      </div>
+    </div>
+    <div class="chip-row hidden" id="auditChips" aria-label="Active filters"></div>
     <div class="table-wrap">
       <div class="table-scroll">
       <table>
@@ -579,6 +610,26 @@
       </div>
       <div class="pager" id="auditPager"></div>
     </div>
+  </div>
+
+  <!-- ---------- TEAM CONTROL ---------- -->
+  <div class="page" id="page-team">
+    <div class="page-head">
+      <div class="ph-titles">
+        <h1 class="page-title" tabindex="-1">Team control</h1>
+        <div class="page-sub">Everything that needs an administrator's decision, on one screen</div>
+      </div>
+      <div class="head-actions">
+        <span class="muted team-updated" id="teamUpdated"></span>
+        <button class="btn btn-outline btn-sm" data-act="renderTeamControl" data-on="click" data-args='[]'>Refresh</button>
+      </div>
+    </div>
+    <div id="teamBody"></div>
+  </div>
+
+  <!-- ---------- GUEST RECORD ---------- -->
+  <div class="page" id="page-guest">
+    <div id="guestPageBody"></div>
   </div>
 
   <!-- ---------- SETTINGS ---------- -->
@@ -610,6 +661,26 @@
             </select>
           </div>
         </div>
+      </div>
+
+      <div class="settings-section" id="updatesSection">
+        <h2 class="settings-section-title">Updates</h2>
+        <div class="setting-row">
+          <div><div class="setting-label">Version</div>
+               <div class="setting-hint" id="updVersion">—</div></div>
+          <div class="setting-control row-gap-7">
+            <button class="btn btn-outline btn-sm" id="updCheckBtn" data-act="checkForUpdates" data-on="click" data-args='[]'>Check for updates</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Status</div>
+               <div class="setting-hint" id="updStatus" aria-live="polite">Not checked yet</div>
+               <div class="setting-hint" id="updLastChecked"></div></div>
+          <div class="setting-control row-gap-7">
+            <button class="btn btn-gold btn-sm hidden" id="updInstallBtn" data-act="installUpdate" data-on="click" data-args='[]'>Restart and update</button>
+          </div>
+        </div>
+        <div class="upd-error hidden" id="updError" role="alert"></div>
       </div>
 
       <div class="settings-section">
@@ -1266,9 +1337,10 @@
 <!-- ================= COMMAND PALETTE ================= -->
 <div class="palette-overlay" id="palette">
   <div class="palette" role="dialog" aria-modal="true" aria-label="Search">
-    <input class="palette-input" id="paletteInput" placeholder="Search guests, reservations, people — or type a command"
+    <input class="palette-input" id="paletteInput" placeholder="Search guests, CRM notes, reservations, profiles — or type a command"
            autocomplete="off" spellcheck="false" data-act-input="onPaletteInput" data-args-input='[]' data-act-keydown="onPaletteKey" data-args-keydown='[{"$":"event"}]'>
-    <div class="palette-list" id="paletteList"></div>
+    <div class="palette-meta" id="paletteMeta" aria-live="polite"></div>
+    <div class="palette-list" id="paletteList" role="listbox" aria-label="Results"></div>
     <div class="palette-foot">
       <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
       <span><kbd>↵</kbd> open</span>
@@ -1305,6 +1377,7 @@
   <script src="./scripts/actions.js"></script>
   <script src="./scripts/core.js"></script>
   <script src="./scripts/views.js"></script>
+  <script src="./scripts/oversight.js"></script>
   <script src="./scripts/screens.js"></script>
 </body>
 </html>
