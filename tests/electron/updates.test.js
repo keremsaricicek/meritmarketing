@@ -329,6 +329,47 @@ module.exports = async function () {
     }
   }
 
+  /* ------------------------------------- moving from a hand-installed copy
+   *
+   * The owner moves from a hand-installed version that holds real data. The
+   * new installer only finds that data if the application identity is exactly
+   * what it was: Electron derives userData (%APPDATA%\<productName>) from
+   * package.json's productName, and Squirrel's install folder from the maker
+   * name. Changing any of these silently starts a NEW, EMPTY database. */
+  {
+    const forge = require('../../forge.config.js');
+    const maker = forge.makers.find((m) => m.name === '@electron-forge/maker-squirrel');
+    s.check('IDENTITY: productName stays "Merit Marketing Hub" (the userData folder name)',
+      pkg.productName === 'Merit Marketing Hub', pkg.productName);
+    s.check('IDENTITY: the packaged app name stays "Merit Marketing Hub"',
+      forge.packagerConfig.name === 'Merit Marketing Hub', forge.packagerConfig.name);
+    s.check('IDENTITY: the Squirrel name stays "MeritMarketingHub"',
+      maker.config.name === 'MeritMarketingHub' && forge.packagerConfig.executableName === 'MeritMarketingHub',
+      `${maker.config.name} / ${forge.packagerConfig.executableName}`);
+    s.check('IDENTITY: the Setup is still MeritMarketingHub-Setup.exe',
+      maker.config.setupExe === 'MeritMarketingHub-Setup.exe', maker.config.setupExe);
+    const mainNoComments = mainSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    s.check('IDENTITY: nothing renames the app or relocates userData at runtime',
+      !/app\.setName\s*\(/.test(mainNoComments) && !/setPath\s*\(\s*['"]userData/.test(mainNoComments)
+      && !/setPath\s*\(\s*['"]appData/.test(mainNoComments));
+    const pathsSource = read('src/main/paths.js');
+    s.check('IDENTITY: every data path is rooted at app.getPath("userData")',
+      /app\.getPath\('userData'\)/.test(pathsSource));
+
+    const sqSource = read('src/main/updates/squirrel-startup.js').replace(/\/\*[\s\S]*?\*\//g, '');
+    s.check('the uninstall handler cannot delete files: no fs, rm or unlink in squirrel-startup.js',
+      !/require\(['"](fs|fs\/promises)['"]\)|\brmSync\b|\bunlink|\brmdir|--uninstall\b|removeDirectory/.test(sqSource));
+    const un = [];
+    squirrel.handle({
+      app: { quit: () => {} }, argv: ['x', '--squirrel-uninstall'], platform: 'win32',
+      execPath: 'C:\\L\\MeritMarketingHub\\app-1.0.0\\MeritMarketingHub.exe',
+      spawnFn: (cmd, args) => { un.push([cmd, ...args]); return new EventEmitter(); },
+      setTimeoutFn: () => {},
+    });
+    s.check('uninstall runs exactly one command, and it only removes shortcuts',
+      un.length === 1 && un[0][1] === '--removeShortcut' && un[0].length === 3, JSON.stringify(un));
+  }
+
   // ------------------------------------------------------ release pipeline
   {
     const wf = read('.github/workflows/release.yml');

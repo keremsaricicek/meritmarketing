@@ -138,6 +138,57 @@ first (`onBeforeMigrate` in `src/main/main.js`): it checkpoints the WAL, writes 
 `-premigration.mmhbackup`, reads it back with `verifyFile`, and a failure stops
 the migration. A failed migration rolls back; the database is never recreated.
 
+## Moving to the auto-updating version
+
+For a PC that already runs a hand-installed copy with real data. Do this once;
+after it, the PC updates itself.
+
+The new installer finds the existing data automatically, because the
+application identity is unchanged and pinned by `tests/electron/updates.test.js`:
+product name **Merit Marketing Hub** (so the data folder is still
+`%APPDATA%\Merit Marketing Hub`), Squirrel name **MeritMarketingHub**, Setup
+**MeritMarketingHub-Setup.exe**. Nothing below deletes data; the copies are a
+safety net in case something unexpected happens.
+
+1. **Make a backup inside the app.** Sign in as an administrator, open
+   **Settings › Database** and press **BACKUP**. Wait for "Backup created". The
+   file appears in the list below it (and in `%APPDATA%\Merit Marketing Hub\backups`).
+2. **Close the application completely** (check the taskbar / tray).
+3. **Copy the whole data folder somewhere else.** Press `Win+R`, type
+   `%APPDATA%\Merit Marketing Hub`, Enter. Go up one level and copy the
+   `Merit Marketing Hub` folder to a USB stick or another drive, e.g.
+   `D:\Merit-before-update\`. It contains `data\merit-marketing.sqlite3`,
+   `photos\`, `backups\` and `logs\`.
+4. **Install the new version.** Download `MeritMarketingHub-Setup.exe` from the
+   latest release on
+   `https://github.com/keremsaricicek/meritmarketing/releases/latest` and run it.
+   (Unsigned builds: SmartScreen shows "Windows protected your PC" → *More info*
+   → *Run anyway*.) You do not need to uninstall the old copy first; if the old
+   copy was a plain unzipped folder, you can delete that *program* folder
+   afterwards — never the `%APPDATA%\Merit Marketing Hub` folder.
+5. **Verify.** The app opens from the new Start-menu/desktop shortcut **without
+   asking for first-time setup**. Sign in with the usual account and check a few
+   guests, reservations and photos you know. In **Settings › Database** the
+   backup from step 1 is listed. If the app asks to create the first
+   administrator, stop: it is not seeing the old data — close it and see
+   "Restoring" below.
+6. From now on the PC checks GitHub ~60 s after start and every 4 hours, and
+   updates itself as described above.
+
+### Restoring if something went wrong
+
+- **The app opens and shows old/wrong data:** Settings › Database › *Restore*
+  next to the backup from step 1. A safety copy of the current state is taken
+  first.
+- **The app shows first-time setup, will not start, or the data is missing:**
+  close the app, open `%APPDATA%\`, rename the `Merit Marketing Hub` folder to
+  `Merit Marketing Hub.broken`, copy the folder saved in step 3 back as
+  `%APPDATA%\Merit Marketing Hub`, and start the app again.
+- **To go back to the old program entirely:** uninstall "Merit Marketing Hub"
+  from Windows Settings › Apps (this removes the program and shortcuts only; the
+  data folder stays), put the data folder back as above if needed, and run the
+  old program as before.
+
 ## What an update never does
 
 - Touch the database, photos, backups, logs or preferences
