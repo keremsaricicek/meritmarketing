@@ -12,10 +12,10 @@ function pagerHTML(containerId, page, pageSize, total, fnName){
   if (total <= pageSize){ node.innerHTML = ''; node.style.display = 'none'; return; }
   node.style.display = 'flex';
   node.innerHTML = `
-    <div class="pager-info">${from}–${to} of ${total}</div>
+    <div class="pager-info">${te('{from}–{to} of {total}', { from, to, total })}</div>
     <div class="pager-controls">
-      <button class="pager-btn" ${page <= 1 ? 'disabled' : ''} data-act="${fnName}" data-on="click" data-args='[${page - 1}]'>Previous</button>
-      <button class="pager-btn" ${page >= pages ? 'disabled' : ''} data-act="${fnName}" data-on="click" data-args='[${page + 1}]'>Next</button>
+      <button class="pager-btn" ${page <= 1 ? 'disabled' : ''} data-act="${fnName}" data-on="click" data-args='[${page - 1}]'>${te('Previous')}</button>
+      <button class="pager-btn" ${page >= pages ? 'disabled' : ''} data-act="${fnName}" data-on="click" data-args='[${page + 1}]'>${te('Next')}</button>
     </div>`;
 }
 
@@ -31,12 +31,12 @@ async function renderDashboard(){
   const d = await call(window.api.dashboard.load, { periodDays: state.dashPeriod });
   if (!d) return;
   const s = d.stats;
-  const periodLabel = DASH_PERIOD_LABEL[state.dashPeriod] || '30 Days';
+  const periodLabel = t(DASH_PERIOD_LABEL[state.dashPeriod] || '30 Days');
 
   const cells = [
     /* Every other KPI card uses act/actArgs; this one still carried a `go:`
        string the template never reads, so the card navigated nowhere. */
-    { l:'Total Guests',     n:s.totalGuests, sub:'ALL TIME',
+    { l:t('Total Guests'),     n:s.totalGuests, sub:t('ALL TIME'),
       ...(['ADMIN','MANAGER'].includes(state.session?.role)
         ? { act:'goCrmView', actArgs:['customerlist'] }
         : { act:'switchTab', actArgs:['customers'] }) },
@@ -45,20 +45,20 @@ async function renderDashboard(){
        value from dashboard.load, not a separately derived one. MARKETING has
        no business reason to see team-wide headcount. */
     ...(['ADMIN','MANAGER'].includes(state.session?.role)
-      ? [{ l:'Active Marketing', n:s.activeMarketing, sub:'CURRENT', act:'switchTab', actArgs:['profiles'] }] : []),
-    { l:'Reservations',     n:s.reservations, sub:periodLabel.toUpperCase(), act:'switchTab', actArgs:['reservations'] },
-    { l:'Upcoming Check-ins',  n:s.upcomingIn, sub:'UPCOMING', act:'goReservationsUpcoming', actArgs:[] },
-    { l:'Cold Guests',      n:s.cold, sub:'CURRENT', flag:s.cold > 0,        act:'goCustomersFiltered', actArgs:['COLD'] },
-    { l:'No Record',        n:s.noRecord, sub:'CURRENT', flag:s.noRecord > 0, act:'goCustomersFiltered', actArgs:['NO_RECORD'] }
+      ? [{ l:t('Active Marketing'), n:s.activeMarketing, sub:t('CURRENT'), act:'switchTab', actArgs:['profiles'] }] : []),
+    { l:t('Reservations'),     n:s.reservations, sub:upperLocale(periodLabel), act:'switchTab', actArgs:['reservations'] },
+    { l:t('Upcoming Check-ins'),  n:s.upcomingIn, sub:t('UPCOMING'), act:'goReservationsUpcoming', actArgs:[] },
+    { l:t('Cold Guests'),      n:s.cold, sub:t('CURRENT'), flag:s.cold > 0,        act:'goCustomersFiltered', actArgs:['COLD'] },
+    { l:t('No Record'),        n:s.noRecord, sub:t('CURRENT'), flag:s.noRecord > 0, act:'goCustomersFiltered', actArgs:['NO_RECORD'] }
   ];
   const band = el('statBand');
   band.style.gridTemplateColumns = `repeat(${cells.length},1fr)`;
   band.innerHTML = cells.map(c => `
     <div class="stat-cell" data-act="${c.act}" data-on="click" data-args='${JSON.stringify(c.actArgs || [])}'>
       <span class="kpi-arrow is-hidden"></span>
-      <div class="sc-l">${c.l}</div>
+      <div class="sc-l">${escapeHtml(c.l)}</div>
       <div class="sc-n">${c.n}${c.flag ? '<span class="sc-flag"></span>' : ''}</div>
-      <div class="sc-sub">${c.sub}</div>
+      <div class="sc-sub">${escapeHtml(c.sub)}</div>
     </div>`).join('');
 
   /* Dashboard always reloads fresh, so piggyback the No Record tab/submenu
@@ -77,7 +77,7 @@ async function renderDashboard(){
         <div class="lr-sub">${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
       </div>
       <div class="lr-right">${statusTagHTML(r.status)}</div>
-    </div>`).join('') : '<div class="panel-empty">No reservations yet</div>';
+    </div>`).join('') : `<div class="panel-empty">${te('No reservations yet')}</div>`;
 
   el('pendingCount').textContent = s.pending ?? d.pending.length;
   await resolvePhotos(d.pending.map(r => r.photo_name));
@@ -95,7 +95,7 @@ async function renderDashboard(){
         <div class="lr-sub">${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
       </div>
       <div class="lr-right"><span class="due-pill${tone}">${escapeHtml(due)}</span></div>
-    </div>`; }).join('') : '<div class="panel-empty">No pending reservations</div>';
+    </div>`; }).join('') : `<div class="panel-empty">${te('No pending reservations')}</div>`;
 
   /* one panel failing should never take the dashboard down with it */
   await Promise.allSettled([renderNotifications(), renderRolePanel(), renderGuestDashboardPanels(d)]);
@@ -105,9 +105,9 @@ async function renderDashboard(){
       <div class="lr-avatar"${avatarStyle(a.photo_name)}>${photoUrl(a.photo_name) ? '' : escapeHtml(initials(a.full_name))}</div>
       <div class="lr-main">
         <div class="lr-name">${escapeHtml(a.full_name)}</div>
-        <div class="lr-sub">${escapeHtml(a.reason)}${a.marketing_name ? ' · ' + escapeHtml(a.marketing_name) : ''}</div>
+        <div class="lr-sub">${te(a.reason)}${a.marketing_name ? ' · ' + escapeHtml(a.marketing_name) : ''}</div>
       </div>
-    </div>`).join('') : '<div class="panel-empty">Nothing needs attention</div>';
+    </div>`).join('') : `<div class="panel-empty">${te('Nothing needs attention')}</div>`;
 }
 /* How far away a pending stay is, computed here from its dates. The dashboard
    rows carry check_in/check_out only — reading a `days_away` field that the
@@ -119,10 +119,10 @@ function pendingDue(r, today = todayYMD()){
   if (!checkIn) return { label:'', days:Infinity };
   const days = daysBetween(today, checkIn);
   if (!Number.isFinite(days)) return { label:'', days:Infinity };
-  if (days < 0) return { label: checkOut && checkOut > today ? 'in house' : 'overdue', days:0 };
-  if (days === 0) return { label:'today', days };
-  if (days === 1) return { label:'tomorrow', days };
-  return { label:`in ${days} days`, days };
+  if (days < 0) return { label: checkOut && checkOut > today ? t('in house') : t('overdue'), days:0 };
+  if (days === 0) return { label:t('today'), days };
+  if (days === 1) return { label:t('tomorrow'), days };
+  return { label:t('in {n} days', { n: days }), days };
 }
 /* Requires Attention identifies what needs a look and opens the guest on
    click — it is not an action-button wall; the actual actions (add
@@ -137,12 +137,12 @@ async function renderRolePanel(){
   const role = state.session?.role;
 
   if (role === 'MARKETING'){
-    if (head) head.textContent = 'Needs A Call';
+    if (head) head.textContent = t('Needs A Call');
     if (col) col.style.display = 'none';
     col?.closest('.dash-grid')?.classList.remove('has-rank');
     return;
   }
-  if (head) head.textContent = 'Requires Attention';
+  if (head) head.textContent = t('Requires Attention');
   if (!rank || !col) return;
   col.style.display = '';
   col.closest('.dash-grid')?.classList.add('has-rank');
@@ -158,7 +158,7 @@ async function renderRolePanel(){
   const max = Math.max(1, ...ranked.map(r => r[1]));
 
   const title = el('rankPanelTitle');
-  if (title) title.textContent = `Marketing — ${DASH_PERIOD_LABEL[period] || '30 Days'}`;
+  if (title) title.textContent = `${t('Marketing')} — ${t(DASH_PERIOD_LABEL[period] || '30 Days')}`;
   rank.innerHTML = ranked.length ? ranked.map(([name, n], i) => `
     <div class="rank-row">
       <div class="rank-pos">${i + 1}</div>
@@ -166,7 +166,7 @@ async function renderRolePanel(){
       <div class="rank-bar"><div class="rank-fill" data-bar-width="${Math.round(n / max * 100)}"></div></div>
       <div class="rank-val">${n}</div>
     </div>`).join('')
-    : emptyState({ icon:'check', title:'No activity in this period' });
+    : emptyState({ icon:'check', title:t('No activity in this period') });
 }
 /* ADMIN/MANAGER-only: recently created customer records, independent of
    the now-removed NEW status (spec §18) — driven by created_at, not a
@@ -186,7 +186,7 @@ async function renderNewGuestsPanel(){
         <div class="lr-sub">#${escapeHtml(c.code)}</div>
       </div>
       <div class="lr-right muted">${c.marketing_name ? escapeHtml(c.marketing_name) : '—'}</div>
-    </div>`).join('') : '<div class="panel-empty">No new guests yet</div>';
+    </div>`).join('') : `<div class="panel-empty">${te('No new guests yet')}</div>`;
 }
 
 async function goCustomersFiltered(code){
@@ -294,8 +294,8 @@ function setResView(view){
   renderReservations();
 }
 function fillFilterProfileSelects(){
-  const opts = '<option value="">Anyone</option>' +
-    state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}${p.employment_status === 'inactive' ? ' (inactive)' : ''}</option>`).join('');
+  const opts = `<option value="">${te('Anyone')}</option>` +
+    state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}${p.employment_status === 'inactive' ? ` (${te('inactive')})` : ''}</option>`).join('');
   const a = el('resFInvited'); if (a){ const v = a.value; a.innerHTML = opts; a.value = v; }
   const b = el('custFMarketing'); if (b){ const v = b.value; b.innerHTML = opts; b.value = v; }
 }
@@ -349,14 +349,14 @@ async function renderReservations(){
   const cancelledView = s.view === 'cancelled';
   /* The column holds the deletion reason in this view, so it says so. */
   const notesHeader = el('resNotesHeader');
-  if (notesHeader) notesHeader.textContent = deletedView ? 'DELETION REASON' : 'NOTES';
+  if (notesHeader) notesHeader.textContent = deletedView ? t('DELETION REASON') : t('NOTES');
 
   /* A deleted booking is a record of something that was undone. It carries who
      removed it, when, and why — and it offers no actions, because editing or
      cancelling a reservation that is no longer operational is meaningless. */
   if (deletedView){
     tbody.innerHTML = data.rows.length ? data.rows.map(r => `
-      <tr tabindex="0" aria-label="${escapeHtml(r.customer_name)}, deleted reservation">
+      <tr tabindex="0" aria-label="${escapeHtml(r.customer_name)}, ${te('deleted reservation')}">
         <td class="muted">#${escapeHtml(r.customer_code)}</td>
         <td>${escapeHtml(r.customer_name)}</td>
         <td>${fmtDate(r.check_in)}</td>
@@ -366,37 +366,37 @@ async function renderReservations(){
         <td>
           <div class="status-cell">
             ${statusTagHTML('DELETED')}
-            <span class="deleted-meta">${escapeHtml(r.deleted_by_username || 'unknown')} · ${fmtDateTime(r.deleted_at)}</span>
+            <span class="deleted-meta">${escapeHtml(r.deleted_by_username || t('unknown'))} · ${fmtDateTime(r.deleted_at)}</span>
           </div>
         </td>
       </tr>`).join('')
       : emptyRow(7, s.search
-          ? emptyState({ icon:'search', title:'Nothing matched that search',
-              text:`No deleted reservation matches “${s.search}”.`,
-              actions:[{ label:'Clear search', act:'clearSearchAnd', actArgs:['resSearch','onResSearch'] }] })
-          : emptyState({ icon:'check', title:'No deleted reservations',
-              text:'Reservations an administrator deletes are kept here, with the reason and who removed them.' }));
+          ? emptyState({ icon:'search', title:t('Nothing matched that search'),
+              text:t('No deleted reservation matches “{q}”.', { q: s.search }),
+              actions:[{ label:t('Clear search'), act:'clearSearchAnd', actArgs:['resSearch','onResSearch'] }] })
+          : emptyState({ icon:'check', title:t('No deleted reservations'),
+              text:t('Reservations an administrator deletes are kept here, with the reason and who removed them.') }));
     pagerHTML('resPager', s.page, s.pageSize, s.total, 'goResPage');
     return;
   }
   tbody.innerHTML = data.rows.length ? data.rows.map(r => `
-    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${r.customer_id},"resDetailPanel"]' data-act-dblclick="openReservationModal" data-args-dblclick='[${r.id}]' aria-label="${escapeHtml(r.customer_name)}, ${fmtDate(r.check_in)} to ${fmtDate(r.check_out)}">
+    <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${r.customer_id},"resDetailPanel"]' data-act-dblclick="openReservationModal" data-args-dblclick='[${r.id}]' aria-label="${escapeHtml(r.customer_name)}, ${te('{from} to {to}', { from: fmtDate(r.check_in), to: fmtDate(r.check_out) })}">
       <td class="muted">#${escapeHtml(r.customer_code)}</td>
       <td>${escapeHtml(r.customer_name)}</td>
       <td>${fmtDate(r.check_in)}</td>
       <td>${fmtDate(r.check_out)}</td>
       <td>${invitedByHTML(r.invited_by_name, r.invited_by_status)}</td>
-      <td class="muted">${r.status === 'CANCELLED' && r.cancellation_reason ? 'Cancelled — ' + escapeHtml(r.cancellation_reason)
+      <td class="muted">${r.status === 'CANCELLED' && r.cancellation_reason ? te('Cancelled') + ' — ' + escapeHtml(r.cancellation_reason)
         : r.reservation_note ? escapeHtml(r.reservation_note) : '—'}</td>
       <td>
         <div class="status-cell">
           ${statusTagHTML(r.status)}
           <div class="row-actions">
-            <button class="ra-btn" title="Edit" data-act="rowEditReservation" data-on="click" data-args='[${r.id}]'>
+            <button class="ra-btn" title="${te('Edit')}" data-act="rowEditReservation" data-on="click" data-args='[${r.id}]'>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
             ${!cancelledView ? `
-            <button class="ra-btn danger" title="Cancel reservation" data-act="rowCancelReservation" data-on="click" data-args='[${r.id}]'>
+            <button class="ra-btn danger" title="${te('Cancel reservation')}" data-act="rowCancelReservation" data-on="click" data-args='[${r.id}]'>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
             </button>` : ''}
           </div>
@@ -404,15 +404,15 @@ async function renderReservations(){
       </td>
     </tr>`).join('')
     : emptyRow(7, s.search
-        ? emptyState({ icon:'search', title:'Nothing matched that search',
-            text:`No reservation matches “${s.search}”.`,
-            actions:[{ label:'Clear search', act:'clearSearchAnd', actArgs:['resSearch','onResSearch'] }] })
+        ? emptyState({ icon:'search', title:t('Nothing matched that search'),
+            text:t('No reservation matches “{q}”.', { q: s.search }),
+            actions:[{ label:t('Clear search'), act:'clearSearchAnd', actArgs:['resSearch','onResSearch'] }] })
         : cancelledView
-          ? emptyState({ icon:'check', title:'No cancelled reservations',
-              text:'Cancelled reservations will appear here.' })
-          : emptyState({ icon:'calendar', title:'No reservations yet',
-              text:'Reservations you create will appear here.',
-              actions:[{ label:'New Reservation', act:'openReservationModal', actArgs:[], primary:true }] }));
+          ? emptyState({ icon:'check', title:t('No cancelled reservations'),
+              text:t('Cancelled reservations will appear here.') })
+          : emptyState({ icon:'calendar', title:t('No reservations yet'),
+              text:t('Reservations you create will appear here.'),
+              actions:[{ label:t('New Reservation'), act:'openReservationModal', actArgs:[], primary:true }] }));
   pagerHTML('resPager', s.page, s.pageSize, s.total, 'goResPage');
 }
 
@@ -445,12 +445,12 @@ async function confirmCancelReservation(){
      literal word "Other" (spec §14) */
   if (picked === 'Other'){
     const custom = el('cancelResOtherText').value.trim();
-    if (!custom){ showFieldError('cancelResOtherText', 'Describe the reason, or pick one of the listed options instead.'); return; }
+    if (!custom){ showFieldError('cancelResOtherText', t('Describe the reason, or pick one of the listed options instead.')); return; }
   }
   const reason = picked === 'Other' ? el('cancelResOtherText').value.trim() : (picked || undefined);
   const r = await call(window.api.reservations.cancel, { id:cancellingReservationId, reason });
   if (r){
-    toast('success','Reservation cancelled');
+    toast('success',t('Reservation cancelled'));
     closeModal('modalCancelReservation');
     if (el('modalReservation').classList.contains('show')) closeModal('modalReservation');
     const customerId = cancellingReservationCustomerId;
@@ -470,7 +470,7 @@ async function openDeleteReservationModal(id){
   if (!r) return;
   deletingReservationCustomerId = r.customer_id;
   el('deleteResSummary').textContent = `${r.customer_name} · ${fmtDate(r.check_in)} — ${fmtDate(r.check_out)}`;
-  el('deleteResStatusLine').innerHTML = `Current status: ${statusTagHTML(r.status)}`;
+  el('deleteResStatusLine').innerHTML = `${te('Current status:')} ${statusTagHTML(r.status)}`;
   el('deleteResReason').value = '';
   el('deleteResReasonError').textContent = '';
   el('deleteResReasonError').classList.remove('show');
@@ -482,14 +482,14 @@ async function confirmDeleteReservation(){
      later, so the service requires one and the form must collect it. */
   const reason = el('deleteResReason').value.trim();
   if (!reason){
-    el('deleteResReasonError').textContent = 'Give a reason so the record explains itself later.';
+    el('deleteResReasonError').textContent = t('Give a reason so the record explains itself later.');
     el('deleteResReasonError').classList.add('show');
     el('deleteResReason').focus();
     return;
   }
   const r = await call(window.api.reservations.delete, { id:deletingReservationId, reason });
   if (r){
-    toast('success','Reservation permanently deleted');
+    toast('success',t('Reservation permanently deleted'));
     closeModal('modalDeleteReservation');
     if (el('modalReservation').classList.contains('show')) closeModal('modalReservation');
     const customerId = deletingReservationCustomerId;
@@ -579,7 +579,7 @@ async function refreshReservationViews(customerId){
    and by whom, then how many more there are. A count alone said nothing. */
 function latestNoteHTML(c){
   if (!c.note_count || !c.last_note_text) return '<span class="muted">—</span>';
-  const more = c.note_count > 1 ? ` · <span class="note-more">+${c.note_count - 1} more</span>` : '';
+  const more = c.note_count > 1 ? ` · <span class="note-more">${te('+{n} more', { n: c.note_count - 1 })}</span>` : '';
   const when = c.last_note_at ? fmtDateTime(c.last_note_at) : fmtDate(c.last_note_date);
   return `<div class="note-line" title="${escapeHtml(c.last_note_text)}">${escapeHtml(c.last_note_text)}</div>
     <div class="note-meta">${escapeHtml(when)}${c.last_note_by ? ' · ' + escapeHtml(c.last_note_by) : ''}${more}</div>`;
@@ -609,10 +609,10 @@ async function renderCustomers(){
           ${statusTagHTML(c.status)}
           ${canAssign() ? `
             <span class="row-menu-wrap">
-              <button class="row-dots" data-act="toggleRowMenu" data-on="click" data-args='["rowMenu_${c.id}",{"$":"event"}]' aria-label="More actions for ${escapeHtml(c.full_name)}" aria-haspopup="true">⋯</button>
+              <button class="row-dots" data-act="toggleRowMenu" data-on="click" data-args='["rowMenu_${c.id}",{"$":"event"}]' aria-label="${te('More actions for {name}', { name: c.full_name })}" aria-haspopup="true">⋯</button>
               <div class="row-menu" id="rowMenu_${c.id}" role="menu">
-                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="openAssignModal" data-on="click" data-args='[${c.id},{"$":"event"}]'>ASSIGN</div>
-                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="rowEditCustomer" data-on="click" data-args='[${c.id}]'>EDIT</div>
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="openAssignModal" data-on="click" data-args='[${c.id},{"$":"event"}]'>${te('ASSIGN')}</div>
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="rowEditCustomer" data-on="click" data-args='[${c.id}]'>${te('EDIT')}</div>
               </div>
             </span>` : ''}
         </div>
@@ -620,16 +620,16 @@ async function renderCustomers(){
       <td class="muted n mod-cell">${fmtDate(c.updated_at)}<div class="note-meta">${escapeHtml(fmtDateTime(c.updated_at).slice(11))}</div></td>
     </tr>`).join('')
     : emptyRow(7, (s.status || s.marketing || s.tagId) && !s.search
-        ? emptyState({ icon:'search', title:'No guests match the active filters',
-            actions:[{ label:'Clear filters', act:'clearCustFilters', actArgs:[] }] })
+        ? emptyState({ icon:'search', title:t('No guests match the active filters'),
+            actions:[{ label:t('Clear filters'), act:'clearCustFilters', actArgs:[] }] })
         : s.search
-        ? emptyState({ icon:'search', title:'No matching guests',
-            text:`Nothing matches “${s.search}”.`,
-            actions:[{ label:'Clear search', act:'clearSearchAnd', actArgs:['custSearch','onCustSearch'] },
-                     { label:'New Customer', act:'openCustomerModal', actArgs:[], primary:true }] })
-        : emptyState({ icon:'guests', title:'No guests yet',
-            text:'Register a guest to start building the book.',
-            actions:[{ label:'New Customer', act:'openCustomerModal', actArgs:[], primary:true }] }));
+        ? emptyState({ icon:'search', title:t('No matching guests'),
+            text:t('Nothing matches “{q}”.', { q: s.search }),
+            actions:[{ label:t('Clear search'), act:'clearSearchAnd', actArgs:['custSearch','onCustSearch'] },
+                     { label:t('New Customer'), act:'openCustomerModal', actArgs:[], primary:true }] })
+        : emptyState({ icon:'guests', title:t('No guests yet'),
+            text:t('Register a guest to start building the book.'),
+            actions:[{ label:t('New Customer'), act:'openCustomerModal', actArgs:[], primary:true }] }));
   pagerHTML('custPager', s.page, s.pageSize, s.total, 'goCustPage');
   bulkAfterRender('overview', data.rows);
 }
@@ -650,8 +650,8 @@ function sortList(col){
   renderCustomerList();
 }
 function fillListFilterSelects(){
-  const opts = '<option value="">Anyone</option>' +
-    state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}${p.employment_status === 'inactive' ? ' (inactive)' : ''}</option>`).join('');
+  const opts = `<option value="">${te('Anyone')}</option>` +
+    state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}${p.employment_status === 'inactive' ? ` (${te('inactive')})` : ''}</option>`).join('');
   const a = el('listFCreatedBy'); if (a){ const v = a.value; a.innerHTML = opts; a.value = v; }
   const b = el('listFAssignedTo'); if (b){ const v = b.value; b.innerHTML = opts; b.value = v; }
 }
@@ -702,11 +702,11 @@ async function renderCustomerList(){
       <td class="muted">${fmtDate(c.created_at)}</td>
     </tr>`).join('')
     : emptyRow(7, q || s.status || s.createdBy || s.assignedTo || s.tagId || s.hasReservation || s.hasCrm || s.createdFrom || s.createdTo
-        ? emptyState({ icon:'search', title:'No guests match the active filters',
-            actions:[{ label:'Clear filters', act:'clearListFiltersAndSearch', actArgs:[] }] })
-        : emptyState({ icon:'guests', title:'No guests registered yet',
-            text:'Everyone added through New Customer shows up here.',
-            actions:[{ label:'New Customer', act:'openCustomerModal', actArgs:[], primary:true }] }));
+        ? emptyState({ icon:'search', title:t('No guests match the active filters'),
+            actions:[{ label:t('Clear filters'), act:'clearListFiltersAndSearch', actArgs:[] }] })
+        : emptyState({ icon:'guests', title:t('No guests registered yet'),
+            text:t('Everyone added through New Customer shows up here.'),
+            actions:[{ label:t('New Customer'), act:'openCustomerModal', actArgs:[], primary:true }] }));
   bulkAfterRender('customerlist', data.rows);
 }
 
@@ -723,7 +723,7 @@ async function renderNoRecord(){
   const canAssignHere = ['ADMIN','MANAGER'].includes(state.session?.role);
 
   el('norecTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
-    <tr class="clickable" tabindex="0" data-act="openCustomerModal" data-on="dblclick" data-args='[${c.id}]' data-act-keydown="enterOpensCustomer" data-args-keydown='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. Press Enter to open.">
+    <tr class="clickable" tabindex="0" data-act="openCustomerModal" data-on="dblclick" data-args='[${c.id}]' data-act-keydown="enterOpensCustomer" data-args-keydown='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}. ${te('Press Enter to open.')}">
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${c.phone ? escapeHtml(c.phone) : '—'}</td>
@@ -731,24 +731,24 @@ async function renderNoRecord(){
       <td class="muted">${fmtDate(c.created_at)}</td>
       <td>
         <div class="status-cell">
-          ${c.marketing_name ? invitedByHTML(c.marketing_name, c.marketing_status) : '<span class="muted">unassigned</span>'}
+          ${c.marketing_name ? invitedByHTML(c.marketing_name, c.marketing_status) : `<span class="muted">${te('unassigned')}</span>`}
           ${canAssignHere ? `
             <span class="row-menu-wrap">
-              <button class="row-dots" data-act="toggleRowMenu" data-on="click" data-args='["norecMenu_${c.id}",{"$":"event"}]' aria-label="More actions for ${escapeHtml(c.full_name)}" aria-haspopup="true">⋯</button>
+              <button class="row-dots" data-act="toggleRowMenu" data-on="click" data-args='["norecMenu_${c.id}",{"$":"event"}]' aria-label="${te('More actions for {name}', { name: c.full_name })}" aria-haspopup="true">⋯</button>
               <div class="row-menu" id="norecMenu_${c.id}" role="menu">
-                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="openAssignModal" data-on="click" data-args='[${c.id},{"$":"event"}]'>ASSIGN</div>
-                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="rowEditCustomer" data-on="click" data-args='[${c.id}]'>EDIT</div>
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="openAssignModal" data-on="click" data-args='[${c.id},{"$":"event"}]'>${te('ASSIGN')}</div>
+                <div class="row-menu-item" role="menuitem" tabindex="0" data-activatable data-act="rowEditCustomer" data-on="click" data-args='[${c.id}]'>${te('EDIT')}</div>
               </div>
             </span>` : ''}
         </div>
       </td>
     </tr>`).join('')
     : emptyRow(6, q
-        ? emptyState({ icon:'search', title:'No matching guests',
-            actions:[{ label:'Clear search', act:'clearSearchAnd', actArgs:['norecSearch','onNorecSearch'] }] })
-        : emptyState({ icon:'check', title:'Every guest has activity',
-            text:'Nobody is sitting untouched right now.',
-            actions:[{ label:'Open Overview', act:'setCrmView', actArgs:['overview'] }] }));
+        ? emptyState({ icon:'search', title:t('No matching guests'),
+            actions:[{ label:t('Clear search'), act:'clearSearchAnd', actArgs:['norecSearch','onNorecSearch'] }] })
+        : emptyState({ icon:'check', title:t('Every guest has activity'),
+            text:t('Nobody is sitting untouched right now.'),
+            actions:[{ label:t('Open Overview'), act:'setCrmView', actArgs:['overview'] }] }));
 
   const badge = el('norecBadge');
   if (badge){ badge.textContent = data.total; badge.classList.toggle('has', data.total > 0); badge.classList.toggle('show', data.total > 0); }
@@ -765,7 +765,7 @@ function toggleGuestExpand(panelId, btn){
   if (!node) return;
   const open = node.classList.toggle('open');
   btn.classList.toggle('open', open);
-  btn.querySelector('.et-label').textContent = open ? 'HIDE DETAILS' : 'SHOW DETAILS';
+  btn.querySelector('.et-label').textContent = open ? t('HIDE DETAILS') : t('SHOW DETAILS');
 }
 
 async function showCustomerDetail(customerId, panelId){
@@ -782,10 +782,10 @@ async function showCustomerDetail(customerId, panelId){
   try { c = await call(window.api.customers.get, { id: customerId }, { silent:true }); }
   catch (e){
     panel.classList.add('empty');
-    panel.innerHTML = e.code === 'FORBIDDEN' ? 'This guest is no longer assigned to you.' : 'Guest could not be loaded.';
+    panel.textContent = e.code === 'FORBIDDEN' ? t('This guest is no longer assigned to you.') : t('Guest could not be loaded.');
     delete panel.dataset.customerId; return;
   }
-  if (!c){ panel.classList.add('empty'); panel.innerHTML = 'Guest not found.'; delete panel.dataset.customerId; return; }
+  if (!c){ panel.classList.add('empty'); panel.textContent = t('Guest not found.'); delete panel.dataset.customerId; return; }
 
   /* Reservations and Cancelled are two views of one dataset everywhere
      else in the app (spec §6/§41) — the guest inspector's history must be
@@ -809,27 +809,27 @@ async function showCustomerDetail(customerId, panelId){
   const staysHTML = stays.length ? stays.map(r => `
     <div class="rz-item">
       <div class="rz-dates"><span>${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</span>${statusTagHTML(r.status)}</div>
-      <div class="rz-meta">Invited By: ${invitedByHTML(r.invited_by_name, r.invited_by_status)}</div>
-      ${r.status === 'CANCELLED' && r.cancellation_reason ? `<div class="rz-note">Cancelled — “${escapeHtml(r.cancellation_reason)}”</div>`
+      <div class="rz-meta">${te('Invited By:')} ${invitedByHTML(r.invited_by_name, r.invited_by_status)}</div>
+      ${r.status === 'CANCELLED' && r.cancellation_reason ? `<div class="rz-note">${te('Cancelled')} — “${escapeHtml(r.cancellation_reason)}”</div>`
         : r.reservation_note ? `<div class="rz-note">“${escapeHtml(r.reservation_note)}”</div>` : ''}
     </div>`).join('')
-    : emptyState({ icon:'calendar', title:'No stays yet',
-        actions:[{ label:'New reservation', act:'openReservationModal', actArgs:[null, c.id], primary:true }] });
+    : emptyState({ icon:'calendar', title:t('No stays yet'),
+        actions:[{ label:t('New reservation'), act:'openReservationModal', actArgs:[null, c.id], primary:true }] });
 
   const notesHTML = noteList.length ? `<div class="crm-note-list">${sortNotesNewestFirst(noteList).map(crmNoteCardHTML).join('')}</div>`
-    : emptyState({ icon:'check', title:'No CRM notes',
-        actions:[{ label:'Add note', act:'openCrmNoteModal', actArgs:[c.id], primary:true }] });
+    : emptyState({ icon:'check', title:t('No CRM notes'),
+        actions:[{ label:t('Add note'), act:'openCrmNoteModal', actArgs:[c.id], primary:true }] });
 
   /* everything that ever happened to this guest, newest first */
   const events = [
     ...stays.map(r => ({ when:r.check_in, kind:'res',
-      title:`Stay ${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}`,
-      body:[r.invited_by_name ? 'Invited by ' + r.invited_by_name : '', r.reservation_note || '']
+      title:`${t('Stay')} ${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}`,
+      body:[r.invited_by_name ? t('Invited by {name}', { name: r.invited_by_name }) : '', r.reservation_note || '']
             .filter(Boolean).join(' · ') })),
     ...noteList.map(n => ({ when:n.note_date, kind:'note',
-      title:'CRM note' + ((n.created_by_name || n.created_by_username) ? ' · ' + (n.created_by_name || n.created_by_username) : ''), body:n.note })),
-    { when:(c.created_at || '').slice(0,10), kind:'assign', title:'Registered',
-      body:`Added to the system as #${c.code}` }
+      title:t('CRM note') + ((n.created_by_name || n.created_by_username) ? ' · ' + (n.created_by_name || n.created_by_username) : ''), body:n.note })),
+    { when:(c.created_at || '').slice(0,10), kind:'assign', title:t('Registered'),
+      body:t('Added to the system as #{code}', { code: c.code }) }
   ].filter(e => e.when).sort((a,b) => String(b.when).localeCompare(String(a.when)));
 
   const timelineHTML = events.length ? `<div class="timeline">${events.map(e => `
@@ -839,7 +839,7 @@ async function showCustomerDetail(customerId, panelId){
       <div class="tl-title">${escapeHtml(e.title)}</div>
       ${e.body ? `<div class="tl-body">${escapeHtml(e.body)}</div>` : ''}
     </div>`).join('')}</div>`
-    : emptyState({ icon:'check', title:'Nothing has happened yet' });
+    : emptyState({ icon:'check', title:t('Nothing has happened yet') });
 
   /* a booked future stay is not activity that already happened */
   const lastActivity = events.find(e => String(e.when).slice(0, 10) <= todayYMD())?.when || null;
@@ -854,28 +854,28 @@ async function showCustomerDetail(customerId, panelId){
   const overviewHTML = `
     ${remindersHTML(reminders, c.id)}
     ${guestNoteHTML(c)}
-    <div class="pane-head"><div class="pane-title">CRM notes · newest first</div>
+    <div class="pane-head"><div class="pane-title">${te('CRM notes · newest first')}</div>
       ${sortedNotes.length ? `<span class="muted gi-count">${sortedNotes.length}</span>` : ''}</div>
     ${canNote ? noteComposerHTML(c.id, `${uid}_composer`, false) : ''}
     ${crmNoteListHTML(sortedNotes, { limit:3, uid })}
-    ${nextStay ? `<div class="pane-title mt-4">Next stay</div>
+    ${nextStay ? `<div class="pane-title mt-4">${te('Next stay')}</div>
       <div class="rz-item"><div class="rz-dates"><span>${fmtDate(nextStay.check_in)} – ${fmtDate(nextStay.check_out)}</span>${statusTagHTML(nextStay.status)}</div></div>` : ''}
-    <div class="pane-title mt-4">Details</div>
+    <div class="pane-title mt-4">${te('Details')}</div>
     <div class="gi-facts">
-      <div class="gc-field"><div class="gf-l">Phone</div><div class="gf-v">${c.phone ? escapeHtml(c.phone) : '—'}</div></div>
-      <div class="gc-field"><div class="gf-l">Email</div><div class="gf-v">${c.email ? escapeHtml(c.email) : '—'}</div></div>
-      <div class="gc-field"><div class="gf-l">Created by</div><div class="gf-v">${escapeHtml(c.created_by_label)}</div></div>
-      <div class="gc-field"><div class="gf-l">Assigned to</div><div class="gf-v">${invitedByHTML(c.marketing_name, c.marketing_status)}</div></div>
-      <div class="gc-field"><div class="gf-l">Registered</div><div class="gf-v">${fmtDate(c.created_at)}</div></div>
-      <div class="gc-field"><div class="gf-l">Last activity</div><div class="gf-v">${lastActivity ? fmtDate(lastActivity) : '—'}</div></div>
+      <div class="gc-field"><div class="gf-l">${te('Phone')}</div><div class="gf-v">${c.phone ? escapeHtml(c.phone) : '—'}</div></div>
+      <div class="gc-field"><div class="gf-l">${te('Email')}</div><div class="gf-v">${c.email ? escapeHtml(c.email) : '—'}</div></div>
+      <div class="gc-field"><div class="gf-l">${te('Created by')}</div><div class="gf-v">${escapeHtml(c.created_by_label)}</div></div>
+      <div class="gc-field"><div class="gf-l">${te('Assigned to')}</div><div class="gf-v">${invitedByHTML(c.marketing_name, c.marketing_status)}</div></div>
+      <div class="gc-field"><div class="gf-l">${te('Registered')}</div><div class="gf-v">${fmtDate(c.created_at)}</div></div>
+      <div class="gc-field"><div class="gf-l">${te('Last activity')}</div><div class="gf-v">${lastActivity ? fmtDate(lastActivity) : '—'}</div></div>
       ${datesSummaryHTML(c)}
     </div>
-    ${can1('customers.update') ? `<button class="btn-link mt-2" data-act="openDatesModal" data-on="click" data-args='[${c.id}]'>${c.birth_date || (c.special_dates || []).length ? 'Edit dates' : 'Add birthday or special date'}</button>` : ''}`;
+    ${can1('customers.update') ? `<button class="btn-link mt-2" data-act="openDatesModal" data-on="click" data-args='[${c.id}]'>${c.birth_date || (c.special_dates || []).length ? te('Edit dates') : te('Add birthday or special date')}</button>` : ''}`;
 
   const statusM = statusMeta(c.status);
   panel.classList.remove('empty', 'collapsed');
   panel.innerHTML = `
-    <button class="dp-rail" data-act="toggleDetailPanel" data-on="click" data-args='["${panelId}"]' title="Expand" aria-label="Expand guest panel">
+    <button class="dp-rail" data-act="toggleDetailPanel" data-on="click" data-args='["${panelId}"]' title="${te('Expand')}" aria-label="${te('Expand guest panel')}">
       <span class="dp-rail-toggle">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
       </span>
@@ -891,26 +891,26 @@ async function showCustomerDetail(customerId, panelId){
         ${guestTagsRowHTML(c)}
       </div>
       <div class="dh-tools">
-        <button class="btn btn-outline btn-sm" data-act="openGuestPage" data-on="click" data-args='[${c.id}]' title="Open the full guest record">Full record</button>
-        <button class="detail-collapse-btn" data-act="toggleDetailPanel" data-on="click" data-args='["${panelId}"]' title="Collapse" aria-label="Collapse guest panel">
+        <button class="btn btn-outline btn-sm" data-act="openGuestPage" data-on="click" data-args='[${c.id}]' title="${te('Open the full guest record')}">${te('Full record')}</button>
+        <button class="detail-collapse-btn" data-act="toggleDetailPanel" data-on="click" data-args='["${panelId}"]' title="${te('Collapse')}" aria-label="${te('Collapse guest panel')}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
         </button>
       </div>
     </div>
     ${guestActionsHTML(c, 'gi-actions-bar')}
     <div class="card-tabs" id="${uid}_tabs">
-      <button class="card-tab active" data-act="switchCardTab" data-on="click" data-args='["${uid}","overview",{"$":"this"}]'>Overview</button>
-      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","stays",{"$":"this"}]'>Stays<span class="ct-count">${stays.length}</span></button>
-      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","notes",{"$":"this"}]'>CRM notes<span class="ct-count">${noteList.length}</span></button>
-      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","timeline",{"$":"this"}]'>Activity</button>
+      <button class="card-tab active" data-act="switchCardTab" data-on="click" data-args='["${uid}","overview",{"$":"this"}]'>${te('card.overview')}</button>
+      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","stays",{"$":"this"}]'>${te('card.stays')}<span class="ct-count">${stays.length}</span></button>
+      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","notes",{"$":"this"}]'>${te('card.notes')}<span class="ct-count">${noteList.length}</span></button>
+      <button class="card-tab" data-act="switchCardTab" data-on="click" data-args='["${uid}","timeline",{"$":"this"}]'>${te('card.activity')}</button>
     </div>
     <div class="card-body-scroll">
       <div class="card-pane active" id="${uid}_overview">${overviewHTML}</div>
       <div class="card-pane" id="${uid}_stays">${staysHTML}</div>
       <div class="card-pane" id="${uid}_notes">
         <div class="pane-head">
-          <div class="pane-title">${noteList.length} note${noteList.length === 1 ? '' : 's'}</div>
-          ${canNote ? `<button class="btn btn-outline btn-sm" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]'>Add note</button>` : ''}
+          <div class="pane-title">${escapeHtml(tn(noteList.length, '{n} note', '{n} notes'))}</div>
+          ${canNote ? `<button class="btn btn-outline btn-sm" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]'>${te('Add note')}</button>` : ''}
         </div>
         ${notesHTML}
       </div>
@@ -928,14 +928,14 @@ function sortNotesNewestFirst(notes){
 function guestNoteHTML(c){
   const text = (c.notes || '').trim();
   if (!text) return '';
-  return `<div class="guest-note"><span class="gn-label">Guest note</span><span class="gn-text">${escapeHtml(text)}</span></div>`;
+  return `<div class="guest-note"><span class="gn-label">${te('Guest note')}</span><span class="gn-text">${escapeHtml(text)}</span></div>`;
 }
 function guestActionsHTML(c, cls){
   const btns = [
-    can1('crmNotes.create') ? `<button class="btn btn-gold btn-sm" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]' title="Add a CRM note">Add note</button>` : '',
-    can1('reservations.create') ? `<button class="btn btn-outline btn-sm" data-act="openReservationModal" data-on="click" data-args='[null,${c.id}]' title="Add a reservation">Reservation</button>` : '',
-    can1('customers.update') ? `<button class="btn btn-outline btn-sm" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]' title="Edit guest">Edit</button>` : '',
-    canAssign() ? `<button class="btn btn-outline btn-sm" data-act="openAssignModal" data-on="click" data-args='[${c.id}]' title="Reassign this guest">Reassign</button>` : ''
+    can1('crmNotes.create') ? `<button class="btn btn-gold btn-sm" data-act="openCrmNoteModal" data-on="click" data-args='[${c.id}]' title="${te('Add a CRM note')}">${te('Add note')}</button>` : '',
+    can1('reservations.create') ? `<button class="btn btn-outline btn-sm" data-act="openReservationModal" data-on="click" data-args='[null,${c.id}]' title="${te('Add a reservation')}">${te('Reservation')}</button>` : '',
+    can1('customers.update') ? `<button class="btn btn-outline btn-sm" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]' title="${te('Edit guest')}">${te('Edit')}</button>` : '',
+    canAssign() ? `<button class="btn btn-outline btn-sm" data-act="openAssignModal" data-on="click" data-args='[${c.id}]' title="${te('Reassign this guest')}">${te('Reassign')}</button>` : ''
   ].filter(Boolean);
   return btns.length ? `<div class="${cls}">${btns.join('')}</div>` : '';
 }
@@ -943,42 +943,42 @@ const noteCache = new Map();
 function crmNoteCardHTML(n){
   const when = n.created_at ? fmtDateTime(n.created_at) : fmtDate(n.note_date);
   const dateLabel = n.note_date && n.created_at && n.note_date !== String(n.created_at).slice(0, 10)
-    ? `${fmtDate(n.note_date)} · written ${when}` : when;
+    ? `${fmtDate(n.note_date)} · ${t('written {when}', { when })}` : when;
   if (n.id) noteCache.set(Number(n.id), n);
   return `<div class="crm-note">
-    <div class="cn-meta"><b>${escapeHtml(n.created_by_name || n.created_by_username || 'Unknown')}</b><span>${escapeHtml(dateLabel)}</span>
-      ${n.remind_on ? `<span class="cn-remind" title="Follow-up reminder">Reminder ${escapeHtml(fmtDate(n.remind_on))}</span>` : ''}
-      ${n.id ? `<button type="button" class="btn-link cn-edit" data-act="openCrmNoteEdit" data-on="click" data-args='[${Number(n.id)}]' aria-label="Edit this note">Edit</button>` : ''}</div>
+    <div class="cn-meta"><b>${escapeHtml(n.created_by_name || n.created_by_username || t('Unknown'))}</b><span>${escapeHtml(dateLabel)}</span>
+      ${n.remind_on ? `<span class="cn-remind" title="${te('Follow-up reminder')}">${te('Reminder')} ${escapeHtml(fmtDate(n.remind_on))}</span>` : ''}
+      ${n.id ? `<button type="button" class="btn-link cn-edit" data-act="openCrmNoteEdit" data-on="click" data-args='[${Number(n.id)}]' aria-label="${te('Edit this note')}">${te('Edit')}</button>` : ''}</div>
     <div class="cn-text">${escapeHtml(n.note)}</div>
   </div>`;
 }
 function crmNoteListHTML(notes, { limit = 3, uid = '' } = {}){
-  if (!notes.length) return '<div class="empty-mini">No CRM notes yet.</div>';
+  if (!notes.length) return `<div class="empty-mini">${te('No CRM notes yet.')}</div>`;
   const head = notes.slice(0, limit).map(crmNoteCardHTML).join('');
   if (notes.length <= limit) return `<div class="crm-note-list">${head}</div>`;
   const rest = notes.slice(limit).map(crmNoteCardHTML).join('');
   return `<div class="crm-note-list">${head}
     <div class="crm-note-more hidden" id="${uid}_morenotes">${rest}</div>
-    <button class="btn-link cn-show-all" data-act="toggleMoreNotes" data-on="click" data-args='["${jsonAttr(uid + '_morenotes')}",{"$":"this"},${Number(notes.length)}]'>Show all ${notes.length} notes</button>
+    <button class="btn-link cn-show-all" data-act="toggleMoreNotes" data-on="click" data-args='["${jsonAttr(uid + '_morenotes')}",{"$":"this"},${Number(notes.length)}]'>${te('Show all {n} notes', { n: notes.length })}</button>
   </div>`;
 }
 function toggleMoreNotes(id, btn, total){
   const node = el(id); if (!node) return;
   const open = node.classList.toggle('hidden') === false;
-  if (btn) btn.textContent = open ? 'Show fewer' : `Show all ${total} notes`;
+  if (btn) btn.textContent = open ? t('Show fewer') : t('Show all {n} notes', { n: total });
 }
 function noteComposerHTML(customerId, inputId, withDate){
   return `<div class="note-composer-wrap">
     ${noteTemplatesHTML(inputId)}
     <div class="note-composer${withDate ? ' with-date' : ''}">
-    <label class="visually-hidden" for="${inputId}">Write a CRM note</label>
-    <textarea id="${inputId}" rows="2" maxlength="4000" placeholder="Write a CRM note…"></textarea>
-    ${withDate ? `<label class="visually-hidden" for="${inputId}_date">Note date</label><input type="date" id="${inputId}_date" value="${todayYMD()}" title="Note date">` : ''}
-    <button class="btn btn-outline btn-sm" data-act="saveInlineCrmNote" data-on="click" data-args='[${Number(customerId)},"${jsonAttr(inputId)}",{"$":"this"}]'>Save</button>
+    <label class="visually-hidden" for="${inputId}">${te('Write a CRM note')}</label>
+    <textarea id="${inputId}" rows="2" maxlength="4000" placeholder="${te('Write a CRM note…')}"></textarea>
+    ${withDate ? `<label class="visually-hidden" for="${inputId}_date">${te('Note date')}</label><input type="date" id="${inputId}_date" value="${todayYMD()}" title="${te('Note date')}">` : ''}
+    <button class="btn btn-outline btn-sm" data-act="saveInlineCrmNote" data-on="click" data-args='[${Number(customerId)},"${jsonAttr(inputId)}",{"$":"this"}]'>${te('Save')}</button>
     <div class="field-error" id="err-${inputId}" role="alert"></div>
     </div>
     <div class="composer-remind">
-      <label for="${inputId}_remind">Remind me on</label>
+      <label for="${inputId}_remind">${te('Remind me on')}</label>
       <input type="date" id="${inputId}_remind" min="${todayYMD()}">
     </div>
   </div>`;
@@ -991,25 +991,25 @@ async function saveInlineCrmNote(customerId, inputId, btn){
   if (err){ err.textContent = ''; err.classList.remove('show'); }
   const note = input.value.trim();
   if (!note){
-    if (err){ err.textContent = 'Write the note first.'; err.classList.add('show'); }
+    if (err){ err.textContent = t('Write the note first.'); err.classList.add('show'); }
     input.focus(); return;
   }
   const dateInput = el(inputId + '_date');
   const remindInput = el(inputId + '_remind');
   const remindOn = remindInput?.value || '';
-  await withBusy(btn, 'Saving…', async () => {
+  await withBusy(btn, t('Saving…'), async () => {
     try {
       await call(window.api.crmNotes.create,
         omitBlank({ customerId, note, noteDate: dateInput?.value || todayYMD(), remindOn }), { silent:true });
       input.value = '';
       if (remindInput) remindInput.value = '';
-      toast('success', remindOn ? 'Note added with a reminder' : 'Note added');
+      toast('success', remindOn ? t('Note added with a reminder') : t('Note added'));
       if (workspace.open.includes('dashboard')) renderGuestDashboardPanels().catch(() => {});
       await refreshOpenInspectors(customerId);
       await refreshCrmViews();
     } catch (e){
-      if (err){ err.textContent = e.message || 'Note not saved.'; err.classList.add('show'); }
-      else toast('error', 'Note not saved', e.message);
+      if (err){ err.textContent = e.message || t('Note not saved.'); err.classList.add('show'); }
+      else toast('error', t('Note not saved'), e.message);
     }
   });
 }
@@ -1073,7 +1073,7 @@ function calShiftMonth(delta){
 const CAL_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 async function renderCalendar(){
   if (calYear === null) calInit();
-  el('calMonthLabel').textContent = `${CAL_MONTH_NAMES[calMonth - 1]} ${calYear}`;
+  el('calMonthLabel').textContent = `${t(CAL_MONTH_NAMES[calMonth - 1])} ${calYear}`;
   el('calPrevBtn').disabled = calYear === CAL_MIN_YEAR && calMonth === CAL_MIN_MONTH;
 
   const data = await call(window.api.calendar.month, { year:calYear, month:calMonth }, { silent:true });
@@ -1097,7 +1097,7 @@ async function renderCalendar(){
     if (b.active) stats.push(`<span class="cal-stat"><span class="cal-dot act"></span>${b.active}</span>`);
     if (b.departures) stats.push(`<span class="cal-stat"><span class="cal-dot dep"></span>${b.departures}</span>`);
     html += `
-    <div class="cal-day${dateStr === todayStr ? ' today' : ''}" data-act="openCalDay" data-on="click" data-args='["${dateStr}"]' role="gridcell" tabindex="0" data-activatable aria-label="${dateStr}, ${b.arrivals} arrivals, ${b.active} in house, ${b.departures} departures">
+    <div class="cal-day${dateStr === todayStr ? ' today' : ''}" data-act="openCalDay" data-on="click" data-args='["${dateStr}"]' role="gridcell" tabindex="0" data-activatable aria-label="${fmtDate(dateStr)}, ${te('{a} arrivals, {h} in house, {d} departures', { a: b.arrivals, h: b.active, d: b.departures })}">
       <span class="cal-day-n">${dayNum}</span>
       <div class="cal-day-stats">${stats.join('')}</div>
     </div>`;
@@ -1115,11 +1115,11 @@ async function openCalDay(dateStr){
       <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}${r.invited_by_name ? ' · ' + escapeHtml(r.invited_by_name) : ''}</div>
     </div>`;
   el('calDayArrCount').textContent = data.arrivals.length;
-  el('calDayArrList').innerHTML = data.arrivals.length ? data.arrivals.map(row).join('') : '<div class="empty-mini">No arrivals.</div>';
+  el('calDayArrList').innerHTML = data.arrivals.length ? data.arrivals.map(row).join('') : `<div class="empty-mini">${te('No arrivals.')}</div>`;
   el('calDayActCount').textContent = data.active.length;
-  el('calDayActList').innerHTML = data.active.length ? data.active.map(row).join('') : '<div class="empty-mini">No guests in house.</div>';
+  el('calDayActList').innerHTML = data.active.length ? data.active.map(row).join('') : `<div class="empty-mini">${te('No guests in house.')}</div>`;
   el('calDayDepCount').textContent = data.departures.length;
-  el('calDayDepList').innerHTML = data.departures.length ? data.departures.map(row).join('') : '<div class="empty-mini">No departures.</div>';
+  el('calDayDepList').innerHTML = data.departures.length ? data.departures.map(row).join('') : `<div class="empty-mini">${te('No departures.')}</div>`;
   openModal('modalCalDay');
 }
 
@@ -1145,9 +1145,9 @@ async function renderProfiles(){
   await refreshProfiles();
   const grid = el('profileGrid');
   if (!state.profiles.length){
-    grid.innerHTML = emptyState({ icon:'guests', title:'No marketing profiles yet',
-      text:'Add the people who bring guests in.',
-      actions:[{ label:'New Profile', act:'openProfileModal', actArgs:[], primary:true }] });
+    grid.innerHTML = emptyState({ icon:'guests', title:t('No marketing profiles yet'),
+      text:t('Add the people who bring guests in.'),
+      actions:[{ label:t('New Profile'), act:'openProfileModal', actArgs:[], primary:true }] });
     return;
   }
   /* one query, then the series are derived per person */
@@ -1162,10 +1162,10 @@ async function renderProfiles(){
     const inactive = p.employment_status === 'inactive';
     const url = photoUrl(p.photo_name);
     return `
-    <div class="profile-card${inactive ? ' inactive' : ''}" data-act="openProfileDetail" data-on="dblclick" data-args='[${p.id}]' title="Double-click for the full profile">
+    <div class="profile-card${inactive ? ' inactive' : ''}" data-act="openProfileDetail" data-on="dblclick" data-args='[${p.id}]' title="${te('Double-click for the full profile')}">
       <div class="pc-photo${url ? '' : ' no-photo'}">
         ${url ? `<div class="pc-photo-img" data-avatar="${escapeHtml(url)}"></div>` : `<div class="pc-initials">${escapeHtml(initials(p.full_name))}</div>`}
-        ${inactive ? '<div class="pc-inactive-tag">Inactive</div>' : ''}
+        ${inactive ? `<div class="pc-inactive-tag">${te('Inactive')}</div>` : ''}
       </div>
       <div class="pc-content">
         <div class="pc-ident">
@@ -1173,9 +1173,9 @@ async function renderProfiles(){
           <div class="pc-sub">${p.nationality ? escapeHtml(p.nationality) : '—'}</div>
         </div>
         <div class="pc-metrics">
-          <div class="pc-metric"><div class="n">${recent}</div><div class="l">30 DAYS</div></div>
-          <div class="pc-metric"><div class="n">${p.customer_count}</div><div class="l">GUESTS</div></div>
-          <div class="pc-metric"><div class="n fs-11">${last}</div><div class="l">LAST SEEN</div></div>
+          <div class="pc-metric"><div class="n">${recent}</div><div class="l">${te('30 DAYS')}</div></div>
+          <div class="pc-metric"><div class="n">${p.customer_count}</div><div class="l">${te('GUESTS')}</div></div>
+          <div class="pc-metric"><div class="n fs-11">${last}</div><div class="l">${te('LAST SEEN')}</div></div>
         </div>
         ${sparkHTML(weeklySeries(mine))}
       </div>
@@ -1212,12 +1212,12 @@ async function openProfileDetail(id){
 
   const icon = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
   const chips = [];
-  chips.push(`<span class="pd-chip">${icon('<circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/>')}${escapeHtml(p.nationality || 'Nationality not set')}</span>`);
+  chips.push(`<span class="pd-chip">${icon('<circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/>')}${escapeHtml(p.nationality || t('Nationality not set'))}</span>`);
   if (p.passport_no) chips.push(`<span class="pd-chip">${icon('<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 17h7"/>')}${escapeHtml(p.passport_no)}</span>`);
   if (p.phone) chips.push(`<span class="pd-chip">${icon('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/>')}${escapeHtml(p.phone)}</span>`);
   chips.push(inactive
-    ? `<span class="pd-chip ink-3">${icon('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>')}No longer with the company</span>`
-    : `<span class="pd-chip ink-teal">${icon('<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>')}Active</span>`);
+    ? `<span class="pd-chip ink-3">${icon('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>')}${te('No longer with the company')}</span>`
+    : `<span class="pd-chip ink-teal">${icon('<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>')}${te('Active')}</span>`);
   el('pdChips').innerHTML = chips.join('');
 
   el('pdInvitedFilter').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 0));
@@ -1234,14 +1234,14 @@ async function openProfileDetail(id){
     <div class="mini-card">
       <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
       <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</div>
-    </div>`).join('') : '<div class="empty-mini">No reservations invited yet.</div>';
+    </div>`).join('') : `<div class="empty-mini">${te('No reservations invited yet.')}</div>`;
 
   el('pdGuestCount').textContent = guests.length;
   el('pdGuestList').innerHTML = guests.length ? guests.map(c => `
     <div class="mini-card">
       <div class="mc-top"><span>${escapeHtml(c.full_name)}</span>${statusTagHTML(c.status)}</div>
       <div class="mc-sub">#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : '—'}</div>
-    </div>`).join('') : '<div class="empty-mini">No assigned guests.</div>';
+    </div>`).join('') : `<div class="empty-mini">${te('No assigned guests.')}</div>`;
 
   el('pdCustCount').textContent = relList.length;
   /* ID and name only — the Created/Assigned/Invited relationship text was
@@ -1252,16 +1252,16 @@ async function openProfileDetail(id){
     <div class="mini-card">
       <div class="mc-top"><span>${escapeHtml(c.full_name)}</span>${statusTagHTML(c.status)}</div>
       <div class="mc-sub">#${escapeHtml(c.code)}</div>
-    </div>`).join('') : '<div class="empty-mini">No related guests yet.</div>';
+    </div>`).join('') : `<div class="empty-mini">${te('No related guests yet.')}</div>`;
 
   const invitedTotal = await refreshPdInvited();
 
   const weeks = Math.max(1, daysBetween(p.created_at, new Date().toISOString()) / 7);
   el('pdStats').innerHTML = `
-    <div class="pd-stat"><div class="n">${guests.length}</div><div class="l">Guests</div></div>
-    <div class="pd-stat"><div class="n">${invitedTotal}</div><div class="l">Reservations Invited</div></div>
-    <div class="pd-stat"><div class="n">${(invitedTotal/weeks).toFixed(1)}</div><div class="l">Avg Res / Week</div></div>
-    <div class="pd-stat"><div class="n">${(guests.length/weeks).toFixed(1)}</div><div class="l">Avg Guests / Week</div></div>`;
+    <div class="pd-stat"><div class="n">${guests.length}</div><div class="l">${te('Guests')}</div></div>
+    <div class="pd-stat"><div class="n">${invitedTotal}</div><div class="l">${te('Reservations Invited')}</div></div>
+    <div class="pd-stat"><div class="n">${(invitedTotal/weeks).toFixed(1)}</div><div class="l">${te('Avg Res / Week')}</div></div>
+    <div class="pd-stat"><div class="n">${(guests.length/weeks).toFixed(1)}</div><div class="l">${te('Avg Guests / Week')}</div></div>`;
 
   openModal('modalProfileDetail');
 }
@@ -1277,7 +1277,7 @@ async function refreshPdInvited(){
       <div class="mc-top"><span>${escapeHtml(r.customer_name)}</span>${statusTagHTML(r.status)}</div>
       <div class="mc-sub">${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</div>
       ${r.reservation_note ? `<div class="mc-note">"${escapeHtml(r.reservation_note)}"</div>` : ''}
-    </div>`).join('') : '<div class="empty-mini">No invitations in this period.</div>';
+    </div>`).join('') : `<div class="empty-mini">${te('No invitations in this period.')}</div>`;
   return invited.length;
 }
 async function setPdInvitedPeriod(period){
@@ -1291,7 +1291,7 @@ async function exportProfileSection(section){
   const params = { profileId:currentDetailProfileId };
   if (section === 'invited') params.from = periodFromDays(pdInvitedPeriod);
   const r = await call(window.api.export.filtered, { entity, params });
-  if (r) toast('success','Export complete', `${r.rows} rows → ${r.name}`);
+  if (r) toast('success',t('Export complete'), t('{n} rows → {file}', { n: r.rows, file: r.name }));
 }
 function editProfileFromDetail(){ if (currentDetailProfileId !== null) openProfileModal(currentDetailProfileId); }
 
@@ -1313,8 +1313,8 @@ async function renderNotifications(){
   if (!node) return;
   const list = await call(window.api.notifications.list, {}, { silent:true });
   if (!list || !list.length){
-    node.innerHTML = emptyState({ icon:'bell', title:'Nothing needs you right now',
-      text:'Alerts about upcoming stays and cold guests appear here.' });
+    node.innerHTML = emptyState({ icon:'bell', title:t('Nothing needs you right now'),
+      text:t('Alerts about upcoming stays and cold guests appear here.') });
     refreshNotifBadge(); return;
   }
   node.innerHTML = list.map(n => `
@@ -1324,13 +1324,13 @@ async function renderNotifications(){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${NOTIF_ICONS[n.type] || NOTIF_ICONS.assignment}</svg>
       </div>
       <div class="notif-main">
-        ${n.type === 'admin_alert' ? '<div class="notif-kind">Administrator alert</div>' : ''}
-        <div class="notif-title">${escapeHtml(n.title)}</div>
-        <div class="notif-text">${escapeHtml(n.message)}</div>
+        ${n.type === 'admin_alert' ? `<div class="notif-kind">${te('Administrator alert')}</div>` : ''}
+        <div class="notif-title">${escapeHtml(tNotice(n.title))}</div>
+        <div class="notif-text">${escapeHtml(tNotice(n.message))}</div>
       </div>
       <div class="notif-time">${fmtDate(n.created_at)}</div>
       ${n.read ? '' : '<div class="notif-dot"></div>'}
-      <button class="notif-x" title="Dismiss" data-act="dismissNotification" data-on="click" data-args='[${n.id},{"$":"event"}]'>✕</button>
+      <button class="notif-x" title="${te('Dismiss')}" data-act="dismissNotification" data-on="click" data-args='[${n.id},{"$":"event"}]'>✕</button>
     </div>`).join('');
   refreshNotifBadge();
 }
@@ -1382,14 +1382,14 @@ async function renderReports(){
   el('reportFilters').closest('.panel').style.display = access ? '' : 'none';
   el('reportResultsWrap').style.display = 'none';
   if (!access){
-    el('reportEmptyWrap').innerHTML = emptyState({ icon:'guests', title:'Reports are restricted',
-      text:'Your role does not have access to reports. Ask an administrator to grant it in Settings.' });
+    el('reportEmptyWrap').innerHTML = emptyState({ icon:'guests', title:t('Reports are restricted'),
+      text:t('Your role does not have access to reports. Ask an administrator to grant it in Settings.') });
     return;
   }
   el('reportEmptyWrap').innerHTML = '';
   const scopeNote = el('reportScope');
   const isMarketing = state.session?.role === 'MARKETING';
-  if (scopeNote) scopeNote.textContent = isMarketing ? 'Your own figures' : 'All marketing profiles';
+  if (scopeNote) scopeNote.textContent = isMarketing ? t('Your own figures') : t('All marketing profiles');
   /* Marketing Performance ranks every profile against each other — an
      ADMIN/MANAGER view, same restriction as the Dashboard's Team panel */
   el('reportMarketingTab').classList.toggle('hidden', isMarketing);
@@ -1420,13 +1420,13 @@ function fillProfileSelect(id){
      weight at best — lock it to self instead (spec §7) */
   if (state.session?.role === 'MARKETING'){
     const self = state.profiles.find(p => p.id === state.session.profile_id);
-    sel.innerHTML = `<option value="${state.session.profile_id}">${escapeHtml(self?.full_name || state.session.full_name || 'Me')}</option>`;
+    sel.innerHTML = `<option value="${state.session.profile_id}">${escapeHtml(self?.full_name || state.session.full_name || t('Me'))}</option>`;
     sel.value = String(state.session.profile_id);
     sel.disabled = true;
     return;
   }
   sel.disabled = false;
-  sel.innerHTML = '<option value="">All</option>' +
+  sel.innerHTML = `<option value="">${te('All')}</option>` +
     state.profiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('');
 }
 function setReportPeriod(period){
@@ -1439,60 +1439,60 @@ function renderReportFilters(){
   if (reportType === 'reservations'){
     wrap.innerHTML = `
       <div class="report-filter-grid">
-        <div class="field"><label for="rptResStatus">Status</label>
-          <select class="fm-input" id="rptResStatus"><option value="">All statuses</option>
-            <option value="UPCOMING">Upcoming</option><option value="CHECKED_IN">Checked in</option>
-            <option value="COMPLETED">Completed</option></select></div>
-        <div class="field"><label for="rptResInvited">Invited By</label><select class="fm-input" id="rptResInvited"></select></div>
-        <div class="field"><label for="rptResFrom">Check-in From</label><input class="fm-input" type="date" id="rptResFrom"></div>
-        <div class="field"><label for="rptResTo">Check-in To</label><input class="fm-input" type="date" id="rptResTo"></div>
+        <div class="field"><label for="rptResStatus">${te('Status')}</label>
+          <select class="fm-input" id="rptResStatus"><option value="">${te('All statuses')}</option>
+            <option value="UPCOMING">${te('Upcoming')}</option><option value="CHECKED_IN">${te('Checked in')}</option>
+            <option value="COMPLETED">${te('Completed')}</option></select></div>
+        <div class="field"><label for="rptResInvited">${te('Invited By')}</label><select class="fm-input" id="rptResInvited"></select></div>
+        <div class="field"><label for="rptResFrom">${te('Check-in From')}</label><input class="fm-input" type="date" id="rptResFrom"></div>
+        <div class="field"><label for="rptResTo">${te('Check-in To')}</label><input class="fm-input" type="date" id="rptResTo"></div>
       </div>`;
     fillProfileSelect('rptResInvited');
   } else if (reportType === 'guests'){
     wrap.innerHTML = `
       <div class="report-filter-grid">
-        <div class="field"><label for="rptGStatus">Status</label>
-          <select class="fm-input" id="rptGStatus"><option value="">All statuses</option>
-            <option value="COLD">Cold</option><option value="NO_RECORD">No Record</option></select></div>
-        <div class="field"><label for="rptGAssignedTo">Assigned To</label><select class="fm-input" id="rptGAssignedTo"></select></div>
-        <div class="field"><label for="rptGFrom">Registered From</label><input class="fm-input" type="date" id="rptGFrom"></div>
-        <div class="field"><label for="rptGTo">Registered To</label><input class="fm-input" type="date" id="rptGTo"></div>
+        <div class="field"><label for="rptGStatus">${te('Status')}</label>
+          <select class="fm-input" id="rptGStatus"><option value="">${te('All statuses')}</option>
+            <option value="COLD">${te('Cold')}</option><option value="NO_RECORD">${te('No Record')}</option></select></div>
+        <div class="field"><label for="rptGAssignedTo">${te('Assigned To')}</label><select class="fm-input" id="rptGAssignedTo"></select></div>
+        <div class="field"><label for="rptGFrom">${te('Registered From')}</label><input class="fm-input" type="date" id="rptGFrom"></div>
+        <div class="field"><label for="rptGTo">${te('Registered To')}</label><input class="fm-input" type="date" id="rptGTo"></div>
       </div>`;
     fillProfileSelect('rptGAssignedTo');
   } else if (reportType === 'marketing'){
     wrap.innerHTML = `
-      <div class="field"><label>Period</label>
+      <div class="field"><label>${te('Period')}</label>
         <div class="split-filter" id="rptMarketingPeriod">
-          <button data-act="setReportPeriod" data-on="click" data-args='["7"]'>7D</button>
-          <button class="active" data-act="setReportPeriod" data-on="click" data-args='["30"]'>30D</button>
-          <button data-act="setReportPeriod" data-on="click" data-args='["90"]'>3M</button>
-          <button data-act="setReportPeriod" data-on="click" data-args='["180"]'>6M</button>
-          <button data-act="setReportPeriod" data-on="click" data-args='["all"]'>ALL</button>
+          <button data-act="setReportPeriod" data-on="click" data-args='["7"]'>${te('7D')}</button>
+          <button class="active" data-act="setReportPeriod" data-on="click" data-args='["30"]'>${te('30D')}</button>
+          <button data-act="setReportPeriod" data-on="click" data-args='["90"]'>${te('3M')}</button>
+          <button data-act="setReportPeriod" data-on="click" data-args='["180"]'>${te('6M')}</button>
+          <button data-act="setReportPeriod" data-on="click" data-args='["all"]'>${te('ALL')}</button>
         </div>
       </div>`;
     reportPeriod = '30';
   } else if (reportType === 'cold'){
     wrap.innerHTML = `
       <div class="report-filter-grid">
-        <div class="field"><label for="rptColdAssignedTo">Assigned To</label><select class="fm-input" id="rptColdAssignedTo"></select></div>
+        <div class="field"><label for="rptColdAssignedTo">${te('Assigned To')}</label><select class="fm-input" id="rptColdAssignedTo"></select></div>
       </div>`;
     fillProfileSelect('rptColdAssignedTo');
   } else if (reportType === 'norecord'){
     wrap.innerHTML = `
       <div class="report-filter-grid">
-        <div class="field"><label for="rptNRFrom">Registered From</label><input class="fm-input" type="date" id="rptNRFrom"></div>
-        <div class="field"><label for="rptNRTo">Registered To</label><input class="fm-input" type="date" id="rptNRTo"></div>
+        <div class="field"><label for="rptNRFrom">${te('Registered From')}</label><input class="fm-input" type="date" id="rptNRFrom"></div>
+        <div class="field"><label for="rptNRTo">${te('Registered To')}</label><input class="fm-input" type="date" id="rptNRTo"></div>
       </div>`;
   }
 }
 async function runReport(){
-  await withBusy(el('reportGenerateBtn'), 'GENERATING…', async () => {
+  await withBusy(el('reportGenerateBtn'), t('GENERATING…'), async () => {
     if (reportType === 'reservations'){
       const params = omitBlank({ status: el('rptResStatus').value, invitedBy: el('rptResInvited').value,
         from: el('rptResFrom').value, to: el('rptResTo').value, pageSize:1000, sort:'check_in', dir:'desc' });
       const data = await call(window.api.reservations.list, params, { silent:true });
       reportRows = (data?.rows || []).map(r => ({ Guest:r.customer_name, 'Check In':fmtDate(r.check_in),
-        'Check Out':fmtDate(r.check_out), Status:r.status, 'Invited By':r.invited_by_name || '—',
+        'Check Out':fmtDate(r.check_out), Status:statusMeta(r.status)?.label || r.status, 'Invited By':r.invited_by_name || '—',
         Note:r.reservation_note || '—' }));
       reportExportEntity = 'reservations';
       reportExportParams = omitBlank({ status:params.status, invitedBy:params.invitedBy, from:params.from, to:params.to });
@@ -1502,19 +1502,19 @@ async function runReport(){
         registeredOnly:true, pageSize:1000 });
       const data = await call(window.api.customers.list, params, { silent:true });
       reportRows = (data?.rows || []).map(c => ({ ID:c.code, Name:c.full_name, Phone:c.phone || '—',
-        Status:c.status, 'Assigned To':c.marketing_name || '—',
+        Status:statusMeta(c.status)?.label || t('Active'), 'Assigned To':c.marketing_name || '—',
         Reservations:c.reservation_count, Registered:fmtDate(c.created_at) }));
       reportExportEntity = 'customerlist'; reportExportParams = params;
     } else if (reportType === 'marketing'){
       const from = reportPeriod === 'all' ? '' : daysAgoYMD(Number(reportPeriod));
-      const periodLabel = DASH_PERIOD_LABEL[reportPeriod] || '30 Days';
+      const periodLabel = t(DASH_PERIOD_LABEL[reportPeriod] || '30 Days');
       /* "ALL" means no lower bound, so the field is omitted rather than sent
          as an empty string the date schema cannot accept. */
       const data = await call(window.api.reservations.list, omitBlank({ from, pageSize:1000 }), { silent:true });
       const tally = {};
       (data?.rows || []).forEach(r => { if (r.invited_by_profile_id) tally[r.invited_by_profile_id] = (tally[r.invited_by_profile_id] || 0) + 1; });
-      const col = `Reservations (${periodLabel})`;
-      reportRows = state.profiles.map(p => ({ Profile:p.full_name, Status:p.employment_status,
+      const col = t('Reservations ({period})', { period: periodLabel });
+      reportRows = state.profiles.map(p => ({ Profile:p.full_name, Status:t(p.employment_status === 'inactive' ? 'Inactive' : 'Active'),
         [col]: tally[p.id] || 0, 'Guests Assigned':p.customer_count, 'Total Reservations Invited':p.reservation_count }))
         .sort((a,b) => b[col] - a[col]);
       reportExportEntity = 'report_marketing'; reportExportParams = omitBlank({ from });
@@ -1539,36 +1539,36 @@ function renderReportTable(){
   const wrap = el('reportResultsWrap');
   if (!reportRows.length){
     wrap.style.display = 'none';
-    el('reportEmptyWrap').innerHTML = emptyState({ icon:'search', title:'No results',
-      text:'Nothing matched those filters — try widening the range.' });
+    el('reportEmptyWrap').innerHTML = emptyState({ icon:'search', title:t('No results'),
+      text:t('Nothing matched those filters — try widening the range.') });
     return;
   }
   el('reportEmptyWrap').innerHTML = '';
   wrap.style.display = '';
   const cols = Object.keys(reportRows[0]);
-  el('reportResultsHead').innerHTML = `<tr>${cols.map(c => `<th scope="col">${escapeHtml(c.toUpperCase())}</th>`).join('')}</tr>`;
+  el('reportResultsHead').innerHTML = `<tr>${cols.map(c => `<th scope="col">${escapeHtml(upperLocale(t(c)))}</th>`).join('')}</tr>`;
   el('reportResultsBody').innerHTML = reportRows.map(r =>
     `<tr>${cols.map(c => `<td>${escapeHtml(String(r[c]))}</td>`).join('')}</tr>`).join('');
-  el('reportResultCount').textContent = `${reportRows.length} result${reportRows.length === 1 ? '' : 's'}`;
+  el('reportResultCount').textContent = tn(reportRows.length, '{n} result', '{n} results');
 }
 async function exportReportResults(){
   if (!reportExportEntity) return;
   const r = await call(window.api.export.filtered, { entity:reportExportEntity, params:reportExportParams });
-  if (r) toast('success', 'Export complete', `${r.rows} rows → ${r.name}`);
+  if (r) toast('success', t('Export complete'), t('{n} rows → {file}', { n: r.rows, file: r.name }));
 }
 
 /* ---------------- USERS ---------------- */
 async function renderUsers(){
   const users = await call(window.api.users.list, {});
   el('usersTableBody').innerHTML = (users || []).length ? users.map(u => `
-    <tr class="clickable" tabindex="0" data-act="openUserModal" data-on="dblclick" data-args='[${u.id}]' data-act-keydown="enterOpensUser" data-args-keydown='[${u.id}]' aria-label="${escapeHtml(u.username)}. Press Enter to open.">
+    <tr class="clickable" tabindex="0" data-act="openUserModal" data-on="dblclick" data-args='[${u.id}]' data-act-keydown="enterOpensUser" data-args-keydown='[${u.id}]' aria-label="${escapeHtml(u.username)}. ${te('Press Enter to open.')}">
       <td>${escapeHtml(u.username)}</td>
       <td>${u.full_name ? escapeHtml(u.full_name) : '<span class="muted">—</span>'}</td>
-      <td><span class="role-pill ${u.role.toLowerCase()}">${u.role}</span></td>
+      <td><span class="role-pill ${u.role.toLowerCase()}">${te(u.role)}</span></td>
       <td>${statusTagHTML(u.active ? 'ACCOUNT_ACTIVE' : 'ACCOUNT_DISABLED')}</td>
-      <td class="muted">${u.last_login_at ? fmtDateTime(u.last_login_at) : 'Never'}</td>
-    </tr>`).join('') : emptyRow(5, emptyState({ icon:'guests', title:'No accounts yet',
-        actions:[{ label:'New User', act:'openUserModal', actArgs:[], primary:true }] }));
+      <td class="muted">${u.last_login_at ? fmtDateTime(u.last_login_at) : te('Never')}</td>
+    </tr>`).join('') : emptyRow(5, emptyState({ icon:'guests', title:t('No accounts yet'),
+        actions:[{ label:t('New User'), act:'openUserModal', actArgs:[], primary:true }] }));
 }
 
 /* ---------------- AUDIT ---------------- */
@@ -1584,14 +1584,14 @@ async function renderAudit(){
   el('auditTableBody').innerHTML = data.rows.length ? data.rows.map(r => `
     <tr>
       <td class="muted">${fmtDateTime(r.created_at)}</td>
-      <td>${(r.username || r.actor_username) ? escapeHtml(r.username || r.actor_username) : '<span class="muted">system</span>'}</td>
-      <td><span class="audit-action">${escapeHtml(r.action)}</span></td>
-      <td class="muted">${r.entity_type ? escapeHtml(r.entity_type) + (r.entity_id ? ' #' + r.entity_id : '') : '—'}</td>
-      <td class="muted">${r.description ? escapeHtml(r.description) : '—'}</td>
+      <td>${(r.username || r.actor_username) ? escapeHtml(r.username || r.actor_username) : `<span class="muted">${te('system')}</span>`}</td>
+      <td><span class="audit-action" title="${escapeHtml(r.action)}">${escapeHtml(currentLanguage() === 'en' ? r.action : auditActionLabel(r.action))}</span></td>
+      <td class="muted">${r.entity_type ? escapeHtml(t(r.entity_type)) + (r.entity_id ? ' #' + r.entity_id : '') : '—'}</td>
+      <td class="muted">${r.description ? escapeHtml(tNotice(r.description)) : '—'}</td>
     </tr>`).join('') : emptyRow(5, (s.actorUserId || s.action || s.from || s.to)
-      ? emptyState({ icon:'search', title:'Nothing matches these filters',
-          actions:[{ label:'Clear filters', act:'clearAuditFilters', actArgs:[] }] })
-      : emptyState({ icon:'check', title:'No activity recorded yet' }));
+      ? emptyState({ icon:'search', title:t('Nothing matches these filters'),
+          actions:[{ label:t('Clear filters'), act:'clearAuditFilters', actArgs:[] }] })
+      : emptyState({ icon:'check', title:t('No activity recorded yet') }));
   pagerHTML('auditPager', s.page, s.pageSize, s.total, 'goAuditPage');
 }
 
@@ -1602,8 +1602,9 @@ async function renderSettings(){
   state.settings = s || {};
   el('setTheme').value = s?.['appearance.theme'] || 'light';
   el('setDensity').value = s?.['appearance.density'] || 'comfortable';
+  if (el('setLanguage')) el('setLanguage').value = currentLanguage();
   const who = el('settingsWhoAmI');
-  if (who) who.textContent = `Signed in as ${state.session?.username || ''} · ${state.session?.role || ''}`;
+  if (who) who.textContent = `${t('Signed in as {user}', { user: state.session?.username || '' })} · ${roleLabel(state.session?.role)}`;
 
   /* Note templates and the tag vocabulary are shared settings. */
   const sharedWriter = hasCap('settings.write');
@@ -1632,7 +1633,7 @@ async function renderPermissionMatrix(){
   m.roles = m.matrix || m.roles || { MANAGER:{}, MARKETING:{} };
   const rows = Object.entries(m.labels).map(([key, label]) => `
     <div class="perm-row">
-      <div class="perm-name">${escapeHtml(label)}</div>
+      <div class="perm-name">${te(label)}</div>
       ${['MANAGER','MARKETING'].map(role => `
         <div class="perm-cell">
           <label class="switch">
@@ -1644,9 +1645,9 @@ async function renderPermissionMatrix(){
     </div>`).join('');
   el('permGrid').innerHTML = `
     <div class="perm-row">
-      <div class="perm-head text-left">Capability</div>
-      <div class="perm-head">Manager</div>
-      <div class="perm-head">Marketing</div>
+      <div class="perm-head text-left">${te('Capability')}</div>
+      <div class="perm-head">${te('Manager')}</div>
+      <div class="perm-head">${te('Marketing')}</div>
     </div>${rows}`;
 }
 async function togglePermission(role, key, value){
@@ -1657,7 +1658,7 @@ async function togglePermission(role, key, value){
   ['MANAGER','MARKETING'].forEach(r => Object.keys(m.labels).forEach(k => { matrix[r][k] = m.roles[r][k]; }));
   matrix[role][key] = value;
   const res = await call(window.api.settings.setPermissions, { matrix });
-  if (res) toast('success', value ? 'Permission granted' : 'Permission revoked');
+  if (res) toast('success', value ? t('Permission granted') : t('Permission revoked'));
 }
 /* Preferences persist as you change them — no save button, no noise. */
 async function saveSetting(key, value){
@@ -1671,33 +1672,33 @@ async function loadBackups(){
         <div class="lr-name">${escapeHtml(b.name)}</div>
         <div class="lr-sub">${fmtDateTime(b.createdAt)} · ${(b.byteSize/1024).toFixed(0)} KB</div>
       </div>
-      <button class="pager-btn" data-act="doRestore" data-on="click" data-args='["${jsonAttr(b.name)}"]'>Restore</button>
-    </div>`).join('') : '<div class="panel-empty">No backups yet</div>';
+      <button class="pager-btn" data-act="doRestore" data-on="click" data-args='["${jsonAttr(b.name)}"]'>${te('Restore')}</button>
+    </div>`).join('') : `<div class="panel-empty">${te('No backups yet')}</div>`;
 }
 async function doBackupNow(){
-  await withBusy(el('backupNowBtn'), 'WORKING…', async () => {
+  await withBusy(el('backupNowBtn'), t('WORKING…'), async () => {
     const r = await call(window.api.backup.create, {});
-    if (r) toast('success','Backup created', r.name);
+    if (r) toast('success',t('Backup created'), r.name);
     await loadBackups();
   });
 }
 async function doRestore(name){
   const sure = await window.api.dialog.confirm({
-    title:'Restore database', message:`Restore from ${name}?`,
-    detail:'Current data will be replaced. A safety backup is taken first.',
-    confirmLabel:'Restore', type:'warning'
+    title:t('Restore database'), message:t('Restore from {name}?', { name }),
+    detail:t('Current data will be replaced. A safety backup is taken first.'),
+    confirmLabel:t('Restore'), type:'warning'
   });
   if (!sure?.data) return;
   const r = await call(window.api.backup.restore, { name });
   if (r){
-    toast('success','Database restored', `Safety copy: ${r.safetyBackup}`);
+    toast('success',t('Database restored'), t('Safety copy: {name}', { name: r.safetyBackup }));
     await switchTab('dashboard');
   }
 }
 async function openDataFolder(){ await call(window.api.backup.openFolder, {}); }
 async function exportEntity(entity){
   const r = await call(window.api.export.run, { entity });
-  if (r) toast('success','Export complete', `${r.rows} rows → ${r.name}`);
+  if (r) toast('success',t('Export complete'), t('{n} rows → {file}', { n: r.rows, file: r.name }));
 }
 
 /** Exports exactly what is on screen: same search, filters and sort order.

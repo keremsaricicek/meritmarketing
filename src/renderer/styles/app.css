@@ -2014,3 +2014,56 @@ body.theme-dark{
 
 .shortcut-group-title{ font-size:var(--t-xs); text-transform:uppercase; letter-spacing:var(--tracking-label); font-weight:600;
   color:var(--ink-3); margin:var(--sp-4) 0 var(--sp-2); }
+
+/* ------------------------------------------------------------------ */
+/* Language switch (login / setup) and the Help screen                 */
+/* ------------------------------------------------------------------ */
+.login-card{ position:relative; }
+.login-lang{ position:absolute; top:var(--sp-3); right:var(--sp-3); display:flex; gap:2px;
+  border:1px solid var(--line); border-radius:var(--r-1); padding:2px; background:var(--s1); }
+.login-card .login-lang-btn{ width:auto; height:24px; margin:0; border:none; background:transparent; cursor:pointer;
+  font:inherit; font-size:var(--t-xs); font-weight:600; color:var(--ink-3); padding:0 8px; border-radius:3px; }
+.login-lang-btn:hover{ color:var(--ink); }
+.login-lang-btn.active{ background:var(--s0); color:var(--ink); box-shadow:var(--shadow-sm, 0 1px 2px rgba(0,0,0,.08)); }
+
+.help-layout{ display:grid; grid-template-columns:240px minmax(0,1fr); gap:var(--sp-4); align-items:start; }
+.help-toc{ position:sticky; top:var(--sp-3); padding:var(--sp-4); max-height:calc(100vh - 170px); overflow:auto; }
+.help-toc-title{ font-size:var(--t-xs); text-transform:uppercase; letter-spacing:var(--tracking-label); font-weight:600;
+  color:var(--ink-3); margin-bottom:var(--sp-2); }
+.help-toc ol{ margin:0; padding-left:20px; font-size:var(--t-sm); line-height:1.5; }
+.help-toc li{ margin:3px 0; }
+.help-toc a, .help-body a{ color:var(--accent); text-decoration:none; }
+.help-toc a:hover, .help-body a:hover{ text-decoration:underline; }
+.help-body{ padding:var(--sp-5) var(--sp-6); max-width:900px; font-size:var(--t-md); line-height:1.65; color:var(--ink-2); overflow-wrap:anywhere; }
+.help-body h2{ font-size:var(--t-xl); color:var(--ink); margin:0 0 var(--sp-3); }
+.help-body h3{ font-size:var(--t-lg); color:var(--ink); margin:var(--sp-6) 0 var(--sp-2); padding-top:var(--sp-3); border-top:1px solid var(--line); scroll-margin-top:var(--sp-3); }
+.help-body h4, .help-body h5{ font-size:var(--t-md); color:var(--ink); margin:var(--sp-4) 0 var(--sp-1); scroll-margin-top:var(--sp-3); }
+.help-body p{ margin:0 0 var(--sp-3); }
+.help-body ul, .help-body ol{ margin:0 0 var(--sp-3); padding-left:22px; }
+.help-body li{ margin:2px 0; }
+.help-body code{ font-size:.92em; background:var(--s2); border-radius:3px; padding:1px 5px; }
+.help-body pre{ background:var(--s2); border-radius:var(--r-1); padding:var(--sp-3); overflow:auto; font-size:var(--t-sm); }
+.help-body blockquote{ margin:0 0 var(--sp-3); padding:var(--sp-2) var(--sp-4); border-left:3px solid var(--accent); background:var(--s1); border-radius:0 var(--r-1) var(--r-1) 0; }
+.help-body blockquote p{ margin:0; }
+.help-body hr{ border:none; border-top:1px solid var(--line); margin:var(--sp-5) 0; }
+.help-table-wrap{ overflow-x:auto; margin:0 0 var(--sp-3); }
+.help-table{ border-collapse:collapse; width:100%; font-size:var(--t-sm); }
+.help-table th, .help-table td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+.help-table th{ background:var(--s1); color:var(--ink); }
+.help-figure{ margin:var(--sp-3) 0 var(--sp-4); }
+.help-figure img{ display:block; max-width:100%; height:auto; border:1px solid var(--line); border-radius:var(--r-2); }
+.help-figure figcaption{ font-size:var(--t-sm); color:var(--ink-3); margin-top:var(--sp-1); }
+@media (max-width: 1100px){
+  .help-layout{ grid-template-columns:minmax(0,1fr); }
+  .help-toc{ position:static; max-height:none; }
+}
+
+/* Longer Turkish labels: guest-panel tabs stay on one line, team headers
+   may wrap, and Help and Log Out share the sidebar footer row so the menu
+   still fits a 768-pixel-high window. */
+.card-tab{ white-space:nowrap; }
+.card-tabs{ gap:var(--sp-4); }
+.team-table th{ white-space:normal; vertical-align:bottom; line-height:1.3; }
+.app-menu-footer{ display:flex; gap:4px; }
+.app-menu-footer .nav-item{ flex:1 1 0; min-width:0; }
+.filter-menu.wide{ max-height:calc(100vh - 230px); overflow-y:auto; }

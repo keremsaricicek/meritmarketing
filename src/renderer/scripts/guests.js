@@ -20,16 +20,16 @@ const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 function shortDay(ymd){
   if (!ymd) return '';
   const [, m, d] = String(ymd).split('-').map(Number);
-  return `${d} ${MONTH_SHORT[m - 1] || ''}`;
+  return `${d} ${MONTH_SHORT[m - 1] ? t(MONTH_SHORT[m - 1]) : ''}`;
 }
 /* "today", "tomorrow", "in 3 days", "2 days ago" — for a business date. */
 function relativeDay(ymd){
   const n = daysBetween(todayYMD(), String(ymd).slice(0, 10));
   if (!Number.isFinite(n)) return '';
-  if (n === 0) return 'today';
-  if (n === 1) return 'tomorrow';
-  if (n === -1) return 'yesterday';
-  return n > 0 ? `in ${n} days` : `${-n} days ago`;
+  if (n === 0) return t('today');
+  if (n === 1) return t('tomorrow');
+  if (n === -1) return t('yesterday');
+  return n > 0 ? t('in {n} days', { n }) : t('{n} days ago', { n: -n });
 }
 function excerpt(text, max = 90){
   const t = String(text || '').replace(/\s+/g, ' ').trim();
@@ -44,13 +44,15 @@ function noteTemplates(){
   if (raw){
     try { const list = JSON.parse(raw); if (Array.isArray(list)) return list.map(String).filter(Boolean); } catch (_) {}
   }
-  return DEFAULT_NOTE_TEMPLATES.slice();
+  /* The built-in set follows the operator's language until somebody saves
+     their own list. */
+  return DEFAULT_NOTE_TEMPLATES.map(x => t(x));
 }
 function noteTemplatesHTML(inputId){
   const list = noteTemplates();
   if (!list.length) return '';
-  return `<div class="note-templates" role="group" aria-label="Quick note templates">${list.map((t, i) =>
-    `<button type="button" class="tpl-chip" data-act="applyNoteTemplate" data-on="click" data-args='["${jsonAttr(inputId)}",${i}]'>${escapeHtml(t)}</button>`
+  return `<div class="note-templates" role="group" aria-label="${te('Quick note templates')}">${list.map((tpl, i) =>
+    `<button type="button" class="tpl-chip" data-act="applyNoteTemplate" data-on="click" data-args='["${jsonAttr(inputId)}",${i}]'>${escapeHtml(tpl)}</button>`
   ).join('')}</div>`;
 }
 /* One click writes the template; a second template is added on its own line
@@ -73,12 +75,12 @@ async function saveNoteTemplates(){
   try {
     await call(window.api.settings.set, { key:'crm.note_templates', value: JSON.stringify(lines) }, { silent:true });
     state.settings['crm.note_templates'] = JSON.stringify(lines);
-    toast('success', 'Templates saved');
-  } catch (e){ toast('error', 'Templates not saved', e.message); }
+    toast('success', t('Templates saved'));
+  } catch (e){ toast('error', t('Templates not saved'), e.message); }
 }
 async function resetNoteTemplates(){
   const box = el('setNoteTemplates');
-  if (box) box.value = DEFAULT_NOTE_TEMPLATES.join('\n');
+  if (box) box.value = DEFAULT_NOTE_TEMPLATES.map(x => t(x)).join('\n');
   await saveNoteTemplates();
 }
 
@@ -87,35 +89,35 @@ async function resetNoteTemplates(){
    ===================================================================== */
 function reminderDuePill(r){
   const days = daysBetween(todayYMD(), r.due_date);
-  if (days < 0) return `<span class="due-pill urgent">overdue ${-days}d</span>`;
-  if (days === 0) return '<span class="due-pill soon">today</span>';
+  if (days < 0) return `<span class="due-pill urgent">${te('overdue {n}d', { n: -days })}</span>`;
+  if (days === 0) return `<span class="due-pill soon">${te('today')}</span>`;
   return `<span class="due-pill">${escapeHtml(shortDay(r.due_date))}</span>`;
 }
 /* The guest panel's follow-ups: every open reminder on this guest, with Done. */
 function remindersHTML(list, customerId){
   if (!list || !list.length) return '';
   return `<div class="reminder-block">
-    <div class="pane-title">Follow-ups <span class="muted gi-count">${list.length}</span></div>
+    <div class="pane-title">${te('Follow-ups')} <span class="muted gi-count">${list.length}</span></div>
     ${list.map(r => `
       <div class="reminder-row${r.due ? ' is-due' : ''}">
         <div class="rr-main">
           <div class="rr-top">${reminderDuePill(r)}<span class="muted">${escapeHtml(fmtDate(r.due_date))}${r.created_by_name ? ' · ' + escapeHtml(r.created_by_name) : ''}</span></div>
           ${r.note ? `<div class="rr-note">${escapeHtml(excerpt(r.note, 140))}</div>` : ''}
         </div>
-        <button class="btn btn-outline btn-sm" data-act="markReminderDone" data-on="click" data-args='[${Number(r.id)},${Number(customerId)}]'>Done</button>
+        <button class="btn btn-outline btn-sm" data-act="markReminderDone" data-on="click" data-args='[${Number(r.id)},${Number(customerId)}]'>${te('Done')}</button>
       </div>`).join('')}
   </div>`;
 }
 async function markReminderDone(id, customerId){
   try {
     await call(window.api.reminders.done, { id }, { silent:true });
-    toast('success', 'Follow-up done');
+    toast('success', t('Follow-up done'));
     await Promise.allSettled([
       customerId ? refreshOpenInspectors(customerId) : Promise.resolve(),
       workspace.active === 'dashboard' ? renderGuestDashboardPanels() : Promise.resolve(),
       refreshNotifBadge()
     ]);
-  } catch (e){ toast('error', 'Could not mark done', e.message); }
+  } catch (e){ toast('error', t('Could not mark done'), e.message); }
 }
 
 /* =====================================================================
@@ -141,10 +143,10 @@ async function renderGuestDashboardPanels(data){
           <div class="lr-sub">${r.note ? escapeHtml(excerpt(r.note, 70)) : '#' + escapeHtml(r.code)}</div>
         </div>
         <div class="lr-right lr-actions">${reminderDuePill(r)}
-          <button class="btn btn-outline btn-sm" data-act="dashReminderDone" data-on="click" data-args='[${Number(r.id)},{"$":"event"}]' aria-label="Mark the follow-up with ${escapeHtml(r.full_name)} done">Done</button>
+          <button class="btn btn-outline btn-sm" data-act="dashReminderDone" data-on="click" data-args='[${Number(r.id)},{"$":"event"}]' aria-label="${te('Mark the follow-up with {name} done', { name: r.full_name })}">${te('Done')}</button>
         </div>
       </div>`).join('')
-      : emptyState({ icon:'check', title:'No follow-ups due', text:'Add “Remind me on” to a CRM note to see it here on the day.' });
+      : emptyState({ icon:'check', title:t('No follow-ups due'), text:t('Add “Remind me on” to a CRM note to see it here on the day.') });
   }
 
   const datesNode = el('upcomingDatesList');
@@ -155,11 +157,11 @@ async function renderGuestDashboardPanels(data){
         <div class="lr-avatar"${avatarStyle(x.photo_name)}>${photoUrl(x.photo_name) ? '' : escapeHtml(initials(x.full_name))}</div>
         <div class="lr-main">
           <div class="lr-name">${escapeHtml(x.full_name)}</div>
-          <div class="lr-sub">${escapeHtml(x.label)} · ${escapeHtml(shortDay(x.date))}</div>
+          <div class="lr-sub">${escapeHtml(tNotice(x.label))} · ${escapeHtml(shortDay(x.date))}</div>
         </div>
         <div class="lr-right"><span class="due-pill${x.days_away === 0 ? ' soon' : ''}">${escapeHtml(relativeDay(x.date))}</span></div>
       </div>`).join('')
-      : '<div class="panel-empty">No birthdays or special dates this week</div>';
+      : `<div class="panel-empty">${te('No birthdays or special dates this week')}</div>`;
   }
   await renderRecentGuestsPanel();
 }
@@ -194,13 +196,13 @@ async function renderRecentGuestsPanel(){
         <div class="lr-name">${escapeHtml(c.full_name)}</div>
         <div class="lr-sub">#${escapeHtml(c.code)}${c.marketing_name ? ' · ' + escapeHtml(c.marketing_name) : ''}</div>
       </div>
-    </div>`).join('') : '<div class="panel-empty">Guests you open appear here</div>';
+    </div>`).join('') : `<div class="panel-empty">${te('Guests you open appear here')}</div>`;
 }
 /* Palette, empty query: the last guests opened, above the commands. */
 async function paletteRecentItems(){
   const rows = await loadRecentGuests();
-  return rows.map(c => ({ kind:'Guest', group:'Recently viewed', count:rows.length, title:c.full_name,
-    sub:[`#${c.code}`, c.marketing_name ? 'Assigned to ' + c.marketing_name : ''].filter(Boolean).join(' · '),
+  return rows.map(c => ({ kind:t('Guest'), group:t('Recently viewed'), count:rows.length, title:c.full_name,
+    sub:[`#${c.code}`, c.marketing_name ? t('Assigned to {name}', { name: c.marketing_name }) : ''].filter(Boolean).join(' · '),
     action:'goToGuest', args:[c.id, 'customers'] }));
 }
 
@@ -233,7 +235,7 @@ function fillTagFilterSelects(){
   for (const id of ['custFTag', 'listFTag']){
     const sel = el(id); if (!sel) continue;
     const v = sel.value;
-    sel.innerHTML = '<option value="">Any tag</option>' +
+    sel.innerHTML = `<option value="">${te('Any tag')}</option>` +
       (state.tags || []).map(t => `<option value="${Number(t.id)}">${escapeHtml(t.name)}</option>`).join('');
     sel.value = v;
   }
@@ -243,7 +245,7 @@ function guestTagsRowHTML(c){
   const canEdit = can1('customers.update');
   const chips = tagChipsHTML(c.tags);
   if (!chips && !canEdit) return '';
-  return `<div class="guest-tags">${chips || ''}${canEdit ? `<button type="button" class="tag-add" data-act="openTagsModal" data-on="click" data-args='[${Number(c.id)}]' title="Edit tags (T)">${chips ? 'Edit tags' : '+ Add tag'}</button>` : ''}</div>`;
+  return `<div class="guest-tags">${chips || ''}${canEdit ? `<button type="button" class="tag-add" data-act="openTagsModal" data-on="click" data-args='[${Number(c.id)}]' title="${te('Edit tags (T)')}">${chips ? te('Edit tags') : te('+ Add tag')}</button>` : ''}</div>`;
 }
 
 let tagsModal = { customerId:null, picked:new Set(), color:'slate' };
@@ -251,7 +253,7 @@ async function openTagsModal(customerId){
   if (!customerId) return;
   let c = null;
   try { c = await call(window.api.customers.get, { id:Number(customerId) }, { silent:true }); }
-  catch (e){ toast('error', 'Could not open tags', e.message); return; }
+  catch (e){ toast('error', t('Could not open tags'), e.message); return; }
   if (!c) return;
   await refreshTags();
   tagsModal = { customerId:c.id, picked:new Set(c.tags || []), color:'slate' };
@@ -267,7 +269,7 @@ function renderTagPicker(){
     const on = tagsModal.picked.has(t.id);
     return `<button type="button" class="tag-pick tc-${tagColor(t)}${on ? ' on' : ''}" aria-pressed="${on}" data-act="toggleTagPick" data-on="click" data-args='[${Number(t.id)}]'>
       <span class="tp-check" aria-hidden="true">${on ? '✓' : ''}</span>${escapeHtml(t.name)}</button>`;
-  }).join('') : '<div class="empty-mini">No tags yet — create the first one below.</div>';
+  }).join('') : `<div class="empty-mini">${te('No tags yet — create the first one below.')}</div>`;
 }
 function toggleTagPick(id){
   if (tagsModal.picked.has(id)) tagsModal.picked.delete(id); else tagsModal.picked.add(id);
@@ -275,7 +277,7 @@ function toggleTagPick(id){
 }
 function renderTagColorPicker(){
   const node = el('newTagColors'); if (!node) return;
-  node.innerHTML = TAG_PALETTE.map(c => `<button type="button" class="swatch tc-${c}${tagsModal.color === c ? ' on' : ''}" aria-pressed="${tagsModal.color === c}" aria-label="${TAG_PALETTE_LABEL[c]}" title="${TAG_PALETTE_LABEL[c]}" data-act="pickNewTagColor" data-on="click" data-args='["${jsonAttr(c)}"]'></button>`).join('');
+  node.innerHTML = TAG_PALETTE.map(c => `<button type="button" class="swatch tc-${c}${tagsModal.color === c ? ' on' : ''}" aria-pressed="${tagsModal.color === c}" aria-label="${te(TAG_PALETTE_LABEL[c])}" title="${te(TAG_PALETTE_LABEL[c])}" data-act="pickNewTagColor" data-on="click" data-args='["${jsonAttr(c)}"]'></button>`).join('');
 }
 function pickNewTagColor(color){
   if (!TAG_PALETTE.includes(color)) return;
@@ -287,25 +289,25 @@ async function addNewTag(){
   const input = el('newTagName');
   const name = input.value.trim();
   clearFieldErrors(el('modalTags'));
-  if (!name){ showFieldError('newTagName', 'Type a name for the tag.'); return; }
+  if (!name){ showFieldError('newTagName', t('Type a name for the tag.')); return; }
   try {
-    const t = await call(window.api.tags.create, { name, color: tagsModal.color }, { silent:true });
+    const created = await call(window.api.tags.create, { name, color: tagsModal.color }, { silent:true });
     await refreshTags();
-    tagsModal.picked.add(t.id);
+    tagsModal.picked.add(created.id);
     input.value = '';
     renderTagPicker();
-  } catch (e){ if (!applyServerError(e, { name:'newTagName', color:'newTagName' })) toast('error', 'Tag not created', e.message); }
+  } catch (e){ if (!applyServerError(e, { name:'newTagName', color:'newTagName' })) toast('error', t('Tag not created'), e.message); }
 }
 async function saveTags(){
   const id = tagsModal.customerId; if (!id) return;
   const btn = el('tagsSaveBtn');
-  await withBusy(btn, 'Saving…', async () => {
+  await withBusy(btn, t('Saving…'), async () => {
     try {
       await call(window.api.customers.setTags, { id, tagIds:[...tagsModal.picked] }, { silent:true });
       closeModal('modalTags');
-      toast('success', 'Tags saved');
+      toast('success', t('Tags saved'));
       await Promise.all([refreshOpenInspectors(id), refreshCrmViews()]);
-    } catch (e){ toast('error', 'Tags not saved', e.message); }
+    } catch (e){ toast('error', t('Tags not saved'), e.message); }
   });
 }
 /* Settings: rename, recolour or delete a shared tag. */
@@ -315,31 +317,31 @@ async function renderTagSettings(){
   node.innerHTML = state.tags.length ? state.tags.map(t => `
     <div class="tag-setting-row">
       ${tagChipHTML(t)}
-      <label class="visually-hidden" for="tagName_${Number(t.id)}">Tag name</label>
+      <label class="visually-hidden" for="tagName_${Number(t.id)}">${te('Tag name')}</label>
       <input class="fm-input" id="tagName_${Number(t.id)}" value="${escapeHtml(t.name)}" maxlength="40" data-act="renameTag" data-on="change" data-args='[${Number(t.id)},{"$":"value"}]'>
-      <label class="visually-hidden" for="tagColor_${Number(t.id)}">Tag colour</label>
+      <label class="visually-hidden" for="tagColor_${Number(t.id)}">${te('Tag colour')}</label>
       <select class="fm-input" id="tagColor_${Number(t.id)}" data-act="recolorTag" data-on="change" data-args='[${Number(t.id)},{"$":"value"}]'>
-        ${TAG_PALETTE.map(c => `<option value="${c}"${c === tagColor(t) ? ' selected' : ''}>${TAG_PALETTE_LABEL[c]}</option>`).join('')}
+        ${TAG_PALETTE.map(c => `<option value="${c}"${c === tagColor(t) ? ' selected' : ''}>${te(TAG_PALETTE_LABEL[c])}</option>`).join('')}
       </select>
-      <button class="btn btn-ghost btn-sm" data-act="deleteTag" data-on="click" data-args='[${Number(t.id)}]'>Delete</button>
-    </div>`).join('') : '<div class="empty-mini">No tags yet. Tags are created from a guest\'s panel.</div>';
+      <button class="btn btn-ghost btn-sm" data-act="deleteTag" data-on="click" data-args='[${Number(t.id)}]'>${te('Delete')}</button>
+    </div>`).join('') : `<div class="empty-mini">${te("No tags yet. Tags are created from a guest's panel.")}</div>`;
 }
 async function renameTag(id, name){
-  try { await call(window.api.tags.update, { id, name }, { silent:true }); toast('success', 'Tag renamed'); }
-  catch (e){ toast('error', 'Tag not renamed', e.message); }
+  try { await call(window.api.tags.update, { id, name }, { silent:true }); toast('success', t('Tag renamed')); }
+  catch (e){ toast('error', t('Tag not renamed'), e.message); }
   await renderTagSettings();
 }
 async function recolorTag(id, color){
   try { await call(window.api.tags.update, { id, color }, { silent:true }); }
-  catch (e){ toast('error', 'Colour not changed', e.message); }
+  catch (e){ toast('error', t('Colour not changed'), e.message); }
   await renderTagSettings();
 }
 async function deleteTag(id){
-  const t = tagById(id);
-  if (!await confirmDialog({ title:'Delete tag', message:`Delete the tag “${t ? t.name : ''}”?`,
-    detail:'It is removed from every guest that carries it.', confirmLabel:'Delete' })) return;
-  try { await call(window.api.tags.delete, { id }, { silent:true }); toast('success', 'Tag deleted'); }
-  catch (e){ toast('error', 'Tag not deleted', e.message); }
+  const tag = tagById(id);
+  if (!await confirmDialog({ title:t('Delete tag'), message:t('Delete the tag “{name}”?', { name: tag ? tag.name : '' }),
+    detail:t('It is removed from every guest that carries it.'), confirmLabel:t('Delete') })) return;
+  try { await call(window.api.tags.delete, { id }, { silent:true }); toast('success', t('Tag deleted')); }
+  catch (e){ toast('error', t('Tag not deleted'), e.message); }
   await renderTagSettings();
 }
 
@@ -350,10 +352,10 @@ function datesSummaryHTML(c){
   const parts = [];
   if (c.birth_date){
     const [, m, d] = c.birth_date.split('-').map(Number);
-    parts.push(`<div class="gc-field"><div class="gf-l">Birthday</div><div class="gf-v">${escapeHtml(`${d} ${MONTH_SHORT[m - 1]}`)} <span class="muted">${escapeHtml(fmtDate(c.birth_date))}</span></div></div>`);
+    parts.push(`<div class="gc-field"><div class="gf-l">${te('Birthday')}</div><div class="gf-v">${escapeHtml(`${d} ${t(MONTH_SHORT[m - 1])}`)} <span class="muted">${escapeHtml(fmtDate(c.birth_date))}</span></div></div>`);
   }
   for (const s of c.special_dates || []){
-    parts.push(`<div class="gc-field"><div class="gf-l">${escapeHtml(s.label)}</div><div class="gf-v">${escapeHtml(`${Number(s.day)} ${MONTH_SHORT[Number(s.month) - 1]}`)}</div></div>`);
+    parts.push(`<div class="gc-field"><div class="gf-l">${escapeHtml(s.label)}</div><div class="gf-v">${escapeHtml(`${Number(s.day)} ${t(MONTH_SHORT[Number(s.month) - 1])}`)}</div></div>`);
   }
   return parts.join('');
 }
@@ -361,7 +363,7 @@ let datesModal = { customerId:null, rows:[] };
 async function openDatesModal(customerId){
   let c = null;
   try { c = await call(window.api.customers.get, { id:Number(customerId) }, { silent:true }); }
-  catch (e){ toast('error', 'Could not open dates', e.message); return; }
+  catch (e){ toast('error', t('Could not open dates'), e.message); return; }
   if (!c) return;
   datesModal = { customerId:c.id, rows:(c.special_dates || []).map(s => ({ label:s.label, month:s.month, day:s.day })) };
   el('datesModalSubtitle').textContent = `${c.full_name} · #${c.code}`;
@@ -374,18 +376,18 @@ function renderDateRows(){
   const node = el('datesRows'); if (!node) return;
   node.innerHTML = datesModal.rows.length ? datesModal.rows.map((r, i) => `
     <div class="date-row">
-      <label class="visually-hidden" for="dateLabel_${i}">Label</label>
-      <input type="text" id="dateLabel_${i}" maxlength="60" placeholder="e.g. Wedding anniversary" value="${escapeHtml(r.label)}" data-act="setDateRow" data-on="input" data-args='[${i},"label",{"$":"value"}]'>
-      <label class="visually-hidden" for="dateMonth_${i}">Month</label>
+      <label class="visually-hidden" for="dateLabel_${i}">${te('Label')}</label>
+      <input type="text" id="dateLabel_${i}" maxlength="60" placeholder="${te('e.g. Wedding anniversary')}" value="${escapeHtml(r.label)}" data-act="setDateRow" data-on="input" data-args='[${i},"label",{"$":"value"}]'>
+      <label class="visually-hidden" for="dateMonth_${i}">${te('Month')}</label>
       <select id="dateMonth_${i}" data-act="setDateRow" data-on="change" data-args='[${i},"month",{"$":"value"}]'>
-        ${MONTH_SHORT.map((m, k) => `<option value="${k + 1}"${Number(r.month) === k + 1 ? ' selected' : ''}>${m}</option>`).join('')}
+        ${MONTH_SHORT.map((m, k) => `<option value="${k + 1}"${Number(r.month) === k + 1 ? ' selected' : ''}>${te(m)}</option>`).join('')}
       </select>
-      <label class="visually-hidden" for="dateDay_${i}">Day</label>
+      <label class="visually-hidden" for="dateDay_${i}">${te('Day')}</label>
       <select id="dateDay_${i}" data-act="setDateRow" data-on="change" data-args='[${i},"day",{"$":"value"}]'>
         ${Array.from({ length:31 }, (_, k) => `<option value="${k + 1}"${Number(r.day) === k + 1 ? ' selected' : ''}>${k + 1}</option>`).join('')}
       </select>
-      <button type="button" class="btn-icon" aria-label="Remove this date" data-act="removeDateRow" data-on="click" data-args='[${i}]'>✕</button>
-    </div>`).join('') : '<div class="empty-mini">No special dates.</div>';
+      <button type="button" class="btn-icon" aria-label="${te('Remove this date')}" data-act="removeDateRow" data-on="click" data-args='[${i}]'>✕</button>
+    </div>`).join('') : `<div class="empty-mini">${te('No special dates.')}</div>`;
 }
 function setDateRow(i, field, value){
   const r = datesModal.rows[i]; if (!r) return;
@@ -403,17 +405,17 @@ async function saveDates(){
   const id = datesModal.customerId; if (!id) return;
   clearFieldErrors(el('modalDates'));
   const rows = datesModal.rows.map(r => ({ label:String(r.label || '').trim(), month:Number(r.month), day:Number(r.day) }));
-  if (rows.some(r => !r.label)){ showFieldError('datesRowsAnchor', 'Give every date a label, or remove it.'); return; }
+  if (rows.some(r => !r.label)){ showFieldError('datesRowsAnchor', t('Give every date a label, or remove it.')); return; }
   const birth = el('datesBirth').value;
-  await withBusy(el('datesSaveBtn'), 'Saving…', async () => {
+  await withBusy(el('datesSaveBtn'), t('Saving…'), async () => {
     try {
       await call(window.api.customers.update, { id, birthDate: birth || null }, { silent:true });
       await call(window.api.customers.setDates, { id, dates:rows }, { silent:true });
       closeModal('modalDates');
-      toast('success', 'Dates saved');
+      toast('success', t('Dates saved'));
       await refreshOpenInspectors(id);
     } catch (e){
-      if (!applyServerError(e, { birthDate:'datesBirth', dates:'datesRowsAnchor' })) toast('error', 'Dates not saved', e.message);
+      if (!applyServerError(e, { birthDate:'datesBirth', dates:'datesRowsAnchor' })) toast('error', t('Dates not saved'), e.message);
     }
   });
 }
@@ -433,18 +435,18 @@ function duplicateWarningHTML(result, { editing }){
   const rows = (result?.matches || []).map(m => `
     <div class="dup-row">
       <div class="dup-main"><b>${escapeHtml(m.full_name)}</b> <span class="muted">#${escapeHtml(m.code)}</span>
-        <div class="muted dup-why">Same ${m.match.map(x => x === 'passport' ? 'passport number' : 'phone').join(' and ')}</div></div>
-      <button type="button" class="btn btn-outline btn-sm" data-act="openDuplicateGuest" data-on="click" data-args='[${Number(m.id)}]'>Open existing</button>
+        <div class="muted dup-why">${te(m.match.includes('passport') && m.match.length > 1 ? 'Same phone and passport number' : m.match.includes('passport') ? 'Same passport number' : 'Same phone')}</div></div>
+      <button type="button" class="btn btn-outline btn-sm" data-act="openDuplicateGuest" data-on="click" data-args='[${Number(m.id)}]'>${te('Open existing')}</button>
     </div>`).join('');
-  const hidden = [];
-  if (result?.elsewhere?.phone) hidden.push('phone number');
-  if (result?.elsewhere?.passport) hidden.push('passport number');
-  const elsewhere = hidden.length
-    ? `<div class="dup-elsewhere">A guest with this ${hidden.join(' and ')} already exists in another marketer's book.</div>` : '';
-  return `<div class="dup-title">Possible duplicate guest</div>
+  const ph = !!result?.elsewhere?.phone, pp = !!result?.elsewhere?.passport;
+  const elsewhereKey = ph && pp ? "A guest with this phone number and passport number already exists in another marketer's book."
+    : ph ? "A guest with this phone number already exists in another marketer's book."
+    : pp ? "A guest with this passport number already exists in another marketer's book." : '';
+  const elsewhere = elsewhereKey ? `<div class="dup-elsewhere">${te(elsewhereKey)}</div>` : '';
+  return `<div class="dup-title">${te('Possible duplicate guest')}</div>
     ${rows}${elsewhere}
     <div class="dup-actions">
-      <button type="button" class="btn btn-gold btn-sm" data-act="saveCustomerAnyway" data-on="click" data-args='[]'>${editing ? 'Save anyway' : 'Create anyway'}</button>
+      <button type="button" class="btn btn-gold btn-sm" data-act="saveCustomerAnyway" data-on="click" data-args='[]'>${editing ? te('Save anyway') : te('Create anyway')}</button>
     </div>`;
 }
 function hasDuplicates(result){
@@ -467,7 +469,7 @@ async function openMergeModal(primaryId){
   if (!hasCap('customers.merge')) return;
   let primary = null;
   try { primary = await call(window.api.customers.get, { id:Number(primaryId) }, { silent:true }); }
-  catch (e){ toast('error', 'Could not open merge', e.message); return; }
+  catch (e){ toast('error', t('Could not open merge'), e.message); return; }
   if (!primary) return;
   mergeState = { primary, duplicate:null };
   el('mergeDuplicateSelect').value = '';
@@ -475,15 +477,15 @@ async function openMergeModal(primaryId){
   openModal('modalMerge');
 }
 function mergeCardHTML(c, role){
-  if (!c) return `<div class="merge-card empty"><div class="merge-role">${escapeHtml(role)}</div>
-    <button type="button" class="finder-trigger" data-act="openMergeFinder" data-on="click" data-args='[]'>Find the duplicate guest…</button></div>`;
-  const row = (l, v) => `<div class="merge-field"><span>${l}</span><b>${v ? escapeHtml(v) : '—'}</b></div>`;
+  if (!c) return `<div class="merge-card empty"><div class="merge-role">${te(role)}</div>
+    <button type="button" class="finder-trigger" data-act="openMergeFinder" data-on="click" data-args='[]'>${te('Find the duplicate guest…')}</button></div>`;
+  const row = (l, v) => `<div class="merge-field"><span>${te(l)}</span><b>${v ? escapeHtml(v) : '—'}</b></div>`;
   return `<div class="merge-card">
-    <div class="merge-role">${escapeHtml(role)}</div>
+    <div class="merge-role">${te(role)}</div>
     <div class="merge-name">${escapeHtml(c.full_name)} <span class="muted">#${escapeHtml(c.code)}</span></div>
     ${row('Phone', c.phone)}${row('Passport', c.passport_no)}${row('Email', c.email)}
     ${row('Stays', String(c.reservation_count ?? 0))}${row('CRM notes', String(c.note_count ?? 0))}
-    ${role === 'Duplicate' ? '<button type="button" class="btn-link" data-act="openMergeFinder" data-on="click" data-args=\'[]\'>Choose a different guest</button>' : ''}
+    ${role === 'Duplicate' ? `<button type="button" class="btn-link" data-act="openMergeFinder" data-on="click" data-args='[]'>${te('Choose a different guest')}</button>` : ''}
   </div>`;
 }
 function renderMergeModal(){
@@ -491,28 +493,28 @@ function renderMergeModal(){
   el('mergeConfirmBtn').disabled = !mergeState.duplicate;
 }
 function openMergeFinder(){
-  openFinder({ mode:'customer', targetInputId:'mergeDuplicateSelect', title:'Find duplicate guest',
-    subtitle:'Search by ID, name or phone', onSelect:onMergeDuplicatePicked });
+  openFinder({ mode:'customer', targetInputId:'mergeDuplicateSelect', title:t('Find duplicate guest'),
+    subtitle:t('Search by ID, name or phone'), onSelect:onMergeDuplicatePicked });
 }
 async function onMergeDuplicatePicked(){
   const id = Number(el('mergeDuplicateSelect').value);
   if (!id) return;
-  if (id === mergeState.primary?.id){ toast('error', 'Choose another guest', 'A guest cannot be merged into itself.'); return; }
+  if (id === mergeState.primary?.id){ toast('error', t('Choose another guest'), t('A guest cannot be merged into itself.')); return; }
   try { mergeState.duplicate = await call(window.api.customers.get, { id }, { silent:true }); }
-  catch (e){ toast('error', 'Could not load that guest', e.message); mergeState.duplicate = null; }
+  catch (e){ toast('error', t('Could not load that guest'), e.message); mergeState.duplicate = null; }
   renderMergeModal();
 }
 async function confirmMerge(){
   const { primary, duplicate } = mergeState;
   if (!primary || !duplicate) return;
-  await withBusy(el('mergeConfirmBtn'), 'Merging…', async () => {
+  await withBusy(el('mergeConfirmBtn'), t('Merging…'), async () => {
     try {
       const r = await call(window.api.customers.merge, { primaryId:primary.id, duplicateId:duplicate.id }, { silent:true });
       closeModal('modalMerge');
       const m = r?.moved || {};
-      toast('success', 'Guests merged', `${m.notes || 0} notes and ${m.reservations || 0} stays moved to ${primary.full_name}.`);
+      toast('success', t('Guests merged'), t('{notes} notes and {stays} stays moved to {name}.', { notes: m.notes || 0, stays: m.reservations || 0, name: primary.full_name }));
       await Promise.allSettled([refreshOpenInspectors(primary.id), refreshCrmViews(), renderReservations()]);
-    } catch (e){ toast('error', 'Guests not merged', e.message); }
+    } catch (e){ toast('error', t('Guests not merged'), e.message); }
   });
 }
 
@@ -544,19 +546,19 @@ async function renderViewsMenu(screen){
   let views = [];
   try { views = (await call(window.api.views.list, { screen }, { silent:true })) || []; } catch (_) {}
   node.innerHTML = `
-    <div class="fm-title">Saved views</div>
+    <div class="fm-title">${te('Saved views')}</div>
     ${views.length ? views.map(v => `
       <div class="view-item">
         <button type="button" class="view-open" data-act="applySavedView" data-on="click" data-args='["${jsonAttr(screen)}",${Number(v.id)}]'>${escapeHtml(v.name)}</button>
-        <button type="button" class="view-del" aria-label="Delete saved view ${escapeHtml(v.name)}" title="Delete" data-act="deleteSavedView" data-on="click" data-args='["${jsonAttr(screen)}",${Number(v.id)}]'>✕</button>
-      </div>`).join('') : '<div class="empty-mini">No saved views yet.</div>'}
+        <button type="button" class="view-del" aria-label="${te('Delete saved view {name}', { name: v.name })}" title="${te('Delete')}" data-act="deleteSavedView" data-on="click" data-args='["${jsonAttr(screen)}",${Number(v.id)}]'>✕</button>
+      </div>`).join('') : `<div class="empty-mini">${te('No saved views yet.')}</div>`}
     <div class="fm-sep"></div>
-    <div class="fm-title">Save current search and filters</div>
+    <div class="fm-title">${te('Save current search and filters')}</div>
     <div class="fm-row">
-      <label class="visually-hidden" for="viewName_${screen}">View name</label>
-      <input class="fm-input" id="viewName_${screen}" maxlength="60" placeholder="Name this view" autocomplete="off"
+      <label class="visually-hidden" for="viewName_${screen}">${te('View name')}</label>
+      <input class="fm-input" id="viewName_${screen}" maxlength="60" placeholder="${te('Name this view')}" autocomplete="off"
              data-act-keydown="viewNameKey" data-args-keydown='["${jsonAttr(screen)}",{"$":"event"}]'>
-      <button type="button" class="btn btn-gold btn-sm" data-act="saveCurrentView" data-on="click" data-args='["${jsonAttr(screen)}"]'>Save</button>
+      <button type="button" class="btn btn-gold btn-sm" data-act="saveCurrentView" data-on="click" data-args='["${jsonAttr(screen)}"]'>${te('Save')}</button>
     </div>`;
   node.dataset.views = JSON.stringify(views.map(v => ({ id:v.id, name:v.name, state:v.state })));
 }
@@ -564,16 +566,16 @@ function viewNameKey(screen, e){ if (e.key === 'Enter'){ e.preventDefault(); sav
 async function saveCurrentView(screen){
   const input = el(`viewName_${screen}`);
   const name = input?.value.trim();
-  if (!name){ input?.focus(); toast('error', 'Name the view', 'Type a name, then save.'); return; }
+  if (!name){ input?.focus(); toast('error', t('Name the view'), t('Type a name, then save.')); return; }
   try {
     await call(window.api.views.save, { screen, name, state:captureViewState(screen) }, { silent:true });
-    toast('success', 'View saved', name);
+    toast('success', t('View saved'), name);
     await renderViewsMenu(screen);
-  } catch (e){ toast('error', 'View not saved', e.message); }
+  } catch (e){ toast('error', t('View not saved'), e.message); }
 }
 async function deleteSavedView(screen, id){
   try { await call(window.api.views.delete, { id }, { silent:true }); }
-  catch (e){ toast('error', 'View not deleted', e.message); }
+  catch (e){ toast('error', t('View not deleted'), e.message); }
   await renderViewsMenu(screen);
 }
 async function applySavedView(screen, id){
@@ -612,7 +614,7 @@ async function applySavedView(screen, id){
     const view = ['active','cancelled','deleted'].includes(st.view) ? st.view : 'active';
     if (s.view !== view) setResView(view); else renderReservations();
   }
-  toast('success', 'View opened', v.name);
+  toast('success', t('View opened'), v.name);
 }
 
 /* =====================================================================
@@ -658,14 +660,14 @@ function listActiveFilters(){
   const s = state.list;
   const profile = (id) => state.profiles.find(p => String(p.id) === String(id))?.full_name || '#' + id;
   const out = [];
-  if (s.status) out.push({ key:'status', label:`Status: ${({ COLD:'Cold', NO_RECORD:'No record' })[s.status] || s.status}` });
-  if (s.createdBy) out.push({ key:'createdBy', label:`Created by: ${profile(s.createdBy)}` });
-  if (s.assignedTo) out.push({ key:'assignedTo', label:`Assigned to: ${profile(s.assignedTo)}` });
-  if (s.hasReservation) out.push({ key:'hasReservation', label: s.hasReservation === 'yes' ? 'Has reservation' : 'No reservation' });
-  if (s.hasCrm) out.push({ key:'hasCrm', label: s.hasCrm === 'yes' ? 'Has CRM activity' : 'No CRM activity' });
-  if (s.createdFrom) out.push({ key:'createdFrom', label:`Created from ${fmtDate(s.createdFrom)}` });
-  if (s.createdTo) out.push({ key:'createdTo', label:`Created to ${fmtDate(s.createdTo)}` });
-  if (s.tagId){ const t = tagById(s.tagId); out.push({ key:'tagId', label:`Tag: ${t ? t.name : '#' + s.tagId}` }); }
+  if (s.status) out.push({ key:'status', label:`${t('Status')}: ${({ COLD:t('Cold'), NO_RECORD:t('No record') })[s.status] || s.status}` });
+  if (s.createdBy) out.push({ key:'createdBy', label:`${t('Created by')}: ${profile(s.createdBy)}` });
+  if (s.assignedTo) out.push({ key:'assignedTo', label:`${t('Assigned to')}: ${profile(s.assignedTo)}` });
+  if (s.hasReservation) out.push({ key:'hasReservation', label: s.hasReservation === 'yes' ? t('Has reservation') : t('No reservation') });
+  if (s.hasCrm) out.push({ key:'hasCrm', label: s.hasCrm === 'yes' ? t('Has CRM activity') : t('No CRM activity') });
+  if (s.createdFrom) out.push({ key:'createdFrom', label:t('Created from {date}', { date: fmtDate(s.createdFrom) }) });
+  if (s.createdTo) out.push({ key:'createdTo', label:t('Created to {date}', { date: fmtDate(s.createdTo) }) });
+  if (s.tagId){ const tag = tagById(s.tagId); out.push({ key:'tagId', label:`${t('Tag')}: ${tag ? tag.name : '#' + s.tagId}` }); }
   return out;
 }
 function renderListFilterChips(){
@@ -673,7 +675,7 @@ function renderListFilterChips(){
   const btn = el('listFilterBtn');
   if (btn){
     btn.classList.toggle('filtered', filters.length > 0);
-    btn.setAttribute('aria-label', filters.length ? `Filter (${filters.length} active)` : 'Filter');
+    btn.setAttribute('aria-label', filters.length ? t('Filter ({n} active)', { n: filters.length }) : t('Filter'));
   }
   const n = el('listFilterCount');
   if (n){ n.textContent = String(filters.length); n.classList.toggle('hidden', filters.length === 0); }
@@ -682,8 +684,8 @@ function renderListFilterChips(){
   wrap.classList.toggle('hidden', filters.length === 0);
   wrap.innerHTML = filters.map(f => `
     <span class="chip">${escapeHtml(f.label)}
-      <button class="chip-x" data-act="removeListFilter" data-on="click" data-args='["${jsonAttr(f.key)}"]' aria-label="Remove ${escapeHtml(f.label)}">×</button>
-    </span>`).join('') + (filters.length ? '<button class="btn-link chip-clear" data-act="clearListFilters" data-on="click" data-args=\'[]\'>Clear all</button>' : '');
+      <button class="chip-x" data-act="removeListFilter" data-on="click" data-args='["${jsonAttr(f.key)}"]' aria-label="${te('Remove {name}', { name: f.label })}">×</button>
+    </span>`).join('') + (filters.length ? `<button class="btn-link chip-clear" data-act="clearListFilters" data-on="click" data-args='[]'>${te('Clear all')}</button>` : '');
 }
 function removeListFilter(key){
   const id = LIST_FILTER_FIELDS[key];

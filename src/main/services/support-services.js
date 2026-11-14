@@ -324,7 +324,7 @@ const users = {
 
 /* =============================================================== settings */
 
-const PERSONAL_KEYS = Object.freeze(['appearance.theme', 'appearance.density']);
+const PERSONAL_KEYS = Object.freeze(['appearance.theme', 'appearance.density', 'appearance.language']);
 
 const settings = {
   /* Personal keys resolve to the CALLING user's own choice, falling back to the

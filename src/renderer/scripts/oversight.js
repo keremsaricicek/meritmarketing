@@ -32,12 +32,13 @@ const WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','S
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function dayHeading(ymd){
   const d = new Date(`${ymd}T00:00:00`);
-  const label = `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  if (ymd === todayYMD()) return `Today · ${label}`;
-  if (ymd === daysAgoYMD(1)) return `Yesterday · ${label}`;
+  const label = `${t(WEEKDAYS[d.getDay()])} ${d.getDate()} ${t(MONTHS[d.getMonth()])} ${d.getFullYear()}`;
+  if (ymd === todayYMD()) return `${t('Today')} · ${label}`;
+  if (ymd === daysAgoYMD(1)) return `${t('Yesterday')} · ${label}`;
   return label;
 }
-function plural(n, one, many){ return `${n} ${n === 1 ? one : (many || one + 's')}`; }
+/* `one`/`many` are dictionary phrases with an {n} placeholder. */
+function plural(n, one, many){ return tn(n, one, many); }
 
 /* =====================================================================
    GUEST RECORD — the full page behind "Full record"
@@ -69,10 +70,10 @@ async function renderGuestPage(){
   try { c = await call(window.api.customers.get, { id:customerId }, { silent:true }); }
   catch (e){
     wrap.innerHTML = emptyState({ icon:'guests',
-      title: e.code === 'FORBIDDEN' ? 'This guest is no longer assigned to you' : 'Guest could not be loaded' });
+      title: e.code === 'FORBIDDEN' ? t('This guest is no longer assigned to you') : t('Guest could not be loaded') });
     return;
   }
-  if (!c){ wrap.innerHTML = emptyState({ icon:'guests', title:'Guest not found' }); return; }
+  if (!c){ wrap.innerHTML = emptyState({ icon:'guests', title:t('Guest not found') }); return; }
 
   const [resList, cancelledList, notes, history, reminders] = await Promise.all([
     call(window.api.reservations.list, { customerId, pageSize:200, sort:'check_in', dir:'desc' }, { silent:true }).catch(() => null),
@@ -100,18 +101,18 @@ async function renderGuestPage(){
   /* History: everything that happened to the guest, newest first. */
   const events = [
     ...noteList.map(n => ({ kind:'note', sortKey: n.created_at || n.note_date, when: n.created_at ? fmtDateTime(n.created_at) : fmtDate(n.note_date),
-      title:'CRM note', who:n.created_by_name || n.created_by_username || '', body:n.note })),
+      title:t('CRM note'), who:n.created_by_name || n.created_by_username || '', body:n.note })),
     ...stays.map(r => ({ kind:'stay', sortKey: r.created_at || r.check_in, when: fmtDate(r.check_in),
-      title:`Reservation ${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}`,
-      who: r.invited_by_name ? 'invited by ' + r.invited_by_name : '',
-      body: r.status === 'CANCELLED' ? `Cancelled${r.cancellation_reason ? ' — ' + r.cancellation_reason : ''}` : (r.reservation_note || ''),
+      title:`${t('Reservation')} ${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}`,
+      who: r.invited_by_name ? t('invited by {name}', { name: r.invited_by_name }) : '',
+      body: r.status === 'CANCELLED' ? `${t('Cancelled')}${r.cancellation_reason ? ' — ' + r.cancellation_reason : ''}` : (r.reservation_note || ''),
       status:r.status })),
     ...assignments.filter(h => h.event_type !== 'CREATED' || h.new_profile_id).map(h => ({ kind:'assign', sortKey:h.changed_at, when:fmtDateTime(h.changed_at),
-      title: h.new_profile_name ? `Assigned to ${h.new_profile_name}` : 'Unassigned',
-      who: h.actor_username ? 'by ' + h.actor_username : '',
-      body: h.previous_profile_name ? `Previously ${h.previous_profile_name}` : '' })),
-    { kind:'guest', sortKey:c.created_at, when:fmtDateTime(c.created_at), title:`Registered as #${c.code}`,
-      who: c.created_by_label ? 'by ' + c.created_by_label : '', body:'' }
+      title: h.new_profile_name ? t('Assigned to {name}', { name: h.new_profile_name }) : t('Unassigned'),
+      who: h.actor_username ? t('by {name}', { name: h.actor_username }) : '',
+      body: h.previous_profile_name ? t('Previously {name}', { name: h.previous_profile_name }) : '' })),
+    { kind:'guest', sortKey:c.created_at, when:fmtDateTime(c.created_at), title:t('Registered as #{code}', { code: c.code }),
+      who: c.created_by_label ? t('by {name}', { name: c.created_by_label }) : '', body:'' }
   ].filter(e => e.sortKey).sort((a, b) => String(b.sortKey).localeCompare(String(a.sortKey)));
   const lastActivity = events[0]?.sortKey || null;
   const count = (k) => events.filter(e => e.kind === k).length;
@@ -131,23 +132,22 @@ async function renderGuestPage(){
     const due = (r.status === 'UPCOMING') ? pendingDue(r).label : '';
     return `<div class="rz-item">
       <div class="rz-dates"><span>${fmtDate(r.check_in)} – ${fmtDate(r.check_out)}</span>${statusTagHTML(r.status)}</div>
-      <div class="rz-meta">${r.invited_by_name ? 'Invited by ' + invitedByHTML(r.invited_by_name, r.invited_by_status) : 'No inviter'}${due ? ' · ' + escapeHtml(due) : ''}</div>
+      <div class="rz-meta">${r.invited_by_name ? te('Invited by') + ' ' + invitedByHTML(r.invited_by_name, r.invited_by_status) : te('No inviter')}${due ? ' · ' + escapeHtml(due) : ''}</div>
       ${r.reservation_note ? `<div class="rz-note">${escapeHtml(r.reservation_note)}</div>` : ''}
-    </div>`; }).join('') : '<div class="empty-mini">No reservations yet.</div>';
+    </div>`; }).join('') : `<div class="empty-mini">${te('No reservations yet.')}</div>`;
 
   const assignHTML = assignments.length ? assignments.slice(0, 6).map(h => `
     <div class="rz-item">
-      <div class="rz-dates"><span>${h.new_profile_name ? escapeHtml(h.new_profile_name) : 'Unassigned'}</span><span class="muted">${fmtDate(h.changed_at)}</span></div>
-      <div class="rz-meta">${h.previous_profile_name ? 'from ' + escapeHtml(h.previous_profile_name) : 'first assignment'}${h.actor_username ? ' · by ' + escapeHtml(h.actor_username) : ''}</div>
-    </div>`).join('') : '<div class="empty-mini">No assignment changes recorded.</div>';
+      <div class="rz-dates"><span>${h.new_profile_name ? escapeHtml(h.new_profile_name) : te('Unassigned')}</span><span class="muted">${fmtDate(h.changed_at)}</span></div>
+      <div class="rz-meta">${h.previous_profile_name ? te('from {name}', { name: h.previous_profile_name }) : te('first assignment')}${h.actor_username ? ' · ' + te('by {name}', { name: h.actor_username }) : ''}</div>
+    </div>`).join('') : `<div class="empty-mini">${te('No assignment changes recorded.')}</div>`;
 
-  const fact = (label, value) => `<div class="gp-fact"><div class="gp-fact-l">${label}</div><div class="gp-fact-v">${value}</div></div>`;
-  const row = (label, value) => `<div class="gc-field"><div class="gf-l">${label}</div><div class="gf-v">${value ? escapeHtml(value) : '—'}</div></div>`;
-  const backLabel = escapeHtml(pageLabel(g.from || 'customers'));
+  const fact = (label, value) => `<div class="gp-fact"><div class="gp-fact-l">${te(label)}</div><div class="gp-fact-v">${value}</div></div>`;
+  const row = (label, value) => `<div class="gc-field"><div class="gf-l">${te(label)}</div><div class="gf-v">${value ? escapeHtml(value) : '—'}</div></div>`;
 
   wrap.innerHTML = `
     <div class="gp-back">
-      <button class="btn-link" data-act="guestPageBack" data-on="click" data-args='[]'>← Back to ${backLabel}</button>
+      <button class="btn-link" data-act="guestPageBack" data-on="click" data-args='[]'>← ${te('Back to {page}', { page: pageLabel(g.from || 'customers') })}</button>
     </div>
     <section class="gp-head panel">
       <div class="gp-head-main">
@@ -160,8 +160,8 @@ async function renderGuestPage(){
         ${guestActionsHTML(c, 'gp-actions')}
       </div>
       <div class="gp-facts">
-        ${fact('Assigned to', c.marketing_name ? invitedByHTML(c.marketing_name, c.marketing_status) : '<span class="muted">Unassigned</span>')}
-        ${fact('Next stay', nextStay ? `${fmtDate(nextStay.check_in)} – ${fmtDate(nextStay.check_out)}` : '<span class="muted">None booked</span>')}
+        ${fact('Assigned to', c.marketing_name ? invitedByHTML(c.marketing_name, c.marketing_status) : `<span class="muted">${te('Unassigned')}</span>`)}
+        ${fact('Next stay', nextStay ? `${fmtDate(nextStay.check_in)} – ${fmtDate(nextStay.check_out)}` : `<span class="muted">${te('None booked')}</span>`)}
         ${fact('Last activity', lastActivity ? fmtDate(lastActivity) : '—')}
         ${fact('CRM notes', String(noteList.length))}
       </div>
@@ -172,45 +172,45 @@ async function renderGuestPage(){
           <div class="gp-card-body">${remindersHTML(reminders, c.id)}</div>
         </section>` : ''}
         <section class="panel gp-card">
-          <div class="panel-head"><h2 class="panel-title">Guest note</h2>
-            ${can1('customers.update') ? `<button class="btn-link" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]'>Edit</button>` : ''}</div>
-          <div class="gp-card-body">${guestNoteHTML(c) || '<div class="empty-mini">No guest note.</div>'}</div>
+          <div class="panel-head"><h2 class="panel-title">${te('Guest note')}</h2>
+            ${can1('customers.update') ? `<button class="btn-link" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]'>${te('Edit')}</button>` : ''}</div>
+          <div class="gp-card-body">${guestNoteHTML(c) || `<div class="empty-mini">${te('No guest note.')}</div>`}</div>
         </section>
         <section class="panel gp-card">
-          <div class="panel-head"><h2 class="panel-title">Contact &amp; identity</h2>
-            ${hasCap('customers.merge') ? `<button class="btn-link" data-act="openMergeModal" data-on="click" data-args='[${c.id}]' title="Fold a duplicate record into this guest">Merge duplicate</button>` : ''}</div>
+          <div class="panel-head"><h2 class="panel-title">${te('Contact & identity')}</h2>
+            ${hasCap('customers.merge') ? `<button class="btn-link" data-act="openMergeModal" data-on="click" data-args='[${c.id}]' title="${te('Fold a duplicate record into this guest')}">${te('Merge duplicate')}</button>` : ''}</div>
           <div class="gp-card-body">
             ${row('Phone', c.phone)}${row('Email', c.email)}${row('Passport', c.passport_no)}${row('Nationality', c.nationality)}
             ${row('Registered', fmtDate(c.created_at))}${row('Created by', c.created_by_label)}
           </div>
         </section>
         <section class="panel gp-card">
-          <div class="panel-head"><h2 class="panel-title">Birthday and special dates</h2>
-            ${can1('customers.update') ? `<button class="btn-link" data-act="openDatesModal" data-on="click" data-args='[${c.id}]'>Edit</button>` : ''}</div>
-          <div class="gp-card-body">${datesSummaryHTML(c) || '<div class="empty-mini">No dates recorded.</div>'}</div>
+          <div class="panel-head"><h2 class="panel-title">${te('Birthday and special dates')}</h2>
+            ${can1('customers.update') ? `<button class="btn-link" data-act="openDatesModal" data-on="click" data-args='[${c.id}]'>${te('Edit')}</button>` : ''}</div>
+          <div class="gp-card-body">${datesSummaryHTML(c) || `<div class="empty-mini">${te('No dates recorded.')}</div>`}</div>
         </section>
       </div>
       <section class="panel gp-history">
         <div class="panel-head">
-          <h2 class="panel-title">History <span class="muted gp-hint">newest first</span></h2>
-          <div class="seg" id="guestHistoryFilter" role="group" aria-label="Filter history">
-            <button class="${filter === 'all' ? 'active' : ''}" data-act="setGuestHistoryFilter" data-on="click" data-args='["all"]'>All <span>${events.length}</span></button>
-            <button class="${filter === 'note' ? 'active' : ''}" data-act="setGuestHistoryFilter" data-on="click" data-args='["note"]'>CRM notes <span>${count('note')}</span></button>
-            <button class="${filter === 'stay' ? 'active' : ''}" data-act="setGuestHistoryFilter" data-on="click" data-args='["stay"]'>Stays <span>${count('stay')}</span></button>
+          <h2 class="panel-title">${te('History')} <span class="muted gp-hint">${te('newest first')}</span></h2>
+          <div class="seg" id="guestHistoryFilter" role="group" aria-label="${te('Filter history')}">
+            <button class="${filter === 'all' ? 'active' : ''}" data-act="setGuestHistoryFilter" data-on="click" data-args='["all"]'>${te('All')} <span>${events.length}</span></button>
+            <button class="${filter === 'note' ? 'active' : ''}" data-act="setGuestHistoryFilter" data-on="click" data-args='["note"]'>${te('CRM notes')} <span>${count('note')}</span></button>
+            <button class="${filter === 'stay' ? 'active' : ''}" data-act="setGuestHistoryFilter" data-on="click" data-args='["stay"]'>${te('Stays')} <span>${count('stay')}</span></button>
           </div>
         </div>
         ${can1('crmNotes.create') ? `<div class="gp-composer">${noteComposerHTML(c.id, 'guestPageComposer', true)}</div>` : ''}
-        <div class="gh-list" id="guestHistoryList">${historyHTML || '<div class="panel-empty">Nothing has happened yet</div>'}</div>
+        <div class="gh-list" id="guestHistoryList">${historyHTML || `<div class="panel-empty">${te('Nothing has happened yet')}</div>`}</div>
       </section>
       <div class="gp-col">
         <section class="panel gp-card">
-          <div class="panel-head"><h2 class="panel-title">Reservations <span class="count-pill">${stays.length}</span></h2>
-            ${can1('reservations.create') ? `<button class="btn-link" data-act="openReservationModal" data-on="click" data-args='[null,${c.id}]'>Add</button>` : ''}</div>
+          <div class="panel-head"><h2 class="panel-title">${te('Reservations')} <span class="count-pill">${stays.length}</span></h2>
+            ${can1('reservations.create') ? `<button class="btn-link" data-act="openReservationModal" data-on="click" data-args='[null,${c.id}]'>${te('Add')}</button>` : ''}</div>
           <div class="gp-card-body">${staysHTML}</div>
         </section>
         <section class="panel gp-card">
-          <div class="panel-head"><h2 class="panel-title">Assignment</h2>
-            ${canAssign() ? `<button class="btn-link" data-act="openAssignModal" data-on="click" data-args='[${c.id}]'>Reassign</button>` : ''}</div>
+          <div class="panel-head"><h2 class="panel-title">${te('Assignment')}</h2>
+            ${canAssign() ? `<button class="btn-link" data-act="openAssignModal" data-on="click" data-args='[${c.id}]'>${te('Reassign')}</button>` : ''}</div>
           <div class="gp-card-body">${assignHTML}</div>
         </section>
       </div>
@@ -224,16 +224,16 @@ function custActiveFilters(){
   const out = [];
   const s = state.cust;
   if (s.status){
-    const label = ({ COLD:'Cold', NO_RECORD:'No record', ACTIVE:'Active' })[s.status] || s.status;
-    out.push({ key:'status', label:`Status: ${label}` });
+    const label = ({ COLD:t('Cold'), NO_RECORD:t('No record'), ACTIVE:t('Active') })[s.status] || s.status;
+    out.push({ key:'status', label:`${t('Status')}: ${label}` });
   }
   if (s.marketing){
     const p = state.profiles.find(x => String(x.id) === String(s.marketing));
-    out.push({ key:'marketing', label:`Marketing: ${p ? p.full_name : '#' + s.marketing}` });
+    out.push({ key:'marketing', label:`${t('Marketing')}: ${p ? p.full_name : '#' + s.marketing}` });
   }
   if (s.tagId){
-    const t = tagById(s.tagId);
-    out.push({ key:'tag', label:`Tag: ${t ? t.name : '#' + s.tagId}` });
+    const tag = tagById(s.tagId);
+    out.push({ key:'tag', label:`${t('Tag')}: ${tag ? tag.name : '#' + s.tagId}` });
   }
   return out;
 }
@@ -242,7 +242,7 @@ function renderCustFilterChips(){
   const btn = el('custFilterBtn');
   if (btn){
     btn.classList.toggle('filtered', filters.length > 0);
-    btn.setAttribute('aria-label', filters.length ? `Filter (${filters.length} active)` : 'Filter');
+    btn.setAttribute('aria-label', filters.length ? t('Filter ({n} active)', { n: filters.length }) : t('Filter'));
     const n = el('custFilterCount');
     if (n){ n.textContent = String(filters.length); n.classList.toggle('hidden', filters.length === 0); }
   }
@@ -251,8 +251,8 @@ function renderCustFilterChips(){
   wrap.classList.toggle('hidden', filters.length === 0);
   wrap.innerHTML = filters.map(f => `
     <span class="chip">${escapeHtml(f.label)}
-      <button class="chip-x" data-act="removeCustFilter" data-on="click" data-args='["${jsonAttr(f.key)}"]' aria-label="Remove ${escapeHtml(f.label)}">×</button>
-    </span>`).join('') + (filters.length ? '<button class="btn-link chip-clear" data-act="clearCustFilters" data-on="click" data-args=\'[]\'>Clear all</button>' : '');
+      <button class="chip-x" data-act="removeCustFilter" data-on="click" data-args='["${jsonAttr(f.key)}"]' aria-label="${te('Remove {name}', { name: f.label })}">×</button>
+    </span>`).join('') + (filters.length ? `<button class="btn-link chip-clear" data-act="clearCustFilters" data-on="click" data-args='[]'>${te('Clear all')}</button>` : '');
 }
 function removeCustFilter(key){
   if (key === 'status'){
@@ -292,12 +292,12 @@ async function openTodaysActivity(){
   await setCustMode('activity');
 }
 function activityWindow(){
-  const t = todayYMD();
+  const today = todayYMD();
   switch (state.act.range){
-    case 'yesterday': return { from:daysAgoYMD(1), to:daysAgoYMD(1), label:'yesterday' };
-    case '7': return { from:daysAgoYMD(6), to:t, label:'last 7 days' };
-    case '30': return { from:daysAgoYMD(29), to:t, label:'last 30 days' };
-    default: return { from:t, to:t, label:'today' };
+    case 'yesterday': return { from:daysAgoYMD(1), to:daysAgoYMD(1), label:t('yesterday'), none:t('No activity yesterday') };
+    case '7': return { from:daysAgoYMD(6), to:today, label:t('last 7 days'), none:t('No activity in the last 7 days') };
+    case '30': return { from:daysAgoYMD(29), to:today, label:t('last 30 days'), none:t('No activity in the last 30 days') };
+    default: return { from:today, to:today, label:t('today'), none:t('No activity today') };
   }
 }
 async function setActivityRange(range){ state.act.range = range; await renderActivity(); }
@@ -315,36 +315,36 @@ async function renderActivity(){
     actorUserId: teamCap && state.act.actorUserId ? Number(state.act.actorUserId) : '' });
   let data = null;
   try { data = await call(window.api.activity.feed, payload, { silent:true }); }
-  catch (e){ wrap.innerHTML = emptyState({ icon:'check', title:'Activity could not be loaded', text:e.message || '' }); return; }
+  catch (e){ wrap.innerHTML = emptyState({ icon:'check', title:t('Activity could not be loaded'), text:e.message || '' }); return; }
   if (seq !== activitySeq || !data) return;
 
   const teamWide = !!data.teamWide;
-  const rangeBtn = (val, label) => `<button class="${state.act.range === val ? 'active' : ''}" data-act="setActivityRange" data-on="click" data-args='["${jsonAttr(val)}"]'>${label}</button>`;
-  const kindBtn = (val, label) => `<button class="${state.act.kind === val ? 'active' : ''}" data-act="setActivityKind" data-on="click" data-args='["${jsonAttr(val)}"]'>${label}</button>`;
+  const rangeBtn = (val, label) => `<button class="${state.act.range === val ? 'active' : ''}" data-act="setActivityRange" data-on="click" data-args='["${jsonAttr(val)}"]'>${te(label)}</button>`;
+  const kindBtn = (val, label) => `<button class="${state.act.kind === val ? 'active' : ''}" data-act="setActivityKind" data-on="click" data-args='["${jsonAttr(val)}"]'>${te(label)}</button>`;
   const k = data.byKind || {};
   const actor = teamWide && state.act.actorUserId ? (data.byActor || []).find(a => String(a.userId) === String(state.act.actorUserId)) : null;
-  const scopeLabel = !teamWide ? 'Only your actions' : (actor ? escapeHtml(actor.name) : 'Everyone');
+  const scopeLabel = !teamWide ? te('Only your actions') : (actor ? escapeHtml(actor.name) : te('Everyone'));
   const summary = [
-    [data.total, 'Actions'], [k.note || 0, 'CRM notes'], [k.guest || 0, 'Guest changes'],
-    [k.stay || 0, 'Reservations'], [k.assign || 0, 'Assignments']
+    [data.total, t('Actions')], [k.note || 0, t('CRM notes')], [k.guest || 0, t('Guest changes')],
+    [k.stay || 0, t('Reservations')], [k.assign || 0, t('Assignments')]
   ];
 
   const members = teamWide ? `
     <section class="panel act-members">
-      <div class="panel-head"><h2 class="panel-title">By team member</h2></div>
+      <div class="panel-head"><h2 class="panel-title">${te('By team member')}</h2></div>
       <div class="panel-body">
         <div class="am-row${!state.act.actorUserId ? ' active' : ''}" role="button" tabindex="0" data-activatable data-act="setActivityActor" data-on="click" data-args='[null]'>
-          <div class="lr-avatar">All</div>
-          <div class="lr-main"><div class="lr-name">Everyone</div><div class="lr-sub">${plural((data.byActor || []).length, 'person', 'people')} active</div></div>
+          <div class="lr-avatar">${te('All')}</div>
+          <div class="lr-main"><div class="lr-name">${te('Everyone')}</div><div class="lr-sub">${escapeHtml(plural((data.byActor || []).length, '{n} person active', '{n} people active'))}</div></div>
           <div class="am-n">${data.total}</div>
         </div>
         ${(data.byActor || []).map(a => {
-          const bits = [a.note ? plural(a.note, 'note') : '', a.guest ? plural(a.guest, 'guest change') : '',
-            a.stay ? plural(a.stay, 'reservation') : '', a.assign ? plural(a.assign, 'assignment') : ''].filter(Boolean).join(' · ');
+          const bits = [a.note ? plural(a.note, '{n} note', '{n} notes') : '', a.guest ? plural(a.guest, '{n} guest change', '{n} guest changes') : '',
+            a.stay ? plural(a.stay, '{n} reservation', '{n} reservations') : '', a.assign ? plural(a.assign, '{n} assignment', '{n} assignments') : ''].filter(Boolean).join(' · ');
           const on = a.userId != null && String(a.userId) === String(state.act.actorUserId);
           return `<div class="am-row${on ? ' active' : ''}" role="button" tabindex="0" data-activatable data-act="setActivityActor" data-on="click" data-args='[${a.userId == null ? 'null' : Number(a.userId)}]'>
             <div class="lr-avatar">${escapeHtml(initials(a.name))}</div>
-            <div class="lr-main"><div class="lr-name">${escapeHtml(a.name)}</div><div class="lr-sub">${escapeHtml(bits || 'No actions')}</div></div>
+            <div class="lr-main"><div class="lr-name">${escapeHtml(a.name)}</div><div class="lr-sub">${escapeHtml(bits || t('No actions'))}</div></div>
             <div class="am-n">${a.total}</div>
           </div>`; }).join('')}
       </div>
@@ -360,40 +360,40 @@ async function renderActivity(){
     g.items.push({ ev, d });
   }
   const feed = groups.length ? groups.map(g => `
-    <div class="act-day">${escapeHtml(g.ymd === 'unknown' ? 'Undated' : dayHeading(g.ymd))}</div>
+    <div class="act-day">${escapeHtml(g.ymd === 'unknown' ? t('Undated') : dayHeading(g.ymd))}</div>
     ${g.items.map(({ ev, d }) => `
       <div class="act-ev">
         <div class="act-time">${escapeHtml(fmtTime(d))}</div>
         ${kindIcon(ev.kind)}
         <div class="act-main">
-          <div class="act-line"><b>${escapeHtml(ev.actor_name || 'System')}</b>
-            ${ev.redacted ? '<span class="muted">worked on a guest outside your book</span>'
-              : `<span>${escapeHtml(ev.description || ev.action)}</span>`}</div>
+          <div class="act-line"><b>${escapeHtml(ev.actor_name || t('System'))}</b>
+            ${ev.redacted ? `<span class="muted">${te('worked on a guest outside your book')}</span>`
+              : `<span>${escapeHtml(ev.description ? tNotice(ev.description) : auditActionLabel(ev.action))}</span>`}</div>
           ${!ev.redacted && ev.note_text ? `<div class="act-note">${escapeHtml(ev.note_text)}</div>` : ''}
-          ${!ev.redacted && ev.customer_id ? `<button class="btn-link act-open" data-act="openGuestPage" data-on="click" data-args='[${Number(ev.customer_id)}]'>Open guest</button>` : ''}
+          ${!ev.redacted && ev.customer_id ? `<button class="btn-link act-open" data-act="openGuestPage" data-on="click" data-args='[${Number(ev.customer_id)}]'>${te('Open guest')}</button>` : ''}
         </div>
       </div>`).join('')}`).join('')
-    : emptyState({ icon:'check', title:`No activity ${win.label}`, text: teamWide ? 'Nobody has recorded any work in this period.' : 'You have not recorded any work in this period.' });
+    : emptyState({ icon:'check', title:win.none, text: teamWide ? t('Nobody has recorded any work in this period.') : t('You have not recorded any work in this period.') });
 
   wrap.innerHTML = `
     <div class="act-toolbar">
-      <div class="seg" role="group" aria-label="Period">
+      <div class="seg" role="group" aria-label="${te('Period')}">
         ${rangeBtn('today', 'Today')}${rangeBtn('yesterday', 'Yesterday')}${rangeBtn('7', 'Last 7 days')}${rangeBtn('30', 'Last 30 days')}
       </div>
-      <div class="seg" role="group" aria-label="Kind of action">
+      <div class="seg" role="group" aria-label="${te('Kind of action')}">
         ${kindBtn('', 'All')}${kindBtn('note', 'CRM notes')}${kindBtn('guest', 'Guests')}${kindBtn('stay', 'Reservations')}${kindBtn('assign', 'Assignments')}
       </div>
-      <span class="scope-pill">${teamWide ? 'Team view' : 'My activity'}</span>
+      <span class="scope-pill">${teamWide ? te('Team view') : te('My activity')}</span>
     </div>
     <div class="act-summary" id="actSummary">
-      ${summary.map(([n, l]) => `<div class="as-cell"><div class="as-n">${Number(n) || 0}</div><div class="as-l">${l}</div></div>`).join('')}
+      ${summary.map(([n, l]) => `<div class="as-cell"><div class="as-n">${Number(n) || 0}</div><div class="as-l">${escapeHtml(l)}</div></div>`).join('')}
     </div>
     <div class="act-layout${teamWide ? ' has-members' : ''}">
       ${members}
       <section class="panel act-feed">
-        <div class="panel-head"><h2 class="panel-title">${teamWide ? 'Activity' : 'My activity'} <span class="muted gp-hint">${scopeLabel} · ${escapeHtml(win.label)} · newest first</span></h2></div>
+        <div class="panel-head"><h2 class="panel-title">${teamWide ? te('Activity') : te('My activity')} <span class="muted gp-hint">${scopeLabel} · ${escapeHtml(win.label)} · ${te('newest first')}</span></h2></div>
         <div class="act-feed-body" id="actFeed">${feed}
-          ${data.truncated ? '<div class="act-trunc">Showing the newest 500 actions. Narrow the period or pick a person to see the rest.</div>' : ''}
+          ${data.truncated ? `<div class="act-trunc">${te('Showing the newest 500 actions. Narrow the period or pick a person to see the rest.')}</div>` : ''}
         </div>
       </section>
     </div>`;
@@ -410,18 +410,18 @@ async function renderTeamControl(){
   const seq = ++teamSeq;
   let d = null;
   try { d = await call(window.api.team.overview, {}, { silent:true }); }
-  catch (e){ wrap.innerHTML = emptyState({ icon:'guests', title:'Team control could not be loaded', text:e.message || '' }); return; }
+  catch (e){ wrap.innerHTML = emptyState({ icon:'guests', title:t('Team control could not be loaded'), text:e.message || '' }); return; }
   if (seq !== teamSeq || !d) return;
-  const stamp = el('teamUpdated'); if (stamp) stamp.textContent = `Updated ${fmtTime(new Date())}`;
+  const stamp = el('teamUpdated'); if (stamp) stamp.textContent = t('Updated {time}', { time: fmtTime(new Date()) });
 
   const a = d.alerts || {};
   const names = (x) => (x?.names || []).join(', ');
   const card = (icon, tone, title, n, sub, act, args, link) => `
     <div class="alert-card${n ? ' t-' + tone : ''}">
-      <div class="ac-head">${kindIcon(icon)}<span>${title}</span></div>
+      <div class="ac-head">${kindIcon(icon)}<span>${te(title)}</span></div>
       <div class="ac-n">${Number(n) || 0}</div>
-      <div class="ac-sub">${sub ? escapeHtml(sub) : '<span class="muted">Nothing to review</span>'}</div>
-      <button class="btn-link" data-act="${act}" data-on="click" data-args='${JSON.stringify(args).replace(/'/g, '&#39;')}'>${link} →</button>
+      <div class="ac-sub">${sub ? escapeHtml(sub) : `<span class="muted">${te('Nothing to review')}</span>`}</div>
+      <button class="btn-link" data-act="${act}" data-on="click" data-args='${JSON.stringify(args).replace(/'/g, '&#39;')}'>${te(link)} →</button>
     </div>`;
   const arrivals = (a.arrivals48h?.items || []).map(i => `${i.full_name} · ${fmtDate(i.check_in)}`).join(', ');
   const alerts = [
@@ -429,63 +429,70 @@ async function renderTeamControl(){
     card('cold', 'cold', 'Cold guests', a.cold?.count, names(a.cold), 'goCustomersFiltered', ['COLD'], 'Review'),
     card('note', 'warn', 'No record', a.noRecord?.count, names(a.noRecord), 'goCrmView', ['norecord'], 'Open list'),
     card('arrive', 'info', 'Check-ins in 48 h', a.arrivals48h?.count, arrivals, 'goReservationsUpcoming', [], 'Open'),
-    ...(a.lockedAccounts ? [card('lock', 'danger', 'Locked accounts', a.lockedAccounts, 'Too many failed sign-ins', 'switchTab', ['users'], 'Users')] : [])
+    ...(a.lockedAccounts ? [card('lock', 'danger', 'Locked accounts', a.lockedAccounts, t('Too many failed sign-ins'), 'switchTab', ['users'], 'Users')] : [])
   ].join('');
 
   const num = (v) => v == null ? '<span class="muted">—</span>' : (Number(v) === 0 ? '<span class="muted">0</span>' : String(Number(v)));
   const members = (d.members || []).map(m => {
     const login = localInstant(m.last_login_at);
     const today = login && todayYMD(login) === todayYMD();
-    const loginText = login ? (today ? `Today ${fmtTime(login)}` : fmtDateTime(m.last_login_at)) : 'Never';
-    const flags = [!m.active ? '<span class="tag tag-none"><span class="tag-dot"></span>Disabled</span>' : '',
-      m.locked ? '<span class="tag tag-deleted"><span class="tag-dot"></span>Locked</span>' : ''].join('');
+    const loginText = login ? (today ? `${t('Today')} ${fmtTime(login)}` : fmtDateTime(m.last_login_at)) : t('Never');
+    const flags = [!m.active ? `<span class="tag tag-none"><span class="tag-dot"></span>${te('Disabled')}</span>` : '',
+      m.locked ? `<span class="tag tag-deleted"><span class="tag-dot"></span>${te('Locked')}</span>` : ''].join('');
     return `<tr>
       <td><div class="tm-name"><span class="lr-avatar">${escapeHtml(initials(m.full_name || m.username))}</span>
         <div><div>${escapeHtml(m.full_name || m.username)}</div><div class="muted tm-sub">${escapeHtml(m.username)}${m.profile_name ? ' · ' + escapeHtml(m.profile_name) : ''}</div></div></div></td>
-      <td><span class="role-pill ${escapeHtml(String(m.role).toLowerCase())}">${escapeHtml(ROLE_LABEL[m.role] || m.role)}</span> ${flags}</td>
+      <td><span class="role-pill ${escapeHtml(String(m.role).toLowerCase())}">${escapeHtml(roleLabel(m.role) || m.role)}</span> ${flags}</td>
       <td><span class="login-dot${today ? ' on' : ''}"></span>${escapeHtml(loginText)}</td>
       <td class="n">${num(m.actions_today)}</td>
       <td class="n">${num(m.notes_7d)}</td>
       <td class="n">${m.profile_id ? num(m.reservations_30d) : '<span class="muted">—</span>'}</td>
       <td class="n">${m.profile_id ? num(m.guests) : '<span class="muted">—</span>'}</td>
       <td class="n">${m.attention == null ? '<span class="muted">—</span>' : (m.attention ? `<b class="tm-attn">${Number(m.attention)}</b>` : '<span class="muted">0</span>')}</td>
-      <td class="n"><button class="btn-link" data-act="openMemberActivity" data-on="click" data-args='[${Number(m.id)}]'>Activity</button></td>
+      <td class="n"><button class="btn-link" data-act="openMemberActivity" data-on="click" data-args='[${Number(m.id)}]'>${te('Activity')}</button></td>
     </tr>`;
   }).join('');
 
   const sensitive = (d.sensitive || []).map(r => {
-    const t = localInstant(r.created_at);
+    const at = localInstant(r.created_at);
     return `<div class="sens-row">
       ${kindIcon(/ASSIGN/.test(r.action) ? 'assign' : (/DELETE|LOCK|BLOCK/.test(r.action) ? 'alert' : 'lock'))}
-      <div class="sens-main"><div class="sens-title">${escapeHtml(sentenceAction(r.action))}</div>
-        <div class="muted sens-sub">${escapeHtml(r.description || '')}${r.actor_name ? ' · by ' + escapeHtml(r.actor_name) : ''}</div></div>
-      <div class="sens-when muted">${t ? (todayYMD(t) === todayYMD() ? fmtTime(t) : fmtDateTime(r.created_at)) : ''}</div>
+      <div class="sens-main"><div class="sens-title">${escapeHtml(auditActionLabel(r.action))}</div>
+        <div class="muted sens-sub">${escapeHtml(tNotice(r.description || ''))}${r.actor_name ? ' · ' + te('by {name}', { name: r.actor_name }) : ''}</div></div>
+      <div class="sens-when muted">${at ? (todayYMD(at) === todayYMD() ? fmtTime(at) : fmtDateTime(r.created_at)) : ''}</div>
     </div>`;
   }).join('');
 
   wrap.innerHTML = `
     <div class="alert-row">${alerts}</div>
     <section class="panel team-panel">
-      <div class="panel-head"><h2 class="panel-title">Team <span class="count-pill">${(d.members || []).length}</span></h2>
-        <span class="muted gp-hint">Counts are live; "today" is this computer's calendar day</span></div>
+      <div class="panel-head"><h2 class="panel-title">${te('Team')} <span class="count-pill">${(d.members || []).length}</span></h2>
+        <span class="muted gp-hint">${te('Counts are live; "today" is this computer\'s calendar day')}</span></div>
       <div class="table-scroll">
         <table class="team-table">
-          <thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col">Last sign-in</th>
-            <th scope="col" class="n">Actions today</th><th scope="col" class="n">Notes 7d</th><th scope="col" class="n">Reservations 30d</th>
-            <th scope="col" class="n">Guests</th><th scope="col" class="n">Cold / no record</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
-          <tbody id="teamTableBody">${members || emptyRow(9, emptyState({ icon:'guests', title:'No accounts yet' }))}</tbody>
+          <thead><tr><th scope="col">${te('Member')}</th><th scope="col">${te('Role')}</th><th scope="col">${te('Last sign-in')}</th>
+            <th scope="col" class="n">${te('Actions today')}</th><th scope="col" class="n">${te('Notes 7d')}</th><th scope="col" class="n">${te('Reservations 30d')}</th>
+            <th scope="col" class="n">${te('Guests')}</th><th scope="col" class="n">${te('Cold / no record')}</th><th scope="col"><span class="visually-hidden">${te('Open')}</span></th></tr></thead>
+          <tbody id="teamTableBody">${members || emptyRow(9, emptyState({ icon:'guests', title:t('No accounts yet') }))}</tbody>
         </table>
       </div>
     </section>
     <section class="panel team-panel">
-      <div class="panel-head"><h2 class="panel-title">Sensitive actions <span class="muted gp-hint">newest first</span></h2>
-        ${mayOpen('audit') ? '<button class="btn-link" data-act="switchTab" data-on="click" data-args=\'["audit"]\'>Audit Log</button>' : ''}</div>
-      <div class="sens-list" id="teamSensitive">${sensitive || '<div class="panel-empty">No sensitive actions recorded</div>'}</div>
+      <div class="panel-head"><h2 class="panel-title">${te('Sensitive actions')} <span class="muted gp-hint">${te('newest first')}</span></h2>
+        ${mayOpen('audit') ? `<button class="btn-link" data-act="switchTab" data-on="click" data-args='["audit"]'>${te('Audit Log')}</button>` : ''}</div>
+      <div class="sens-list" id="teamSensitive">${sensitive || `<div class="panel-empty">${te('No sensitive actions recorded')}</div>`}</div>
     </section>`;
 }
 function sentenceAction(action){
   const s = String(action || '').toLowerCase().replace(/_/g, ' ').replace(/\bcrm\b/g, 'CRM');
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+/* An audit action code in the operator's language. The code itself is never
+   changed — it is what the filters and the export carry. */
+function auditActionLabel(action){
+  const key = 'action.' + String(action || '');
+  const label = t(key);
+  return label === key ? sentenceAction(action) : label;
 }
 async function openMemberActivity(userId){
   state.act.actorUserId = userId; state.act.range = 'today'; state.act.kind = '';
@@ -525,13 +532,13 @@ function fillAuditFacets(facets){
   if (!facets) return;
   const actor = el('auditFActor'), action = el('auditFAction');
   if (actor){
-    actor.innerHTML = '<option value="">Anyone</option>' + (facets.actors || []).map(a =>
+    actor.innerHTML = `<option value="">${te('Anyone')}</option>` + (facets.actors || []).map(a =>
       `<option value="${Number(a.id)}">${escapeHtml(a.name || a.username)}${a.username && a.name !== a.username ? ' (' + escapeHtml(a.username) + ')' : ''}</option>`).join('');
     actor.value = state.audit.actorUserId || '';
   }
   if (action){
-    action.innerHTML = '<option value="">Any action</option>' + (facets.actions || []).map(x =>
-      `<option value="${escapeHtml(x)}">${escapeHtml(sentenceAction(x))}</option>`).join('');
+    action.innerHTML = `<option value="">${te('Any action')}</option>` + (facets.actions || []).map(x =>
+      `<option value="${escapeHtml(x)}">${escapeHtml(auditActionLabel(x))}</option>`).join('');
     action.value = state.audit.action || '';
   }
 }
@@ -540,11 +547,11 @@ function renderAuditChips(){
   const chips = [];
   if (s.actorUserId){
     const a = (s.facets?.actors || []).find(x => String(x.id) === String(s.actorUserId));
-    chips.push({ key:'actorUserId', label:`Person: ${a ? (a.name || a.username) : '#' + s.actorUserId}` });
+    chips.push({ key:'actorUserId', label:`${t('Person')}: ${a ? (a.name || a.username) : '#' + s.actorUserId}` });
   }
-  if (s.action) chips.push({ key:'action', label:`Action: ${sentenceAction(s.action)}` });
-  if (s.from) chips.push({ key:'from', label:`From ${fmtDate(s.from)}` });
-  if (s.to) chips.push({ key:'to', label:`To ${fmtDate(s.to)}` });
+  if (s.action) chips.push({ key:'action', label:`${t('Action')}: ${auditActionLabel(s.action)}` });
+  if (s.from) chips.push({ key:'from', label:t('From {date}', { date: fmtDate(s.from) }) });
+  if (s.to) chips.push({ key:'to', label:t('To {date}', { date: fmtDate(s.to) }) });
   const btn = el('auditFilterBtn');
   if (btn){
     btn.classList.toggle('filtered', chips.length > 0);
@@ -555,13 +562,13 @@ function renderAuditChips(){
   if (!wrap) return;
   wrap.classList.toggle('hidden', chips.length === 0);
   wrap.innerHTML = chips.map(c => `<span class="chip">${escapeHtml(c.label)}
-      <button class="chip-x" data-act="removeAuditFilter" data-on="click" data-args='["${jsonAttr(c.key)}"]' aria-label="Remove ${escapeHtml(c.label)}">×</button></span>`).join('')
-    + (chips.length ? '<button class="btn-link chip-clear" data-act="clearAuditFilters" data-on="click" data-args=\'[]\'>Clear all</button>' : '');
+      <button class="chip-x" data-act="removeAuditFilter" data-on="click" data-args='["${jsonAttr(c.key)}"]' aria-label="${te('Remove {name}', { name: c.label })}">×</button></span>`).join('')
+    + (chips.length ? `<button class="btn-link chip-clear" data-act="clearAuditFilters" data-on="click" data-args='[]'>${te('Clear all')}</button>` : '');
 }
 /* The export carries the same filters as the table, so the file matches the screen. */
 async function exportAuditFiltered(){
   const r = await call(window.api.export.run, { entity:'audit_logs', params:auditFilterPayload() });
-  if (r) toast('success', 'Export complete', `${r.rows} rows → ${r.name}`);
+  if (r) toast('success', t('Export complete'), t('{n} rows → {file}', { n: r.rows, file: r.name }));
 }
 
 /* =====================================================================
@@ -589,16 +596,16 @@ function paintUpdates(){
   const version = el('updVersion'), status = el('updStatus'), last = el('updLastChecked'),
         btn = el('updInstallBtn'), check = el('updCheckBtn');
   if (!version) return;
-  if (!st){ status.textContent = 'Not checked yet'; btn?.classList.add('hidden'); return; }
-  version.textContent = st.currentVersion ? `Merit Marketing Hub ${st.currentVersion}${st.channel ? ' · ' + st.channel + ' channel' : ''}` : '—';
-  const base = UPDATE_STATE_TEXT[st.state] || st.state || '';
+  if (!st){ status.textContent = t('Not checked yet'); btn?.classList.add('hidden'); return; }
+  version.textContent = st.currentVersion ? `Merit Marketing Hub ${st.currentVersion}${st.channel ? ' · ' + t('{name} channel', { name: st.channel }) : ''}` : '—';
+  const base = UPDATE_STATE_TEXT[st.state] ? t(UPDATE_STATE_TEXT[st.state]) : (st.state || '');
   /* main's message is the more specific sentence when it has one */
-  status.textContent = st.message || base;
-  if (st.state === 'downloaded' && st.version) status.textContent = `Version ${st.version} is ready. Restart to finish updating.`;
+  status.textContent = st.message ? tNotice(st.message) : base;
+  if (st.state === 'downloaded' && st.version) status.textContent = t('Version {v} is ready. Restart to finish updating.', { v: st.version });
   const failed = st.state === 'failed' || (st.state === 'unavailable' && st.lastError);
   status.classList.toggle('upd-bad', !!failed);
-  last.textContent = [st.lastCheckedAt ? `Last checked ${fmtDateTime(st.lastCheckedAt)}` : (st.enabled ? 'Not checked yet' : ''),
-    st.lastError ? `Reason: ${st.lastError}` : ''].filter(Boolean).join(' · ');
+  last.textContent = [st.lastCheckedAt ? t('Last checked {when}', { when: fmtDateTime(st.lastCheckedAt) }) : (st.enabled ? t('Not checked yet') : ''),
+    st.lastError ? t('Reason: {why}', { why: tNotice(st.lastError) }) : ''].filter(Boolean).join(' · ');
   const ready = st.state === 'downloaded';
   /* Only an administrator can install; for anyone else the button is not offered. */
   btn?.classList.toggle('hidden', !(ready && isAdmin()));
@@ -614,7 +621,7 @@ async function refreshUpdatesSection(){
 }
 async function checkForUpdates(){
   const err = el('updError'); err?.classList.add('hidden');
-  await withBusy(el('updCheckBtn'), 'Checking…', async () => {
+  await withBusy(el('updCheckBtn'), t('Checking…'), async () => {
     try { updatesState.status = await call(window.api.updates.check, {}, { silent:true }); }
     catch (e){ if (err){ err.textContent = e.message; err.classList.remove('hidden'); } }
   });
@@ -622,15 +629,15 @@ async function checkForUpdates(){
 }
 async function installUpdate(){
   const err = el('updError'); err?.classList.add('hidden');
-  const ok = await confirmDialog({ message: 'Restart and install the update now?',
-    detail: 'A safety backup is taken first. Everyone using this computer is signed out while the application restarts.' });
+  const ok = await confirmDialog({ message: t('Restart and install the update now?'),
+    detail: t('A safety backup is taken first. Everyone using this computer is signed out while the application restarts.') });
   if (!ok) return;
-  await withBusy(el('updInstallBtn'), 'Preparing…', async () => {
+  await withBusy(el('updInstallBtn'), t('Preparing…'), async () => {
     try { await call(window.api.updates.install, {}, { silent:true }); }
     catch (e){
       /* e.g. the safety backup failed: nothing was installed, say why */
-      if (err){ err.textContent = e.message || 'The update was not installed.'; err.classList.remove('hidden'); }
-      toast('error', 'Update not installed', e.message);
+      if (err){ err.textContent = e.message || t('The update was not installed.'); err.classList.remove('hidden'); }
+      toast('error', t('Update not installed'), e.message);
     }
   });
 }

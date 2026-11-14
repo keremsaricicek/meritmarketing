@@ -64,14 +64,14 @@
       window.setResNewGuest(false);
       window.openFinder({
         mode: 'customer', targetInputId: 'resCustomerSelect', scoped: false,
-        title: 'Find Guest', subtitle: 'Search by ID, name or phone',
+        title: t('Find Guest'), subtitle: t('Search by ID, name or phone'),
         onSelect: window.onResCustomerChange,
       });
     },
     openReservationInvitedByFinder() {
       window.openFinder({
         mode: 'profile', targetInputId: 'resInvitedBy',
-        title: 'Find Marketing Profile', subtitle: 'Search by name',
+        title: t('Find Marketing Profile'), subtitle: t('Search by name'),
         onSelect: window.onResInvitedByChange,
       });
     },
@@ -79,14 +79,14 @@
       window.openFinder({
         mode: 'customer', targetInputId: 'recCustomerSelect',
         scoped: window.isMarketingScoped ? window.isMarketingScoped() : false,
-        title: 'Find Guest', subtitle: 'Search by ID, name or phone',
+        title: t('Find Guest'), subtitle: t('Search by ID, name or phone'),
         onSelect: window.onRecordCustomerChange,
       });
     },
     openRecordMarketingFinder() {
       window.openFinder({
         mode: 'profile', targetInputId: 'recMarketing', writeAs: 'id',
-        title: 'Find Marketing Profile', subtitle: 'Search by name',
+        title: t('Find Marketing Profile'), subtitle: t('Search by name'),
       });
     },
 

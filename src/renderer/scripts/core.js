@@ -112,12 +112,12 @@ async function call(fn, payload, { silent = false } = {}){
     const res = await fn(payload);
     if (!res || res.ok) return res ? res.data : null;
     if (res.error?.code === 'UNAUTHENTICATED'){ handleSignedOut(); return null; }
-    if (!silent) toast('error', 'Could not complete', res.error?.message || 'Unexpected error.');
-    const err = new Error(res.error?.message || 'Error');
+    if (!silent) toast('error', t('Could not complete'), tErr(res.error) || t('Unexpected error.'));
+    const err = new Error(tErr(res.error) || t('Error'));
     err.code = res.error?.code; err.field = res.error?.field; err.conflicts = res.error?.conflicts || res.error?.details?.conflicts;
     throw err;
   } catch (e) {
-    if (e instanceof TypeError){ toast('error','Connection problem','The application backend did not respond.'); }
+    if (e instanceof TypeError){ toast('error',t('Connection problem'),t('The application backend did not respond.')); }
     throw e;
   }
 }
@@ -130,7 +130,7 @@ function toast(kind, title, msg){
   node.innerHTML = `<div class="toast-body">
       <div class="t-title">${escapeHtml(title)}</div>
       ${msg ? `<div class="t-msg">${escapeHtml(msg)}</div>` : ''}
-    </div><button class="t-close" aria-label="Dismiss">✕</button>`;
+    </div><button class="t-close" aria-label="${te('Dismiss')}">✕</button>`;
   node.querySelector('.t-close').onclick = () => dismiss();
   stack.appendChild(node);
   const timer = setTimeout(dismiss, kind === 'error' ? 6000 : 3500);
@@ -162,7 +162,7 @@ function showFieldError(inputId, message){
   const input = el(inputId);
   if (box){ box.textContent = message; box.classList.add('show'); }
   if (input?.closest('.field')) input.closest('.field').classList.add('invalid');
-  if (!box) toast('error','Check the form', message);
+  if (!box) toast('error',t('Check the form'), message);
 }
 
 /* ---------- photos: resolved lazily through main, then cached ---------- */
@@ -231,19 +231,19 @@ if (typeof MutationObserver === 'function'){
 /* ---------- status presentation ---------- */
 function statusMeta(code){
   switch(code){
-    case 'COLD':       return { label:'COLD', cls:'tag-cold' };
-    case 'NO_RECORD':  return { label:'NO RECORD', cls:'tag-none' };
-    case 'UPCOMING':   return { label:'UPCOMING', cls:'tag-hot' };
-    case 'CHECKED_IN': return { label:'CHECKED IN', cls:'tag-warm' };
-    case 'COMPLETED':  return { label:'COMPLETED', cls:'tag-cold' };
-    case 'CANCELLED':  return { label:'CANCELLED', cls:'tag-none' };
+    case 'COLD':       return { label:t('COLD'), cls:'tag-cold' };
+    case 'NO_RECORD':  return { label:t('NO RECORD'), cls:'tag-none' };
+    case 'UPCOMING':   return { label:t('UPCOMING'), cls:'tag-hot' };
+    case 'CHECKED_IN': return { label:t('CHECKED IN'), cls:'tag-warm' };
+    case 'COMPLETED':  return { label:t('COMPLETED'), cls:'tag-cold' };
+    case 'CANCELLED':  return { label:t('CANCELLED'), cls:'tag-none' };
     /* DELETED outranks CANCELLED wherever both are true, so it gets its own
        badge rather than reusing the cancelled one. */
-    case 'DELETED':    return { label:'DELETED', cls:'tag-deleted' };
+    case 'DELETED':    return { label:t('DELETED'), cls:'tag-deleted' };
     /* users list reuses this for account state, kept independent of the
        customer-status vocabulary above */
-    case 'ACCOUNT_ACTIVE':   return { label:'ACTIVE', cls:'tag-hot' };
-    case 'ACCOUNT_DISABLED': return { label:'DISABLED', cls:'tag-none' };
+    case 'ACCOUNT_ACTIVE':   return { label:t('ACTIVE'), cls:'tag-hot' };
+    case 'ACCOUNT_DISABLED': return { label:t('DISABLED'), cls:'tag-none' };
     /* ACTIVE (a guest that is neither COLD nor NO_RECORD) carries no badge —
        only COLD and NO RECORD are highlighted statuses */
     default:           return null;
@@ -251,7 +251,7 @@ function statusMeta(code){
 }
 function statusTagHTML(code){
   const m = statusMeta(code);
-  return m ? `<span class="tag ${m.cls}"><span class="tag-dot"></span>${m.label}</span>` : '';
+  return m ? `<span class="tag ${m.cls}"><span class="tag-dot"></span>${escapeHtml(m.label)}</span>` : '';
 }
 function invitedByHTML(name, status){
   if (!name) return '<span class="muted">—</span>';
@@ -278,10 +278,10 @@ async function doSetup(){
   const user = el('setupUser').value.trim();
   const pass = el('setupPass').value;
   const pass2 = el('setupPass2').value;
-  if (!name || !user || !pass){ err.textContent='All fields are required.'; err.classList.add('show'); return; }
-  if (pass !== pass2){ err.textContent='Passwords do not match.'; err.classList.add('show'); return; }
+  if (!name || !user || !pass){ err.textContent=t('All fields are required.'); err.classList.add('show'); return; }
+  if (pass !== pass2){ err.textContent=t('Passwords do not match.'); err.classList.add('show'); return; }
 
-  await withBusy(el('setupBtn'), 'CREATING…', async () => {
+  await withBusy(el('setupBtn'), t('CREATING…'), async () => {
     try {
       /* Setup CREATES the administrator; it does not sign them in. Signing in
          afterwards goes through the audited login path rather than having
@@ -291,7 +291,7 @@ async function doSetup(){
         { username:user, password:pass, passwordConfirm:pass2, fullName:name }, { silent:true });
       state.session = await call(window.api.auth.login, { username:user, password:pass }, { silent:true });
       await enterApp();
-      toast('success','Welcome','Your administrator account is ready.');
+      toast('success',t('Welcome'),t('Your administrator account is ready.'));
     } catch (e){ err.textContent = e.message; err.classList.add('show'); }
   });
 }
@@ -301,9 +301,9 @@ async function doLogin(){
   err.classList.remove('show');
   const username = el('loginUser').value.trim();
   const password = el('loginPass').value;
-  if (!username || !password){ err.textContent='Enter your username and password.'; err.classList.add('show'); return; }
+  if (!username || !password){ err.textContent=t('Enter your username and password.'); err.classList.add('show'); return; }
 
-  await withBusy(el('loginBtn'), 'SIGNING IN…', async () => {
+  await withBusy(el('loginBtn'), t('SIGNING IN…'), async () => {
     try {
       state.session = await call(window.api.auth.login, { username, password }, { silent:true });
       await enterApp();
@@ -311,6 +311,13 @@ async function doLogin(){
   });
 }
 
+/* An empty guest panel says so in the current language — and keeps saying so
+   after a language switch, because its text is a data-i18n key. */
+function showEmptyGuestPanel(node){
+  node.classList.add('empty');
+  node.innerHTML = '<span data-i18n="h.no_guest_selected"></span>';
+  applyI18n(node);
+}
 function resetViewState(){
   state.photoCache.clear();
   state.profiles = [];
@@ -327,7 +334,7 @@ function resetViewState(){
   state.custMode = 'table';
   ['resSearch','custSearch','listSearch','norecSearch'].forEach(id => { const n = el(id); if (n) n.value = ''; });
   ['detailPanel','resDetailPanel','listDetailPanel'].forEach(id => {
-    const n = el(id); if (n){ n.classList.add('empty'); n.innerHTML = 'No guest selected'; }
+    const n = el(id); if (n) showEmptyGuestPanel(n);
   });
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filtered'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -342,6 +349,10 @@ async function enterApp(){
   try {
     const prefs = await call(window.api.settings.all, {}, { silent:true });
     state.settings = prefs || {};
+    /* Language is a personal preference like the theme. An account that never
+       chose one keeps the language of the sign-in screen — English unless
+       somebody picked Turkish on this computer. */
+    applyLanguage(prefs?.['appearance.language'] || currentLanguage(), false);
     applyTheme(prefs?.['appearance.theme'] || 'light', false);
     applyDensity(prefs?.['appearance.density'] || 'comfortable', false);
   } catch (_) {}
@@ -417,9 +428,9 @@ async function applyRoleToChrome(){
   if (url){ av.style.backgroundImage = `url('${url}')`; av.textContent = ''; }
   else { av.style.backgroundImage = 'none'; av.textContent = initials(state.session?.full_name || state.session?.username || '?'); }
   el('sessionName').textContent = state.session?.full_name || state.session?.username || '';
-  el('sessionRole').textContent = ({ ADMIN:'Administrator', MANAGER:'Manager', MARKETING:'Marketing' })[state.session?.role] || '';
+  el('sessionRole').textContent = roleLabel(state.session?.role);
   const who = el('settingsWhoAmI');
-  if (who) who.textContent = `Signed in as ${state.session?.username || ''}`;
+  if (who) who.textContent = t('Signed in as {user}', { user: state.session?.username || '' });
 }
 
 async function refreshProfiles(){
@@ -486,17 +497,38 @@ function cancelCloseSubmenu(){
 const PAGE_LABELS = {
   dashboard:'Dashboard', reservations:'Reservation History', calendar:'Action Calendar',
   profiles:'Profiles', customers:'CRM Panel', reports:'Reports', audit:'Audit Log',
-  users:'Users', settings:'Settings', team:'Team control', guest:'Guest record'
+  users:'Users', settings:'Settings', team:'Team control', guest:'Guest record', help:'Help'
 };
 /* The guest record is one page whose tab carries the open guest's name. */
 function pageLabel(page){
   if (page === 'guest' && state.guestPage?.name) return state.guestPage.name;
-  return PAGE_LABELS[page] || page;
+  return PAGE_LABELS[page] ? t(PAGE_LABELS[page]) : page;
 }
-const workspace = { open:['dashboard'], active:'dashboard', history:['dashboard'], loaded:new Set() };
+const workspace = { open:['dashboard'], active:'dashboard', history:['dashboard'], loaded:new Set(), stale:new Set() };
 function resetWorkspaceState(){
   workspace.open = ['dashboard']; workspace.active = 'dashboard';
-  workspace.history = ['dashboard']; workspace.loaded.clear();
+  workspace.history = ['dashboard']; workspace.loaded.clear(); workspace.stale.clear();
+}
+/* After the interface language changes: static text has already been refilled
+   by applyLanguage(); everything drawn by script is drawn again. The tab on
+   screen re-renders now, every other open tab the next time it is shown. */
+function refreshAfterLanguageChange(){
+  if (!state.session) return;
+  renderWorkspaceStrip();
+  updateCrumbs();
+  el('sessionRole').textContent = roleLabel(state.session?.role);
+  const who = el('settingsWhoAmI');
+  if (who) who.textContent = t('Signed in as {user}', { user: state.session?.username || '' });
+  fillTagFilterSelects();
+  for (const page of workspace.open) if (page !== workspace.active) workspace.stale.add(page);
+  if (workspace.active === 'customers'){
+    /* every CRM pane is in the DOM at once; refresh them all */
+    refreshCrmViews().catch(() => {});
+    if (state.custMode === 'activity') renderActivity().catch(() => {});
+  } else {
+    Promise.resolve(PAGE_LOADERS[workspace.active]?.()).catch(() => {});
+  }
+  refreshNoRecordBadge().catch(() => {});
 }
 function pushWorkspaceHistory(page){
   workspace.history = workspace.history.filter(p => p !== page);
@@ -510,7 +542,7 @@ function renderWorkspaceStrip(){
     const label = escapeHtml(pageLabel(page));
     return `<button class="ws-tab${active ? ' active' : ''}" role="tab" aria-selected="${active}" data-act="activateWorkspaceTab" data-on="click" data-args='["${page}"]'>
       <span class="ws-tab-label">${label}</span>
-      ${page !== 'dashboard' ? `<span class="ws-tab-close" data-act="closeWorkspaceTab" data-on="click" data-args='[{"$":"event"},"${page}"]' title="Close ${label}" aria-label="Close ${label}">✕</span>` : ''}
+      ${page !== 'dashboard' ? `<span class="ws-tab-close" data-act="closeWorkspaceTab" data-on="click" data-args='[{"$":"event"},"${page}"]' title="${te('Close {name}', { name: pageLabel(page) })}" aria-label="${te('Close {name}', { name: pageLabel(page) })}">✕</span>` : ''}
     </button>`;
   }).join('');
 }
@@ -558,7 +590,8 @@ const PAGE_LOADERS = {
   audit: () => renderAudit(),
   settings: () => renderSettings(),
   team: () => renderTeamControl(),
-  guest: () => renderGuestPage()
+  guest: () => renderGuestPage(),
+  help: () => renderHelp()
 };
 
 /* CRM Panel's three tabs are one module, one dataset of guests viewed
@@ -609,6 +642,7 @@ async function switchTab(page, opts = {}){
   if (page === 'guest' && !state.guestPage?.id) page = 'customers';
   const wasOpen = workspace.open.includes(page);
   if (!wasOpen) workspace.open.push(page);
+  const stale = workspace.stale.delete(page);
   workspace.active = page;
   pushWorkspaceHistory(page);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -621,7 +655,7 @@ async function switchTab(page, opts = {}){
   if (page !== 'customers') document.querySelectorAll('#crmInlineNav .nav-item').forEach(n => n.classList.remove('active'));
   renderWorkspaceStrip();
   updateCrumbs();
-  const forceReload = opts.forceReload ?? (page === 'dashboard' || !wasOpen);
+  const forceReload = opts.forceReload ?? (page === 'dashboard' || !wasOpen || stale);
   if (forceReload){
     window.scrollTo(0,0);
     try { await PAGE_LOADERS[page]?.(); } catch (_) {}
@@ -635,17 +669,17 @@ const CRM_VIEW_LABELS = { overview:'Overview', customerlist:'Customer List', nor
 function updateCrumbs(){
   const node = el('topbarCrumbs'); if (!node) return;
   const page = workspace.active;
-  const label = escapeHtml(PAGE_LABELS[page] || page);
+  const label = escapeHtml(PAGE_LABELS[page] ? t(PAGE_LABELS[page]) : page);
   const sep = ' <span aria-hidden="true">/</span> ';
   if (page === 'customers' && state.crmView){
     const tail = state.crmView === 'overview' && state.custMode === 'activity'
-      ? `${escapeHtml(CRM_VIEW_LABELS.overview)}${sep}<b>${hasCap('activity.team') ? 'Activity' : 'My activity'}</b>`
-      : `<b>${escapeHtml(CRM_VIEW_LABELS[state.crmView] || '')}</b>`;
+      ? `${te(CRM_VIEW_LABELS.overview)}${sep}<b>${hasCap('activity.team') ? te('Activity') : te('My activity')}</b>`
+      : `<b>${CRM_VIEW_LABELS[state.crmView] ? te(CRM_VIEW_LABELS[state.crmView]) : ''}</b>`;
     node.innerHTML = `${label}${sep}${tail}`;
   } else if (page === 'guest'){
-    node.innerHTML = `CRM Panel${sep}<b>${escapeHtml(pageLabel('guest'))}</b>`;
+    node.innerHTML = `${te('CRM Panel')}${sep}<b>${escapeHtml(pageLabel('guest'))}</b>`;
   } else if (page === 'team' || page === 'users' || page === 'settings'){
-    node.innerHTML = `Administration${sep}<b>${label}</b>`;
+    node.innerHTML = `${te('Administration')}${sep}<b>${label}</b>`;
   } else {
     node.innerHTML = `<b>${label}</b>`;
   }
@@ -746,8 +780,8 @@ function openFinder(opts){
   el('finderInput').value = '';
   el('finderCols').className = finderMode === 'profile' ? 'finder-cols single' : 'finder-cols';
   el('finderCols').innerHTML = finderMode === 'profile'
-    ? '<div>NAME</div>'
-    : '<div>ID</div><div>NAME SURNAME</div><div class="fc-phone">LAST VISIT</div>';
+    ? `<div>${te('NAME')}</div>`
+    : `<div>ID</div><div>${te('NAME SURNAME')}</div><div class="fc-phone">${te('LAST VISIT')}</div>`;
   openModal('modalFinder');
   runFinderSearch('');
   setTimeout(() => el('finderInput').focus(), 40);
@@ -766,7 +800,7 @@ async function runFinderSearch(q){
     let rows = state.profiles.filter(p => !query || p.full_name.toLowerCase().includes(query));
     rows = rows.slice().sort((a,b) => a.full_name.localeCompare(b.full_name,'tr'));
     finderRows = rows.slice(0,50).map(p => ({ id:p.id, full_name:p.full_name,
-      sub:p.employment_status === 'inactive' ? 'inactive' : '' }));
+      sub:p.employment_status === 'inactive' ? t('inactive') : '' }));
   } else {
     /* The finder is scoped by the main process from the session, never by a
        flag the renderer sends — `scoped` was not a field the surface has. */
@@ -782,8 +816,8 @@ function renderFinderResults(q){
   const wrap = el('finderResults');
   if (!finderRows.length){
     wrap.innerHTML = emptyState({ icon:'search',
-      title: q ? 'No matches' : (finderMode === 'profile' ? 'No profiles yet' : 'No guests yet'),
-      text: q ? 'Try a different ID, name or phone.' : '' });
+      title: q ? t('No matches') : (finderMode === 'profile' ? t('No profiles yet') : t('No guests yet')),
+      text: q ? t('Try a different ID, name or phone.') : '' });
     el('finderFoot').textContent = '';
     return;
   }
@@ -800,8 +834,8 @@ function renderFinderResults(q){
        </div>`
   ).join('');
   const capped = finderRows.length === 50;
-  el('finderFoot').textContent = `${finderRows.length}${capped ? '+' : ''} result${finderRows.length === 1 ? '' : 's'}` +
-    (capped ? ' — keep typing to narrow it down' : '');
+  el('finderFoot').textContent = tn(finderRows.length, '{n} result', '{n} results', { n: `${finderRows.length}${capped ? '+' : ''}` }) +
+    (capped ? t(' — keep typing to narrow it down') : '');
   scrollFinderCursorIntoView();
 }
 function finderSetCursor(i){ finderCursor = i; renderFinderCursorState(); }
@@ -890,6 +924,7 @@ function focusSearch(){
 }
 function contextualNew(){
   const page = document.querySelector('.page.active')?.id || '';
+  if (page === 'page-help') return;
   if (page === 'page-profiles') return openProfileModal();
   if (page === 'page-customers'){
     /* Customer List is the one tab that creates guests (spec §13/§14) —
@@ -905,7 +940,7 @@ window.api?.onMenuAction?.((action) => {
   if (action === 'backup') doBackupNow();
 });
 
-document.addEventListener('DOMContentLoaded', () => { initCropDrag(); bootstrap(); });
+document.addEventListener('DOMContentLoaded', () => { initI18n(); initCropDrag(); bootstrap(); });
 
 /* =====================================================================
    EMPTY STATES
@@ -970,6 +1005,7 @@ function defaultCommands(){
     { kind:'Go', title:'CRM Panel', action:'switchTab', args:['customers'] },
     { kind:'Go', title:'Reports', action:'switchTab', args:['reports'] },
     { kind:'Go', title:'Settings', action:'switchTab', args:['settings'] },
+    { kind:'Go', title:'Help', action:'switchTab', args:['help'] },
     { kind:'New', title:'New Reservation', action:'openReservationModal', args:[] },
     { kind:'New', title:'New Customer', action:'openCustomerModal', args:[] }
   ];
@@ -981,7 +1017,9 @@ function defaultCommands(){
   if (mayOpen('audit')) cmds.push({ kind:'Go', title:'Audit Log', action:'switchTab', args:['audit'] });
   if (mayOpen('team')) cmds.push({ kind:'Go', title:'Team control', action:'switchTab', args:['team'] });
   cmds.push({ kind:'Go', title:hasCap('activity.team') ? "Today's activity" : 'My activity today', action:'openTodaysActivity', args:[] });
-  return cmds;
+  /* Titles and kinds are written in English above and shown in the chosen
+     language; the palette filters on what the operator actually sees. */
+  return cmds.map(c => ({ ...c, kind: t(c.kind), title: t(c.title) }));
 }
 
 /* Commands render the moment you type; the record search follows after a
@@ -1021,20 +1059,20 @@ function buildPaletteItems(q){
   const r = palette.results;
   if (!r) return items;
   const groups = [
-    { group:'Guests', rows:newestFirst(r.guests, 'updated_at'), map:(c) => ({
-        kind:'Guest', title:c.full_name, sub:[`#${c.code}`, c.nationality, c.marketing_name ? 'Assigned to ' + c.marketing_name : 'Unassigned'].filter(Boolean).join(' · '),
+    { group:t('Guests'), rows:newestFirst(r.guests, 'updated_at'), map:(c) => ({
+        kind:t('Guest'), title:c.full_name, sub:[`#${c.code}`, c.nationality, c.marketing_name ? t('Assigned to {name}', { name: c.marketing_name }) : t('Unassigned')].filter(Boolean).join(' · '),
         action:'goToGuest', args:[c.id, 'customers'] }) },
-    { group:'CRM notes', rows:newestFirst(r.notes, 'created_at'), map:(n) => ({
-        kind:'Note', title:n.full_name, quote:noteExcerpt(n.note, q),
+    { group:t('CRM notes'), rows:newestFirst(r.notes, 'created_at'), map:(n) => ({
+        kind:t('Note'), title:n.full_name, quote:noteExcerpt(n.note, q),
         sub:[`#${n.code}`, n.author, n.created_at ? fmtDateTime(n.created_at) : fmtDate(n.note_date)].filter(Boolean).join(' · '),
         action:'goToGuest', args:[n.customer_id, 'customers'] }) },
-    { group:'Reservations', rows:newestFirst(r.reservations, 'check_in'), map:(x) => ({
-        kind: x.cancelled_at ? 'Cancelled' : 'Stay', title:x.full_name,
-        sub:[`${fmtDate(x.check_in)} – ${fmtDate(x.check_out)}`, x.invited_by ? 'Invited by ' + x.invited_by : '', x.reservation_note || ''].filter(Boolean).join(' · '),
+    { group:t('Reservations'), rows:newestFirst(r.reservations, 'check_in'), map:(x) => ({
+        kind: x.cancelled_at ? t('Cancelled') : t('Stay'), title:x.full_name,
+        sub:[`${fmtDate(x.check_in)} – ${fmtDate(x.check_out)}`, x.invited_by ? t('Invited by {name}', { name: x.invited_by }) : '', x.reservation_note || ''].filter(Boolean).join(' · '),
         action:'goToGuest', args:[x.customer_id, 'customers'] }) },
-    { group:'Profiles', rows:r.profiles || [], map:(p) => ({
-        kind:'Profile', title:p.full_name,
-        sub:[`${p.guests || 0} guest${p.guests === 1 ? '' : 's'}`, p.employment_status === 'inactive' ? 'inactive' : ''].filter(Boolean).join(' · '),
+    { group:t('Profiles'), rows:r.profiles || [], map:(p) => ({
+        kind:t('Profile'), title:p.full_name,
+        sub:[tn(p.guests || 0, '{n} guest', '{n} guests'), p.employment_status === 'inactive' ? t('inactive') : ''].filter(Boolean).join(' · '),
         action: mayOpen('profiles') ? 'openProfileDetail' : 'switchTab', args: mayOpen('profiles') ? [p.id] : ['dashboard'] }) }
   ];
   for (const g of groups){
@@ -1042,7 +1080,7 @@ function buildPaletteItems(q){
     const show = palette.expanded.has(g.group) ? g.rows : g.rows.slice(0, PALETTE_GROUP_LIMIT);
     show.forEach(row => items.push({ ...g.map(row), group:g.group, count:g.rows.length }));
     if (show.length < g.rows.length){
-      items.push({ kind:'More', group:g.group, count:g.rows.length, title:`Show all ${g.rows.length}`, action:'expandPaletteGroup', args:[g.group], more:true });
+      items.push({ kind:t('More'), group:g.group, count:g.rows.length, title:t('Show all {n}', { n: g.rows.length }), action:'expandPaletteGroup', args:[g.group], more:true });
     }
   }
   return items;
@@ -1089,16 +1127,16 @@ function renderPalette(items, { q = '', pending = false, keepCursor = false } = 
   const list = el('paletteList');
   const meta = el('paletteMeta');
   if (meta){
-    let text = 'Type at least two letters to search guests, notes, reservations and profiles';
-    if (q.length >= 2 && pending) text = 'Searching guests, notes, reservations and profiles…';
+    let text = t('Type at least two letters to search guests, notes, reservations and profiles');
+    if (q.length >= 2 && pending) text = t('Searching guests, notes, reservations and profiles…');
     else if (q.length >= 2 && palette.results){
       const total = ['guests','notes','reservations','profiles'].reduce((n, k) => n + (palette.results[k]?.length || 0), 0);
-      text = `${total ? `${total} record${total === 1 ? '' : 's'} found` : 'No records matched'} · partial words, not case-sensitive`;
+      text = `${total ? tn(total, '{n} record found', '{n} records found') : t('No records matched')} · ${t('partial words, not case-sensitive')}`;
     }
     meta.textContent = text;
   }
   if (!items.length){
-    list.innerHTML = `<div class="palette-empty">${pending ? 'Searching…' : 'Nothing matched that.'}</div>`;
+    list.innerHTML = `<div class="palette-empty">${pending ? te('Searching…') : te('Nothing matched that.')}</div>`;
     return;
   }
   let html = '', lastGroup = null;

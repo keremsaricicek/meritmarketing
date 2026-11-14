@@ -36,12 +36,12 @@ async function openReservationModal(id, presetCustomerId){
     try { r = await call(window.api.reservations.get, { id }, { silent:true }); }
     catch (e){
       editingReservationId = null;
-      toast('error', e.code === 'FORBIDDEN' ? 'No access' : 'Could not open',
-            e.code === 'FORBIDDEN' ? 'This reservation is no longer yours.' : e.message);
+      toast('error', e.code === 'FORBIDDEN' ? t('No access') : t('Could not open'),
+            e.code === 'FORBIDDEN' ? t('This reservation is no longer yours.') : e.message);
       return;
     }
     if (!r){ editingReservationId = null; return; }
-    el('resModalTitle').textContent = 'Edit Reservation';
+    el('resModalTitle').textContent = t('Edit Reservation');
     el('resModalSubtitle').innerHTML =
       `${escapeHtml(r.customer_name)} <span class="msub-code">· #${escapeHtml(r.customer_code)}</span> · ${statusTagHTML(r.status)}`;
     sel.value = r.customer_id;
@@ -55,8 +55,8 @@ async function openReservationModal(id, presetCustomerId){
     el('resCancelResBtn').style.display = r.status === 'CANCELLED' ? 'none' : 'inline-flex';
     el('resDeleteResBtn').style.display = can1('reservations.delete') ? 'grid' : 'none';
   } else {
-    el('resModalTitle').textContent = 'New Reservation';
-    el('resModalSubtitle').textContent = 'Book a stay for an existing or new guest';
+    el('resModalTitle').textContent = t('New Reservation');
+    el('resModalSubtitle').textContent = t('Book a stay for an existing or new guest');
     sel.value = presetCustomerId || '';
     el('resCheckIn').value = '';
     el('resCheckOut').value = '';
@@ -109,10 +109,10 @@ async function onResCustomerChange(){
      customers.summary) — render what we were given, never "null" */
   el('resGuestMeta').innerHTML = c.reservation_count === null
     ? `#${escapeHtml(c.code)}`
-    : `#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : 'no phone'}<br>Passport: ${c.passport_no ? escapeHtml(c.passport_no) : '—'}`;
+    : `#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : te('no phone')}<br>${te('Passport')}: ${c.passport_no ? escapeHtml(c.passport_no) : '—'}`;
   el('resGuestPills').innerHTML = c.reservation_count === null
     ? ''
-    : `${statusTagHTML(c.status)}<span class="ep-pill">${c.reservation_count} visits</span>`;
+    : `${statusTagHTML(c.status)}<span class="ep-pill">${te('{n} visits', { n: c.reservation_count })}</span>`;
   prev.classList.add('show');
   /* the API is authoritative and will refuse this at save time regardless
      — this early flag just avoids sending the guest through the whole
@@ -121,7 +121,7 @@ async function onResCustomerChange(){
      run at the top of every openReservationModal() call since this is a
      .field-error element too — blanks it the first time the modal opens
      and nothing else would ever put it back. */
-  warn.textContent = 'Guest protection period has not expired.';
+  warn.textContent = t('Guest protection period has not expired.');
   /* explicit 'block', not '' — clearFieldErrors() (run at the top of every
      openReservationModal() call) strips this element's .show class along
      with every other .field-error, so relying on that class to drive
@@ -145,11 +145,11 @@ async function saveReservation(force){
   const invitedName = el('resInvitedBy').value.trim();
   const note = el('resNotes').value.trim();
 
-  if (!sel){ showFieldError('resCustomerSelect', 'Select a guest.'); return; }
-  if (!checkIn){ showFieldError('resCheckIn', 'Check-in date is required.'); return; }
-  if (!checkOut){ showFieldError('resCheckOut', 'Check-out date is required.'); return; }
+  if (!sel){ showFieldError('resCustomerSelect', t('Select a guest.')); return; }
+  if (!checkIn){ showFieldError('resCheckIn', t('Check-in date is required.')); return; }
+  if (!checkOut){ showFieldError('resCheckOut', t('Check-out date is required.')); return; }
   if (invitedName && !profileIdByName(invitedName)){
-    showFieldError('resInvitedBy', 'No marketing profile with that name.'); return;
+    showFieldError('resInvitedBy', t('No marketing profile with that name.')); return;
   }
 
   let customerId = sel;
@@ -158,13 +158,13 @@ async function saveReservation(force){
      re-submitting from inside the handler silently did nothing. */
   let retryWithForce = false;
   const btn = document.querySelector('#modalReservation .btn-gold');
-  await withBusy(btn, 'Saving…', async () => {
+  await withBusy(btn, t('Saving…'), async () => {
     try {
       if (sel === '__new__'){
         const code = el('resNewCustomerId').value.trim();
         const name = el('resNewCustomerName').value.trim();
-        if (!code){ showFieldError('resNewCustomerId','A unique ID is required.'); return; }
-        if (!name){ showFieldError('resNewCustomerName','Name is required.'); return; }
+        if (!code){ showFieldError('resNewCustomerId', t('A unique ID is required.')); return; }
+        if (!name){ showFieldError('resNewCustomerName', t('Name is required.')); return; }
         const created = await call(window.api.customers.create,
           { code, fullName:name, registered:false }, { silent:true });
         customerId = created.id;
@@ -179,23 +179,23 @@ async function saveReservation(force){
 
       closeModal('modalReservation');
       editingReservationId = null;
-      (result?.warnings || []).forEach(w => toast('warning','Heads up', w));
-      toast('success', 'Reservation saved');
+      (result?.warnings || []).forEach(w => toast('warning', t('Heads up'), tNotice(w)));
+      toast('success', t('Reservation saved'));
       await refreshReservationViews(customerId);
       refreshNotifBadge();
     } catch (e) {
       if (e.code === 'CONFLICT'){
         const overlap = (e.conflicts || []).map(c => `${fmtDate(c.check_in)} – ${fmtDate(c.check_out)}`).join(', ');
         const proceed = await confirmDialog({
-          title:'Overlapping reservation', message:e.message,
-          detail: overlap ? `Already booked: ${overlap}` : '', confirmLabel:'Save anyway', tone:'warning'
+          title:t('Overlapping reservation'), message:e.message,
+          detail: overlap ? t('Already booked: {dates}', { dates: overlap }) : '', confirmLabel:t('Save anyway'), tone:'warning'
         });
         retryWithForce = proceed;
         return;
       }
       if (!applyServerError(e, { customerId:'resCustomerSelect', checkIn:'resCheckIn', checkOut:'resCheckOut',
                                  code:'resNewCustomerId', invitedByProfileId:'resInvitedBy' })){
-        toast('error','Reservation not saved', e.message);
+        toast('error', t('Reservation not saved'), e.message);
       }
     }
   });
@@ -216,7 +216,7 @@ async function openCustomerModal(id){
   if (editingCustomerId !== null){
     const c = await call(window.api.customers.get, { id });
     if (!c){ editingCustomerId = null; return; }
-    el('custModalTitle').textContent = 'Edit Customer';
+    el('custModalTitle').textContent = t('Edit Customer');
     el('custModalSubtitle').innerHTML = `${escapeHtml(c.full_name)} <span class="msub-code">· #${escapeHtml(c.code)}</span>`;
     el('custId').value = c.code; el('custId').disabled = true;
     el('custName').value = c.full_name || '';
@@ -228,8 +228,8 @@ async function openCustomerModal(id){
     setPhotoDrop('custPhotoDrop', photoUrl(c.photo_name));
     el('custDeleteBtn').style.display = 'flex';
   } else {
-    el('custModalTitle').textContent = 'New Customer';
-    el('custModalSubtitle').textContent = 'Create a new guest profile';
+    el('custModalTitle').textContent = t('New Customer');
+    el('custModalSubtitle').textContent = t('Create a new guest profile');
     el('custId').value = ''; el('custId').disabled = false;
     ['custName','custPassport','custPhone','custBirth'].forEach(f => el(f).value = '');
     setPhotoDrop('custPhotoDrop', null);
@@ -246,7 +246,7 @@ function setPhotoDrop(elId, url){
     node.style.backgroundImage = 'none'; node.classList.remove('has-photo');
     node.innerHTML = `<span class="pd-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>
-      <span>Add Photo</span>
+      <span>${te('Add Photo')}</span>
     </span>`;
   }
 }
@@ -263,10 +263,10 @@ async function saveCustomer(){
   const passportNo = el('custPassport').value.trim();
   const phone = el('custPhone').value.trim();
   const birthDate = el('custBirth').value || null;
-  if (!fullName){ showFieldError('custName','Name is required.'); return; }
+  if (!fullName){ showFieldError('custName', t('Name is required.')); return; }
 
   const btn = document.querySelector('#modalCustomer .modal-foot .btn-gold');
-  await withBusy(btn, 'Saving…', async () => {
+  await withBusy(btn, t('Saving…'), async () => {
     try {
       const editedId = editingCustomerId;
       /* Same phone or passport as a guest already in the book? Say so before
@@ -287,7 +287,7 @@ async function saveCustomer(){
           { id:editedId, fullName, passportNo, phone, birthDate, photoName:pendingCustomerPhoto }, { silent:true });
       } else {
         const code = el('custId').value.trim();
-        if (!code){ showFieldError('custId','A unique ID is required.'); return; }
+        if (!code){ showFieldError('custId', t('A unique ID is required.')); return; }
         /* a marketer creating a guest through their own (now-scoped)
            Customer List must actually be able to see that guest afterward
            — auto-assign to self, the same self-attribution already used
@@ -299,11 +299,11 @@ async function saveCustomer(){
       closeModal('modalCustomer');
       editingCustomerId = null;
       duplicateAcknowledged = null;
-      toast('success','Customer saved');
+      toast('success', t('Customer saved'));
       await Promise.all([refreshCrmViews(), renderDashboard(), editedId !== null ? refreshOpenInspectors(editedId) : Promise.resolve()]);
     } catch (e) {
       if (!applyServerError(e, { code:'custId', fullName:'custName', passportNo:'custPassport', email:'custPhone', birthDate:'custBirth' })){
-        toast('error','Customer not saved', e.message);
+        toast('error', t('Customer not saved'), e.message);
       }
     }
   });
@@ -318,20 +318,20 @@ async function deleteCustomer(){
      reservations would be removed and that it could not be undone — neither of
      which the backend does. */
   if (!await confirmDialog({
-    title:'Archive guest',
-    message:`Archive ${c?.full_name || 'this guest'}?`,
+    title:t('Archive guest'),
+    message:t('Archive {name}?', { name: c?.full_name || t('this guest') }),
     detail: n
-      ? `They will be removed from the active guest views. Their ${n} reservation(s) and CRM history are retained.`
-      : 'They will be removed from the active guest views. Their CRM history is retained.',
-    confirmLabel:'Archive' })) return;
+      ? t('They will be removed from the active guest views. Their {n} reservation(s) and CRM history are retained.', { n })
+      : t('They will be removed from the active guest views. Their CRM history is retained.'),
+    confirmLabel:t('Archive') })) return;
 
   await call(window.api.customers.delete, { id: editingCustomerId });
   closeModal('modalCustomer');
   editingCustomerId = null;
-  toast('success','Guest archived');
+  toast('success', t('Guest archived'));
   ['detailPanel','resDetailPanel','listDetailPanel'].forEach(pid => {
     const p = el(pid);
-    if (p){ p.classList.add('empty'); p.innerHTML = 'No guest selected'; }
+    if (p) showEmptyGuestPanel(p);
   });
   await Promise.all([refreshCrmViews(), renderReservations(), renderDashboard()]);
 }
@@ -437,7 +437,7 @@ async function applyCrop(){
   }, { silent:true }).catch(() => null);
 
   if (!saved){
-    toast('error','Crop not applied','The image could not be cropped. The original photo is unchanged.');
+    toast('error', t('Crop not applied'), t('The image could not be cropped. The original photo is unchanged.'));
     return closeModal('modalCrop');
   }
   const name = saved.name;
@@ -460,7 +460,7 @@ async function openProfileModal(id){
   if (editingProfileId !== null){
     const p = state.profiles.find(x => x.id === id);
     if (!p){ editingProfileId = null; return; }
-    el('profModalTitle').textContent = 'Edit Profile';
+    el('profModalTitle').textContent = t('Edit Profile');
     el('profName').value = p.full_name || '';
     el('profNationality').value = p.nationality || '';
     el('profPassport').value = p.passport_no || '';
@@ -471,7 +471,7 @@ async function openProfileModal(id){
     el('profStatusSection').style.display = 'block';
     el('profDeleteBtn').style.display = isAdmin() ? 'flex' : 'none';
   } else {
-    el('profModalTitle').textContent = 'New Profile';
+    el('profModalTitle').textContent = t('New Profile');
     ['profName','profNationality','profPassport','profPhone'].forEach(f => el(f).value = '');
     el('profInactive').checked = false;
     setPhotoDrop('profPhotoDrop', null);
@@ -485,7 +485,7 @@ async function openProfileModal(id){
 async function saveProfile(){
   clearFieldErrors(el('modalProfile'));
   const fullName = el('profName').value.trim();
-  if (!fullName){ showFieldError('profName','Name is required.'); return; }
+  if (!fullName){ showFieldError('profName', t('Name is required.')); return; }
   const payload = {
     fullName,
     nationality: el('profNationality').value.trim(),
@@ -494,7 +494,7 @@ async function saveProfile(){
     photoName: pendingProfilePhoto,
   };
   const btn = document.querySelector('#modalProfile .btn-gold');
-  await withBusy(btn, 'Saving…', async () => {
+  await withBusy(btn, t('Saving…'), async () => {
     try {
       /* Employment status is an EDIT concern: a profile being created is
          active by definition, and `profiles:create` does not accept the flag. */
@@ -506,10 +506,10 @@ async function saveProfile(){
       }
       closeModal('modalProfile');
       editingProfileId = null;
-      toast('success','Profile saved');
+      toast('success', t('Profile saved'));
       await Promise.all([renderProfiles(), renderCustomers(), renderDashboard()]);
     } catch (e) {
-      if (!applyServerError(e, { fullName:'profName', email:'profPhone' })) toast('error','Profile not saved', e.message);
+      if (!applyServerError(e, { fullName:'profName', email:'profPhone' })) toast('error', t('Profile not saved'), e.message);
     }
   });
 }
@@ -518,14 +518,14 @@ async function deleteProfile(){
   if (editingProfileId === null) return;
   const p = state.profiles.find(x => x.id === editingProfileId);
   if (!await confirmDialog({
-    title:'Archive profile',
-    message:`Archive ${p?.full_name || 'this profile'}?`,
-    detail:'Reservation history is kept. If they simply left the company, mark them inactive instead.',
-    confirmLabel:'Archive' })) return;
+    title:t('Archive profile'),
+    message:t('Archive {name}?', { name: p?.full_name || t('this profile') }),
+    detail:t('Reservation history is kept. If they simply left the company, mark them inactive instead.'),
+    confirmLabel:t('Archive') })) return;
   await call(window.api.profiles.delete, { id: editingProfileId });
   closeModal('modalProfile');
   editingProfileId = null;
-  toast('success','Profile archived');
+  toast('success', t('Profile archived'));
   await Promise.all([renderProfiles(), renderCustomers(), renderDashboard()]);
 }
 
@@ -536,7 +536,7 @@ function openCrmNoteModal(customerId){
   crmNoteCustomerId = customerId;
   crmNoteEditingId = null;
   clearFieldErrors(el('modalCrmNote'));
-  el('crmNoteModalTitle').textContent = 'New CRM Note';
+  el('crmNoteModalTitle').textContent = t('New CRM Note');
   el('crmNoteDate').value = todayYMD();
   el('crmNoteText').value = '';
   el('crmNoteRemind').value = '';
@@ -551,7 +551,7 @@ function openCrmNoteEdit(noteId){
   crmNoteCustomerId = n.customer_id;
   crmNoteEditingId = n.id;
   clearFieldErrors(el('modalCrmNote'));
-  el('crmNoteModalTitle').textContent = 'Edit CRM Note';
+  el('crmNoteModalTitle').textContent = t('Edit CRM Note');
   el('crmNoteDate').value = n.note_date || todayYMD();
   el('crmNoteText').value = n.note || '';
   el('crmNoteRemind').value = n.remind_on || '';
@@ -562,10 +562,10 @@ function openCrmNoteEdit(noteId){
 async function saveCrmNote(){
   clearFieldErrors(el('modalCrmNote'));
   const note = el('crmNoteText').value.trim();
-  if (!note){ showFieldError('crmNoteText','Enter the note text.'); return; }
+  if (!note){ showFieldError('crmNoteText', t('Enter the note text.')); return; }
   const remindOn = el('crmNoteRemind').value || null;
   const btn = document.querySelector('#modalCrmNote .modal-foot .btn-gold');
-  await withBusy(btn, 'Saving…', async () => {
+  await withBusy(btn, t('Saving…'), async () => {
     try {
       if (crmNoteEditingId !== null){
         await call(window.api.crmNotes.update,
@@ -577,11 +577,11 @@ async function saveCrmNote(){
       const edited = crmNoteEditingId !== null;
       crmNoteEditingId = null;
       closeModal('modalCrmNote');
-      toast('success', edited ? 'Note updated' : (remindOn ? 'Note added with a reminder' : 'Note added'));
+      toast('success', edited ? t('Note updated') : (remindOn ? t('Note added with a reminder') : t('Note added')));
       await refreshOpenInspectors(crmNoteCustomerId);
       await refreshCrmViews();
       if (workspace.open.includes('dashboard')) renderGuestDashboardPanels().catch(() => {});
-    } catch (e){ if (!applyServerError(e, { note:'crmNoteText', remindOn:'crmNoteRemind', noteDate:'crmNoteDate' })) toast('error','Note not saved', e.message); }
+    } catch (e){ if (!applyServerError(e, { note:'crmNoteText', remindOn:'crmNoteRemind', noteDate:'crmNoteDate' })) toast('error', t('Note not saved'), e.message); }
   });
 }
 
@@ -604,7 +604,7 @@ function onRecordChangeGuestClick(){
   el('recGuestFinderField').style.display = '';
   el('recPreview').classList.remove('show');
   openFinder({ mode:'customer', targetInputId:'recCustomerSelect', scoped:isMarketingScoped(),
-    title:'Find Guest', subtitle:'Search by ID, name or phone', onSelect:onRecordCustomerChange });
+    title:t('Find Guest'), subtitle:t('Search by ID, name or phone'), onSelect:onRecordCustomerChange });
 }
 async function onRecordCustomerChange(){
   const v = el('recCustomerSelect').value;
@@ -621,32 +621,32 @@ async function onRecordCustomerChange(){
   el('recPreviewName').textContent = c.full_name;
   el('recPreviewMeta').innerHTML = c.reservation_count === null
     ? `#${escapeHtml(c.code)}`
-    : `#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : 'no phone'}<br>Marketing: ${invitedByHTML(c.marketing_name, c.marketing_status)}`;
+    : `#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : te('no phone')}<br>${te('Marketing')}: ${invitedByHTML(c.marketing_name, c.marketing_status)}`;
   el('recPreviewPills').innerHTML = c.reservation_count === null
     ? ''
-    : `${statusTagHTML(c.status)}<span class="ep-pill">${c.reservation_count} visits</span><span class="ep-pill">${c.note_count} notes</span>`;
+    : `${statusTagHTML(c.status)}<span class="ep-pill">${te('{n} visits', { n: c.reservation_count })}</span><span class="ep-pill">${te('{n} notes', { n: c.note_count })}</span>`;
   if (c.marketing_profile_id) el('recMarketing').value = c.marketing_profile_id;
   prev.classList.add('show');
 }
 async function saveRecord(){
   clearFieldErrors(el('modalRecord'));
   const id = el('recCustomerSelect').value;
-  if (!id){ showFieldError('recCustomerSelect','Select a guest.'); return; }
+  if (!id){ showFieldError('recCustomerSelect', t('Select a guest.')); return; }
   const marketing = el('recMarketing').value;
   const note = el('recNote').value.trim();
-  if (!marketing && !note){ showFieldError('recNote','Select a marketer or write a note.'); return; }
+  if (!marketing && !note){ showFieldError('recNote', t('Select a marketer or write a note.')); return; }
 
   const btn = document.querySelector('#modalRecord .btn-gold');
-  await withBusy(btn, 'Saving…', async () => {
+  await withBusy(btn, t('Saving…'), async () => {
     try {
       if (marketing) await call(window.api.customers.assign, { id:Number(id), profileId:Number(marketing) }, { silent:true });
       if (note) await call(window.api.crmNotes.create,
         { customerId:Number(id), note, noteDate: el('recDate').value || todayYMD() }, { silent:true });
       closeModal('modalRecord');
-      toast('success','Record saved');
+      toast('success', t('Record saved'));
       await Promise.all([refreshCrmViews(), renderDashboard(), renderProfiles(), refreshOpenInspectors(Number(id))]);
       refreshNotifBadge();
-    } catch (e){ toast('error','Record not saved', e.message); }
+    } catch (e){ toast('error', t('Record not saved'), e.message); }
   });
 }
 
@@ -665,8 +665,8 @@ async function openAssignModal(customerId, ev){
   else { av.style.backgroundImage='none'; av.textContent = initials(c.full_name); }
   el('assignName').textContent = c.full_name;
   el('assignMeta').innerHTML =
-    `#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : 'no phone'}<br>Current: ${c.marketing_name ? invitedByHTML(c.marketing_name, c.marketing_status) : 'unassigned'}`;
-  el('assignPills').innerHTML = `${statusTagHTML(c.status)}<span class="ep-pill">${c.reservation_count} visits</span>`;
+    `#${escapeHtml(c.code)} · ${c.phone ? escapeHtml(c.phone) : te('no phone')}<br>${te('Current')}: ${c.marketing_name ? invitedByHTML(c.marketing_name, c.marketing_status) : te('unassigned')}`;
+  el('assignPills').innerHTML = `${statusTagHTML(c.status)}<span class="ep-pill">${te('{n} visits', { n: c.reservation_count })}</span>`;
   el('assignSelect').innerHTML = '<option value=""></option>' +
     state.profiles.filter(p => p.employment_status === 'active')
       .map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('');
@@ -674,17 +674,17 @@ async function openAssignModal(customerId, ev){
 }
 async function saveAssign(){
   const to = el('assignSelect').value;
-  if (!to){ showFieldError('assignSelect','Select an active marketer.'); return; }
+  if (!to){ showFieldError('assignSelect', t('Select an active marketer.')); return; }
   const btn = document.querySelector('#modalAssign .btn-gold');
-  await withBusy(btn, 'Assigning…', async () => {
+  await withBusy(btn, t('Assigning…'), async () => {
     try {
       await call(window.api.customers.assign, { id:assigningCustomerId, profileId:Number(to) }, { silent:true });
     } catch (e) {
-      if (!applyServerError(e, { profileId:'assignSelect' })) toast('error','Guest not assigned', e.message);
+      if (!applyServerError(e, { profileId:'assignSelect' })) toast('error', t('Guest not assigned'), e.message);
       return;
     }
     closeModal('modalAssign');
-    toast('success','Guest assigned');
+    toast('success', t('Guest assigned'));
     /* current assigned-guest counts move immediately wherever they're
        shown — Profiles' own count, Customer List/CRM, Dashboard, any open
        inspector — none of them should need a reload to agree (spec §25) */
@@ -709,12 +709,12 @@ async function openUserModal(id){
   const takenBy = {};
   (users || []).forEach(u => { if (u.profile_id) takenBy[u.profile_id] = u.username; });
 
-  el('userProfile').innerHTML = '<option value="">— none —</option>' +
+  el('userProfile').innerHTML = `<option value="">${te('— none —')}</option>` +
     roster.map(p => {
       const owner = takenBy[p.id];
       const mine = editingUserId !== null && (users || []).some(u => u.id === editingUserId && u.profile_id === p.id);
       const blocked = owner && !mine;
-      const suffix = blocked ? ` — in use by ${owner}` : (p.kind === 'staff' ? ' (staff)' : '');
+      const suffix = blocked ? ` — ${t('in use by {name}', { name: owner })}` : (p.kind === 'staff' ? ` (${t('staff')})` : '');
       return `<option value="${p.id}"${blocked ? ' disabled' : ''}>${escapeHtml(p.full_name)}${escapeHtml(suffix)}</option>`;
     }).join('');
 
@@ -722,16 +722,16 @@ async function openUserModal(id){
     const users = await call(window.api.users.list, {});
     const u = (users || []).find(x => x.id === id);
     if (!u){ editingUserId = null; return; }
-    el('userModalTitle').textContent = 'Edit User';
+    el('userModalTitle').textContent = t('Edit User');
     el('userUsername').value = u.username;
     el('userPassword').value = '';
-    el('userPassword').placeholder = 'Leave blank to keep current';
+    el('userPassword').placeholder = t('Leave blank to keep current');
     el('userRole').value = u.role;
     el('userProfile').value = u.profile_id || '';
     el('userActive').checked = !!u.active;
     el('userDeleteBtn').style.display = state.session.id === u.id ? 'none' : 'flex';
   } else {
-    el('userModalTitle').textContent = 'New User';
+    el('userModalTitle').textContent = t('New User');
     el('userUsername').value = '';
     el('userPassword').value = '';
     el('userPassword').placeholder = '';
@@ -751,15 +751,15 @@ async function saveUser(){
   const profileId = el('userProfile').value || null;
   const active = el('userActive').checked;
 
-  if (!username){ showFieldError('userUsername','Username is required.'); return; }
-  if (editingUserId === null && !password){ showFieldError('userPassword','Password is required.'); return; }
+  if (!username){ showFieldError('userUsername', t('Username is required.')); return; }
+  if (editingUserId === null && !password){ showFieldError('userPassword', t('Password is required.')); return; }
   /* There is no STAFF account role — ADMIN, MANAGER, MARKETING. A marketer
      without a linked profile has no scope, which the schema also refuses. */
   if (role === 'MARKETING' && !profileId){
-    showFieldError('userProfile','A marketing account must be linked to a marketing profile.'); return;
+    showFieldError('userProfile', t('A marketing account must be linked to a marketing profile.')); return;
   }
 
-  await withBusy(el('userSaveBtn'), 'Saving…', async () => {
+  await withBusy(el('userSaveBtn'), t('Saving…'), async () => {
     try {
       const payload = { username, role, profileId: profileId ? Number(profileId) : null, active };
       if (password) payload.password = password;
@@ -767,25 +767,25 @@ async function saveUser(){
       else await call(window.api.users.create, payload, { silent:true });
       closeModal('modalUser');
       editingUserId = null;
-      toast('success','User saved');
+      toast('success', t('User saved'));
       await renderUsers();
     } catch (e){
-      if (!applyServerError(e, { username:'userUsername', password:'userPassword', profileId:'userProfile' })) toast('error','User not saved', e.message);
+      if (!applyServerError(e, { username:'userUsername', password:'userPassword', profileId:'userProfile' })) toast('error', t('User not saved'), e.message);
     }
   });
 }
 
 async function deleteUser(){
   if (editingUserId === null) return;
-  if (!await confirmDialog({ title:'Disable user', message:'Disable this account?',
-      detail:'The person will no longer be able to sign in. History is preserved.', confirmLabel:'Disable' })) return;
+  if (!await confirmDialog({ title:t('Disable user'), message:t('Disable this account?'),
+      detail:t('The person will no longer be able to sign in. History is preserved.'), confirmLabel:t('Disable') })) return;
   try {
     await call(window.api.users.delete, { id: editingUserId }, { silent:true });
     closeModal('modalUser');
     editingUserId = null;
-    toast('success','User disabled');
+    toast('success', t('User disabled'));
     await renderUsers();
-  } catch (e){ toast('error','Could not disable user', e.message); }
+  } catch (e){ toast('error', t('Could not disable user'), e.message); }
 }
 
 /* ---------------- PASSWORD ---------------- */
@@ -799,18 +799,18 @@ async function savePassword(){
   const currentPassword = el('pwCurrent').value;
   const newPassword = el('pwNew').value;
   const confirm = el('pwConfirm').value;
-  if (!currentPassword){ showFieldError('pwCurrent','Enter your current password.'); return; }
-  if (!newPassword){ showFieldError('pwNew','Enter a new password.'); return; }
-  if (newPassword !== confirm){ showFieldError('pwConfirm','Passwords do not match.'); return; }
+  if (!currentPassword){ showFieldError('pwCurrent', t('Enter your current password.')); return; }
+  if (!newPassword){ showFieldError('pwNew', t('Enter a new password.')); return; }
+  if (newPassword !== confirm){ showFieldError('pwConfirm', t('Passwords do not match.')); return; }
 
-  await withBusy(el('pwSaveBtn'), 'Saving…', async () => {
+  await withBusy(el('pwSaveBtn'), t('Saving…'), async () => {
     try {
       await call(window.api.auth.changePassword,
         { currentPassword, newPassword, newPasswordConfirm:confirm }, { silent:true });
       closeModal('modalPassword');
-      toast('success','Password changed');
+      toast('success', t('Password changed'));
     } catch (e){
-      if (!applyServerError(e, { currentPassword:'pwCurrent', password:'pwNew' })) toast('error','Password not changed', e.message);
+      if (!applyServerError(e, { currentPassword:'pwCurrent', password:'pwNew' })) toast('error', t('Password not changed'), e.message);
     }
   });
 }

@@ -30,7 +30,7 @@ const path = require('path');
 const { Suite } = require('../lib/harness');
 
 const RENDERER = path.join(__dirname, '..', '..', 'src', 'renderer');
-const SOURCES = ['index.html', 'scripts/actions.js', 'scripts/bridge.js',
+const SOURCES = ['index.html', 'scripts/i18n.js', 'scripts/help.js', 'scripts/help-content.js', 'scripts/actions.js', 'scripts/bridge.js',
   'scripts/core.js', 'scripts/views.js', 'scripts/screens.js', 'scripts/oversight.js', 'scripts/guests.js', 'scripts/data-tools.js'];
 
 /** Strip /* *​/ and // comments so a discussion of eval is not a use of eval. */

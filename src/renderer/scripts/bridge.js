@@ -14,8 +14,10 @@
 (function () {
   const bridge = window.ipc;
   if (!bridge) {
-    document.body.innerHTML = '<div class="fatal-notice">'
-      + 'Merit Marketing Hub could not start: the application bridge is unavailable.</div>';
+    const notice = document.createElement('div');
+    notice.className = 'fatal-notice';
+    notice.textContent = t('Merit Marketing Hub could not start: the application bridge is unavailable.');
+    document.body.replaceChildren(notice);
     return;
   }
 
@@ -185,14 +187,14 @@
       head.className = 'modal-head';
       const title = document.createElement('h2');
       title.className = 'modal-title';
-      title.textContent = String(opts.title || 'Confirm');
+      title.textContent = String(opts.title || t('Confirm'));
       head.appendChild(title);
 
       const body = document.createElement('div');
       body.className = 'modal-body';
       const p = document.createElement('p');
       /* textContent, never innerHTML: the message can contain a guest's name. */
-      p.textContent = String(message || 'Are you sure?');
+      p.textContent = String(message || t('Are you sure?'));
       body.appendChild(p);
       if (detail) {
         const d = document.createElement('p');
@@ -205,12 +207,12 @@
       foot.className = 'modal-foot';
       const cancel = document.createElement('button');
       cancel.className = 'btn btn-ghost btn-sm';
-      cancel.textContent = 'Cancel';
+      cancel.textContent = t('Cancel');
       const confirm = document.createElement('button');
       /* A warning ("save anyway") is not a deletion, so it does not wear the
          destructive colour. */
       confirm.className = opts.tone === 'warning' ? 'btn btn-gold btn-sm' : 'btn btn-gold btn-sm btn-destructive-solid';
-      confirm.textContent = String(opts.confirmLabel || 'Confirm');
+      confirm.textContent = String(opts.confirmLabel || t('Confirm'));
       foot.append(cancel, confirm);
 
       box.append(head, body, foot);
