@@ -23,31 +23,21 @@ const OPTIONS = Object.freeze({
   parallelism: 1,
 });
 
-const MIN_LENGTH = 10;
+/* The owner explicitly wants staff to be able to choose ANY password,
+   including short ones such as "1234" or "0000". The only rules are: not
+   empty, and not absurdly long (Argon2 input cap). Brute force against the
+   sign-in screen is limited by account lockout (see lockout handling in the
+   auth service); hashing stays Argon2id. */
+const MIN_LENGTH = 1;
 const MAX_LENGTH = 200;
 
-/* A length floor plus a "not obviously terrible" check. Deliberately no
-   composition rules: forcing a symbol and a digit produces Password1! and
-   measurably worse passwords, and this is a local desktop app behind a Windows
-   login, not an internet-facing service. */
-const OBVIOUS = new Set([
-  'password', 'password1', 'passw0rd', '1234567890', 'qwertyuiop',
-  'letmein123', 'admin12345', 'merit12345', 'meritmarketing',
-]);
-
-function validateStrength(password, { username } = {}) {
-  const value = String(password || '');
+function validateStrength(password) {
+  const value = password == null ? '' : String(password);
   if (value.length < MIN_LENGTH) {
-    return { ok: false, message: `Password must be at least ${MIN_LENGTH} characters.` };
+    return { ok: false, message: 'Password must not be empty.' };
   }
   if (value.length > MAX_LENGTH) {
     return { ok: false, message: `Password must be at most ${MAX_LENGTH} characters.` };
-  }
-  if (OBVIOUS.has(value.toLowerCase())) {
-    return { ok: false, message: 'That password is too easy to guess. Please choose another.' };
-  }
-  if (username && value.toLowerCase().includes(String(username).toLowerCase()) && String(username).length >= 4) {
-    return { ok: false, message: 'Password must not contain the username.' };
   }
   return { ok: true };
 }
@@ -79,4 +69,4 @@ function needsRehash(storedHash) {
   }
 }
 
-module.exports = { hash, verify, needsRehash, validateStrength, OPTIONS, MIN_LENGTH };
+module.exports = { hash, verify, needsRehash, validateStrength, OPTIONS, MIN_LENGTH, MAX_LENGTH };

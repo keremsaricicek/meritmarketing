@@ -42,7 +42,7 @@ async function setup(db, { username, password, passwordConfirm, fullName }, { au
     throw validation('Username may contain only letters, numbers, dot, dash and underscore.', 'username');
   }
   if (password !== passwordConfirm) throw validation('The passwords do not match.', 'passwordConfirm');
-  const strength = passwords.validateStrength(password, { username: name });
+  const strength = passwords.validateStrength(password);
   if (!strength.ok) throw validation(strength.message, 'password');
 
   const hash = await passwords.hash(password);
@@ -154,7 +154,7 @@ async function changePassword(db, { currentPassword, newPassword, newPasswordCon
   if (!okCurrent) throw validation('Your current password is not correct.', 'currentPassword');
 
   if (newPassword !== newPasswordConfirm) throw validation('The new passwords do not match.', 'newPasswordConfirm');
-  const strength = passwords.validateStrength(newPassword, { username: user.username });
+  const strength = passwords.validateStrength(newPassword);
   if (!strength.ok) throw validation(strength.message, 'newPassword');
   if (await passwords.verify(user.password_hash, newPassword)) {
     throw validation('The new password must be different from the current one.', 'newPassword');

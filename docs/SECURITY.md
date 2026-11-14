@@ -27,6 +27,10 @@ otherwise.
   users table; first run creates the first ADMIN and then setup refuses forever.
   A setup verb that still works on a populated database is an unauthenticated
   admin-creation endpoint.
+- **Password rule: any password of 1 to 200 characters.** No minimum length,
+  no denylist, no "must not contain the username" rule — "1234" or "0000" are
+  accepted. Short passwords are the owner's explicit choice; account lockout
+  after failed sign-ins (below) is the remaining protection against guessing.
 - **No username oracle.** Unknown user and wrong password return the identical
   message.
 - **Backoff, not lockout.** Five failures locks the account for five minutes.
