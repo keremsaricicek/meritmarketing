@@ -80,6 +80,17 @@ const PROBE = (ctx) => ({
   'search:global': { q: 'ab' },
   'team:overview': {},
   'export:run': { entity: 'customerlist', params: {} },
+  'export:columns': { entity: 'audit' },
+  'customers:bulkAssign': { ids: [ctx.foreignCustomer], profileId: ctx.senaProfile },
+  'crmNotes:bulkCreate': { ids: [ctx.foreignCustomer], note: 'probe' },
+  'import:choose': {},
+  'import:sheet': { token: '00000000-0000-4000-8000-000000000000', sheet: 0 },
+  'import:preview': { token: '00000000-0000-4000-8000-000000000000', sheet: 0, mapping: { fullName: 0 } },
+  'import:commit': { token: '00000000-0000-4000-8000-000000000000', sheet: 0, mapping: { fullName: 0 } },
+  'import:templates': {},
+  'import:saveTemplate': { name: 'probe', mapping: { fullName: 'Ad Soyad' } },
+  'import:deleteTemplate': { name: 'probe' },
+  'reports:monthlyPdf': { year: 2026, month: 3 },
   'photos:read': { name: 'photo_x' },
   'photos:remove': { name: 'photo_x' },
   'backup:list': {},
@@ -105,6 +116,8 @@ const FOREIGN_PROBE = {
   'customers:delete': (c) => ({ id: c.foreignCustomer }),
   'customers:create': (c) => ({ code: 'PROBE-CROSS', fullName: 'CROSS OWNED', marketingProfileId: c.keremProfile }),
   'customers:protection': (c) => ({ id: c.foreignCustomer }),
+  'customers:bulkAssign': (c) => ({ ids: [c.foreignCustomer], profileId: c.senaProfile }),
+  'crmNotes:bulkCreate': (c) => ({ ids: [c.foreignCustomer], note: 'probe' }),
   'reservations:get': (c) => ({ id: c.foreignReservation }),
   'reservations:update': (c) => ({ id: c.foreignReservation, checkIn: addDays(today(), 220), checkOut: addDays(today(), 222) }),
   'reservations:cancel': (c) => ({ id: c.foreignReservation, reason: 'probe' }),
@@ -121,6 +134,7 @@ const FOREIGN_PROBE = {
 /* Calls that would MOVE a guest between marketers, derived from PROTECTION_ENFORCING. */
 const PROTECTION_PROBE = {
   'customers:assign': (c) => ({ id: c.protectedCustomer, profileId: c.senaProfile }),
+  'customers:bulkAssign': (c) => ({ ids: [c.protectedCustomer], profileId: c.senaProfile }),
   'customers:update': (c) => ({ id: c.protectedCustomer, marketingProfileId: c.senaProfile }),
   'reservations:create': (c) => ({ customerId: c.protectedCustomer, checkIn: addDays(today(), 300), checkOut: addDays(today(), 302) }),
   'reservations:update': (c) => ({ id: c.ownReservation, customerId: c.protectedCustomer }),
@@ -203,6 +217,15 @@ module.exports = async function () {
       updates: { check: () => ({ state: 'unavailable' }), install: (ctx) => { require('../../src/main/services/guard').requireCapability(ctx, 'backup.create'); return { ok: true }; } },
       exporter: require('../../src/main/services/export-service').build({
         dialog: { showSaveDialog: async () => ({ canceled: true }) }, getWindow: () => null,
+      }),
+      /* Dialogs that answer "cancelled", so a sweep that slips past a guard
+         returns instead of blocking on a native window. */
+      importer: require('../../src/main/services/import-service').build({
+        dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) }, getWindow: () => null,
+      }),
+      reporter: require('../../src/main/services/report-service').build({
+        dialog: { showSaveDialog: async () => ({ canceled: true }) }, getWindow: () => null,
+        electron: { BrowserWindow: null, session: null },
       }),
     };
     const handlers = handlerFactory.build(stubs);

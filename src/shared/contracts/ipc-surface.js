@@ -62,6 +62,22 @@ const SURFACE = {
   'customers:delete':    { auth: 'required', capability: 'customers.delete', roles: ['ADMIN','MANAGER'],             scope: 'record', protection: false, validation: true,  destructive: true,  audit: true,  denial: 'FORBIDDEN',
                            notes: 'Archive, not destroy — reservations and audit history survive.' },
   'customers:protection':{ auth: 'required', capability: 'customers.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN' },
+  'customers:bulkAssign':{ auth: 'required', capability: 'customers.assign', roles: ['ADMIN','MANAGER'],       scope: 'record', protection: true,  validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN',
+                           notes: 'A loop over customers:assign, so scope and the one-year protection rule run per guest. A selection containing a guest outside the caller\'s scope is refused outright; business-rule refusals (protection, inactive profile, missing guest) are reported per row. One summary audit row plus the per-guest rows.' },
+
+  // ------------------------------------------------------------- import
+  'import:choose':       { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Native Open dialog in the main process; .xlsx/.csv only, 10 MB cap, zip-bomb and macro checks, formulas never evaluated. The renderer receives a token, sheet names and sample rows — never a path.' },
+  'import:sheet':        { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Reads another sheet of the caller\'s own pending file; a token from another account resolves to nothing.' },
+  'import:preview':      { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Duplicates are matched across the whole book by phone, passport or Guest ID, but a match outside the caller\'s scope is reported by Guest ID and name only — the customers:summary projection.' },
+  'import:commit':       { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',
+                           notes: 'One transaction, one audit row with the counts. MARKETING imports are owned by the caller whatever the owner column says. "Update empty fields" needs customers.update, touches only in-scope guests and never ownership.' },
+  'import:templates':    { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'The caller\'s own saved column mappings (user_preferences).' },
+  'import:saveTemplate': { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN' },
+  'import:deleteTemplate':{ auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN' },
 
   // ------------------------------------------------------- reservations
   'reservations:list':   { auth: 'required', capability: 'reservations.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query',  protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
@@ -84,6 +100,8 @@ const SURFACE = {
   'crmNotes:create':     { auth: 'required', capability: 'crm.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN' },
   'crmNotes:update':     { auth: 'required', capability: 'crm.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN' },
   'crmNotes:delete':     { auth: 'required', capability: 'crm.delete', roles: ['ADMIN','MANAGER'],             scope: 'record', protection: false, validation: true,  destructive: true,  audit: true,  denial: 'FORBIDDEN' },
+  'crmNotes:bulkCreate': { auth: 'required', capability: 'crm.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',
+                           notes: 'The same note on each selected guest through crmNotes:create. A guest outside the caller\'s scope refuses the whole request; a missing guest is reported per row.' },
 
   // ----------------------------------------------------------- profiles
   'profiles:list':       { auth: 'required', capability: 'profiles.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query',  protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
@@ -143,7 +161,13 @@ const SURFACE = {
 
   // ------------------------------------------------------------- export
   'export:run':          { auth: 'required', capability: 'export.run', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',
-                           notes: 'Scope applies to the dataset; the file path comes from a native Save dialog, never the renderer.' },
+                           notes: 'Scope applies to the dataset (an explicit ids selection is read through the same scope); CSV or .xlsx, the latter optionally with every CRM note on a second sheet (needs crm.read). The file path comes from a native Save dialog, never the renderer.' },
+  'export:columns':      { auth: 'required', capability: 'export.run', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Column labels of a dataset for the export dialog. Needs the dataset\'s own read capability too.' },
+
+  // ------------------------------------------------------------ reports
+  'reports:monthlyPdf':  { auth: 'required', capability: 'reports.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',
+                           notes: 'Scoped like the lists: a marketer\'s report covers their own book and invitations. Rendered offscreen with JavaScript off, no network and a no-remote CSP; saved through a native dialog.' },
 
   // ------------------------------------------------------------- photos
   'photos:import':       { auth: 'required', capability: 'customers.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',

@@ -79,6 +79,12 @@ function buildFilters(q, scopeId) {
     where.push('(c.full_name LIKE @search OR c.code LIKE @search OR c.phone LIKE @search OR c.passport_no LIKE @search)');
     params.search = `%${q.search}%`;
   }
+  /* An explicit selection (bulk "Export selected"). It narrows the scoped set
+     like any other filter: an id outside the caller's book matches nothing. */
+  if (Array.isArray(q.ids) && q.ids.length) {
+    where.push('c.id IN (SELECT value FROM json_each(@ids))');
+    params.ids = JSON.stringify(q.ids.map(Number));
+  }
   if (q.registeredOnly) where.push('c.registered = 1');
   if (q.unregisteredOnly) where.push('c.registered = 0');
   if (q.assignedTo !== undefined && q.assignedTo !== null && q.assignedTo !== '') {

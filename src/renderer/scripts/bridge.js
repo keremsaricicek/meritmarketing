@@ -32,8 +32,11 @@
     export: {
       /* Both old entry points funnel into one verb. The main process picks the
          file path through a native dialog; the renderer never sees it. */
-      filtered: ({ entity, params }) => bridge.export.run({ entity: mapEntity(entity), params: params || {} }),
-      run: ({ entity, params }) => bridge.export.run({ entity: mapEntity(entity), params: params || {} }),
+      filtered: ({ entity, params, format, columns, includeAllNotes }) => bridge.export.run(
+        withOptions({ entity: mapEntity(entity), params: params || {} }, { format, columns, includeAllNotes })),
+      run: ({ entity, params, format, columns, includeAllNotes }) => bridge.export.run(
+        withOptions({ entity: mapEntity(entity), params: params || {} }, { format, columns, includeAllNotes })),
+      columns: ({ entity }) => bridge.export.columns({ entity: mapEntity(entity) }),
     },
 
     photos: {
@@ -62,6 +65,7 @@
       /* Report visibility is a capability on the session now, so there is
          nothing to ask the backend. */
       access: async () => ({ ok: true, data: { allowed: true } }),
+      monthlyPdf: ({ year, month }) => bridge.reports.monthlyPdf({ year, month }),
     },
 
     backup: {
@@ -80,6 +84,13 @@
       confirm: async ({ message, detail }) => ({ ok: true, data: await window.confirmDialog(message, detail) }),
     },
   };
+
+  /* Export options are sent only when chosen: the schema is strict, and an
+     explicit `undefined` would still be a key. */
+  function withOptions(payload, options) {
+    for (const [key, value] of Object.entries(options)) if (value !== undefined) payload[key] = value;
+    return payload;
+  }
 
   /* Old export entity names, mapped to the ones the surface documents. */
   function mapEntity(entity) {

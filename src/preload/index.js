@@ -43,6 +43,7 @@ const api = {
     assign: call('customers:assign'),
     delete: call('customers:delete'),
     protection: call('customers:protection'),
+    bulkAssign: call('customers:bulkAssign'),
   },
   reservations: {
     list: call('reservations:list'),
@@ -58,6 +59,7 @@ const api = {
     create: call('crmNotes:create'),
     update: call('crmNotes:update'),
     delete: call('crmNotes:delete'),
+    bulkCreate: call('crmNotes:bulkCreate'),
   },
   profiles: {
     list: call('profiles:list'),
@@ -92,7 +94,19 @@ const api = {
   activity: { feed: call('activity:feed') },
   search: { global: call('search:global') },
   team: { overview: call('team:overview') },
-  export: { run: call('export:run') },
+  export: { run: call('export:run'), columns: call('export:columns') },
+  /* Guest import. The file is chosen by a native dialog in main; only a token
+     and the parsed preview ever reach the renderer. */
+  import: {
+    choose: call('import:choose'),
+    sheet: call('import:sheet'),
+    preview: call('import:preview'),
+    commit: call('import:commit'),
+    templates: call('import:templates'),
+    saveTemplate: call('import:saveTemplate'),
+    deleteTemplate: call('import:deleteTemplate'),
+  },
+  reports: { monthlyPdf: call('reports:monthlyPdf') },
   photos: {
     import: call('photos:import'),
     crop: call('photos:crop'),

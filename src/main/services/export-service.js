@@ -1,5 +1,5 @@
 'use strict';
-/* CSV export.
+/* CSV and Excel export.
  *
  * Two hazards live here and both are easy to get wrong:
  *
@@ -17,6 +17,7 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 const customersRepo = require('../repositories/customers');
 const reservationsRepo = require('../repositories/reservations');
 const customerService = require('./customer-service');
@@ -61,9 +62,19 @@ const DATASETS = {
       { label: 'Last Visit', value: (r) => r.last_visit || '' },
       { label: 'Next Visit', value: (r) => r.next_visit || '' },
       { label: 'Notes', value: (r) => r.note_count },
+      { label: 'Latest CRM note', value: (r) => r.last_note_text || '' },
+      { label: 'Latest note date', value: (r) => r.last_note_date || '' },
+      { label: 'Latest note by', value: (r) => r.last_note_by || '' },
       { label: 'Created', value: (r) => r.created_at },
     ],
-    fetch: (ctx, params) => customerService.list(ctx, { ...params, registeredOnly: true, pageSize: 5000 }).rows,
+    guests: true,
+    /* An explicit selection ("Export selected") can include unregistered
+       leads from the Overview, so it is not narrowed to registered guests. It
+       still runs through the scoped list: an id outside the caller's book is
+       simply not found. */
+    fetch: (ctx, params) => customerService.list(ctx, params.ids
+      ? { ...params, pageSize: 5000 }
+      : { ...params, registeredOnly: true, pageSize: 5000 }).rows,
   },
   norecord: {
     capability: 'customers.read',
@@ -74,6 +85,7 @@ const DATASETS = {
       { label: 'Created', value: (r) => r.created_at },
     ],
     fetch: (ctx, params) => customerService.list(ctx, { ...params, noRecord: true, registeredOnly: true, pageSize: 5000 }).rows,
+    guests: true,
   },
   reservations: {
     capability: 'reservations.read',
@@ -143,35 +155,152 @@ const DATASETS = {
   },
 };
 
+/* Columns chosen in the export dialog, by label. Unknown labels are dropped;
+   an empty choice means every column. Order follows the dataset, not the
+   request, so a crafted list cannot reorder or repeat columns. */
+function chooseColumns(dataset, wanted) {
+  if (!Array.isArray(wanted) || !wanted.length) return dataset.columns;
+  const set = new Set(wanted);
+  const picked = dataset.columns.filter((c) => set.has(c.label));
+  return picked.length ? picked : dataset.columns;
+}
+
+/* Every CRM note of the exported guests, for the second sheet. The guest ids
+   come from the scoped dataset just fetched, never from the request. */
+function notesFor(db, guestIds) {
+  if (!guestIds.length) return [];
+  return db.prepare(`
+    SELECT c.code, c.full_name, COALESCE(n.note_date, date(n.created_at,'localtime')) AS note_date,
+           n.note, COALESCE(u.full_name, u.username) AS author, n.created_at
+    FROM crm_notes n
+    JOIN customers c ON c.id = n.customer_id
+    LEFT JOIN users u ON u.id = n.created_by
+    WHERE n.deleted_at IS NULL AND n.customer_id IN (SELECT value FROM json_each(?))
+    ORDER BY c.full_name COLLATE NOCASE, note_date DESC, n.created_at DESC`).all(JSON.stringify(guestIds));
+}
+
+const NOTE_COLUMNS = [
+  { label: 'Guest ID', value: (r) => r.code },
+  { label: 'Name', value: (r) => r.full_name },
+  { label: 'Note date', value: (r) => r.note_date || '' },
+  { label: 'Note', value: (r) => r.note },
+  { label: 'Author', value: (r) => r.author || '' },
+  { label: 'Written', value: (r) => r.created_at },
+];
+
+/* An .xlsx cell written as a string is a string: Excel never evaluates it, so
+   the CSV formula guard is not needed here. Values are always plain strings or
+   numbers — never an object with a `formula` key, which is the one shape
+   ExcelJS would write as a formula. */
+function addSheet(workbook, name, columns, rows) {
+  const sheet = workbook.addWorksheet(name);
+  sheet.columns = columns.map((c) => ({
+    header: c.label, key: c.label, width: Math.min(Math.max(c.label.length + 4, 12), 60),
+  }));
+  for (const row of rows) {
+    const values = {};
+    for (const c of columns) {
+      const v = c.value(row);
+      values[c.label] = v === null || v === undefined ? '' : (typeof v === 'number' ? v : String(v));
+    }
+    sheet.addRow(values);
+  }
+  sheet.getRow(1).font = { bold: true };
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  if (rows.length) sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+  return sheet;
+}
+
+async function toXlsx(sheets) {
+  const ExcelJS = require('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Merit Marketing Hub';
+  workbook.created = new Date();
+  for (const s of sheets) addSheet(workbook, s.name, s.columns, s.rows);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
+const SHEET_NAMES = {
+  customerlist: 'Guests', norecord: 'No record', reservations: 'Reservations', cancelled: 'Cancelled',
+  deleted: 'Deleted', profiles: 'Profiles', audit: 'Audit log',
+};
+
+/** Shared by run() and renderFile(): the checks, the scoped rows, the bytes. */
+async function produce(ctx, { entity, params = {}, format = 'csv', columns, includeAllNotes = false }) {
+  guard.requireCapability(ctx, 'export.run');
+  const dataset = DATASETS[entity];
+  if (!dataset) throw validation('Unknown export.', 'entity');
+  /* The per-dataset capability is checked in addition to export.run, so
+     export cannot become a side door around audit.read or deleted history. */
+  guard.requireCapability(ctx, dataset.capability);
+  if (params.ids && !dataset.guests) throw validation('A selection can only be exported from a guest list.', 'ids');
+  if (includeAllNotes) {
+    if (!dataset.guests) throw validation('Notes can only be added to a guest export.', 'includeAllNotes');
+    if (format !== 'xlsx') throw validation('All notes need the Excel format.', 'includeAllNotes');
+    guard.requireCapability(ctx, 'crm.read');
+  }
+
+  const rows = dataset.fetch(ctx, params);
+  const cols = chooseColumns(dataset, columns);
+  if (format === 'xlsx') {
+    const sheets = [{ name: SHEET_NAMES[entity] || 'Export', columns: cols, rows }];
+    let noteCount = 0;
+    if (includeAllNotes) {
+      const notes = notesFor(ctx.db, rows.map((r) => r.id));
+      noteCount = notes.length;
+      sheets.push({ name: 'CRM notes', columns: NOTE_COLUMNS, rows: notes });
+    }
+    return { bytes: await toXlsx(sheets), rows: rows.length, notes: noteCount, ext: 'xlsx' };
+  }
+  const csv = toCsv(cols, rows);
+  return { bytes: Buffer.from(csv, 'utf8'), csv, rows: rows.length, notes: 0, ext: 'csv' };
+}
+
 function build({ dialog, getWindow }) {
   return {
-    async run(ctx, { entity, params = {} }) {
-      guard.requireCapability(ctx, 'export.run');
-      const dataset = DATASETS[entity];
-      if (!dataset) throw validation('Unknown export.', 'entity');
-      /* The per-dataset capability is checked in addition to export.run, so
-         export cannot become a side door around audit.read or deleted history. */
-      guard.requireCapability(ctx, dataset.capability);
-
-      const rows = dataset.fetch(ctx, params);
-      const csv = toCsv(dataset.columns, rows);
+    async run(ctx, payload) {
+      const { entity } = payload;
+      const out = await produce(ctx, payload);
 
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const suggested = `${entity}_${stamp}.csv`;
+      const suggested = `${entity}_${stamp}.${out.ext}`;
       const result = await dialog.showSaveDialog(getWindow(), {
         title: 'Export',
         defaultPath: suggested,
-        filters: [{ name: 'CSV', extensions: ['csv'] }],
+        filters: out.ext === 'xlsx'
+          ? [{ name: 'Excel workbook', extensions: ['xlsx'] }]
+          : [{ name: 'CSV', extensions: ['csv'] }],
       });
-      if (result.canceled || !result.filePath) return { cancelled: true, rows: rows.length };
+      if (result.canceled || !result.filePath) return { cancelled: true, rows: out.rows };
 
-      fs.writeFileSync(result.filePath, csv, 'utf8');
+      fs.writeFileSync(result.filePath, out.bytes);
+      const selected = payload.params && Array.isArray(payload.params.ids) ? ' (selected guests)' : '';
       ctx.audit({ action: 'EXPORT', entity_type: entity,
-        description: `Exported ${rows.length} rows from ${entity}` });
-      return { cancelled: false, rows: rows.length, name: suggested };
+        description: `Exported ${out.rows} rows from ${entity}${selected} as ${out.ext.toUpperCase()}`
+          + (out.notes ? ` with ${out.notes} CRM notes` : ''),
+        metadata: { format: out.ext, rows: out.rows, notes: out.notes } });
+      return { cancelled: false, rows: out.rows, notes: out.notes, name: path.basename(result.filePath) };
     },
 
-    /* Exposed for tests: builds the exact bytes without touching a dialog. */
+    /* The columns a dataset offers, for the export dialog's checklist. */
+    columns(ctx, { entity }) {
+      guard.requireCapability(ctx, 'export.run');
+      const dataset = DATASETS[entity];
+      if (!dataset) throw validation('Unknown export.', 'entity');
+      guard.requireCapability(ctx, dataset.capability);
+      return {
+        columns: dataset.columns.map((c) => c.label),
+        guests: !!dataset.guests,
+        notes: !!dataset.guests && ctx.sessions.can('crm.read'),
+      };
+    },
+
+    /* Exposed for tests: the exact bytes, without a dialog. */
+    renderFile(ctx, payload) {
+      return produce(ctx, payload);
+    },
+
+    /* The original synchronous CSV path the existing suites use. */
     render(ctx, { entity, params = {} }) {
       guard.requireCapability(ctx, 'export.run');
       const dataset = DATASETS[entity];
@@ -183,4 +312,4 @@ function build({ dialog, getWindow }) {
   };
 }
 
-module.exports = { build, toCsv, cell, DATASETS, RISKY_START };
+module.exports = { build, toCsv, toXlsx, cell, DATASETS, RISKY_START, NOTE_COLUMNS };

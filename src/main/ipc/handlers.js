@@ -12,11 +12,12 @@ const reservations = require('../services/reservation-service');
 const authService = require('../services/auth-service');
 const support = require('../services/support-services');
 const oversight = require('../services/oversight-service');
+const bulk = require('../services/bulk-service');
 const guard = require('../services/guard');
 const { CONFIGURABLE } = require('../../shared/contracts/roles');
 const { validation } = require('../../shared/errors');
 
-function build({ app, backup, photos, updates, exporter }) {
+function build({ app, backup, photos, updates, exporter, importer, reporter }) {
   return {
     'app:info': (ctx) => app.info(ctx),
     'app:needsSetup': (ctx) => authService.needsSetup(ctx.db),
@@ -54,6 +55,15 @@ function build({ app, backup, photos, updates, exporter }) {
     'customers:assign': (ctx, p) => customers.assign(ctx, p),
     'customers:delete': (ctx, p) => customers.remove(ctx, p),
     'customers:protection': (ctx, p) => customers.protectionState(ctx, p),
+    'customers:bulkAssign': (ctx, p) => bulk.assign(ctx, p),
+
+    'import:choose': (ctx) => importer.choose(ctx),
+    'import:sheet': (ctx, p) => importer.sheet(ctx, p),
+    'import:preview': (ctx, p) => importer.preview(ctx, p),
+    'import:commit': (ctx, p) => importer.commit(ctx, p),
+    'import:templates': (ctx) => importer.templates(ctx),
+    'import:saveTemplate': (ctx, p) => importer.saveTemplate(ctx, p),
+    'import:deleteTemplate': (ctx, p) => importer.deleteTemplate(ctx, p),
 
     'reservations:list': (ctx, p) => reservations.list(ctx, p),
     'reservations:listDeleted': (ctx, p) => reservations.listDeleted(ctx, p),
@@ -67,6 +77,7 @@ function build({ app, backup, photos, updates, exporter }) {
     'crmNotes:create': (ctx, p) => support.crmNotes.create(ctx, p),
     'crmNotes:update': (ctx, p) => support.crmNotes.update(ctx, p),
     'crmNotes:delete': (ctx, p) => support.crmNotes.remove(ctx, p),
+    'crmNotes:bulkCreate': (ctx, p) => bulk.note(ctx, p),
 
     'profiles:list': (ctx, p) => support.profiles.list(ctx, p),
     'profiles:get': (ctx, p) => support.profiles.get(ctx, p),
@@ -102,6 +113,9 @@ function build({ app, backup, photos, updates, exporter }) {
     'team:overview': (ctx) => oversight.team.overview(ctx),
 
     'export:run': (ctx, p) => exporter.run(ctx, p),
+    'export:columns': (ctx, p) => exporter.columns(ctx, p),
+
+    'reports:monthlyPdf': (ctx, p) => reporter.monthlyPdf(ctx, p),
 
     'photos:import': (ctx) => photos.importPhoto(ctx),
     'photos:crop': (ctx, p) => photos.crop(ctx, p),

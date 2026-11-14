@@ -26,6 +26,8 @@ const backupFactory = require('./backup/backup-service');
 const autoBackup = require('./backup/auto-backup');
 const photoFactory = require('./services/photo-service');
 const exportFactory = require('./services/export-service');
+const importFactory = require('./services/import-service');
+const reportFactory = require('./services/report-service');
 const updateFactory = require('./updates/update-service');
 const squirrelStartup = require('./updates/squirrel-startup');
 const mainWindow = require('./windows/main-window');
@@ -196,6 +198,8 @@ async function start() {
 
   const photos = photoFactory.build({ dialog, paths, getWindow: () => win });
   const exporter = exportFactory.build({ dialog, getWindow: () => win });
+  const importer = importFactory.build({ dialog, getWindow: () => win });
+  const reporter = reportFactory.build({ dialog, getWindow: () => win });
 
   /* Automatic updates: Electron's built-in Squirrel.Windows client against a
      feed HARD-CODED in update-service.js (the repository's GitHub Releases).
@@ -230,7 +234,7 @@ async function start() {
     }),
   };
 
-  const handlers = handlerFactory.build({ app: appInfo, backup, photos, updates, exporter });
+  const handlers = handlerFactory.build({ app: appInfo, backup, photos, updates, exporter, importer, reporter });
   registerAll({
     ipcMain,
     handlers,

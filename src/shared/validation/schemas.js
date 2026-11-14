@@ -35,6 +35,23 @@ const paging = {
 };
 
 const empty = z.object({}).strict();
+
+/* Import: the fields a spreadsheet column can be mapped to. Kept identical to
+   FIELD_KEYS in src/main/services/import/rules.js — a test holds them together. */
+const IMPORT_FIELDS = Object.freeze(['fullName', 'firstName', 'lastName', 'code', 'phone', 'email',
+  'passportNo', 'nationality', 'notes', 'gamingPower', 'owner']);
+const importToken = z.string().uuid();
+const importSheet = z.number().int().min(0).max(200);
+const columnIndex = z.number().int().min(0).max(59);
+const importMapping = z.object(Object.fromEntries(IMPORT_FIELDS.map((f) => [f, columnIndex.optional()]))).strict();
+const importRun = z.object({
+  token: importToken,
+  sheet: importSheet,
+  mapping: importMapping,
+  duplicates: z.enum(['skip', 'update']).optional(),
+}).strict();
+/* A bulk selection is one screen of guests, not the whole book. */
+const selection = z.array(idLike).min(1).max(500);
 const byId = z.object({ id: idLike }).strict();
 
 const SCHEMAS = {
@@ -110,6 +127,18 @@ const SCHEMAS = {
   'customers:assign': z.object({ id: idLike, profileId: profileRef, reason: optionalText(200) }).strict(),
   'customers:delete': byId,
   'customers:protection': byId,
+  'customers:bulkAssign': z.object({ ids: selection, profileId: profileRef, reason: optionalText(200) }).strict(),
+
+  'import:choose': empty,
+  'import:sheet': z.object({ token: importToken, sheet: importSheet }).strict(),
+  'import:preview': importRun,
+  'import:commit': importRun,
+  'import:templates': empty,
+  'import:saveTemplate': z.object({
+    name: text(60),
+    mapping: z.object(Object.fromEntries(IMPORT_FIELDS.map((f) => [f, text(120).optional()]))).strict(),
+  }).strict(),
+  'import:deleteTemplate': z.object({ name: text(60) }).strict(),
 
   'reservations:list': z.object({
     ...paging,
@@ -155,6 +184,7 @@ const SCHEMAS = {
   'crmNotes:create': z.object({ customerId: idLike, note: text(4000), noteDate: businessDate.optional() }).strict(),
   'crmNotes:update': z.object({ id: idLike, note: text(4000), noteDate: businessDate.optional() }).strict(),
   'crmNotes:delete': byId,
+  'crmNotes:bulkCreate': z.object({ ids: selection, note: text(4000), noteDate: businessDate.optional() }).strict(),
 
   'profiles:list': z.object({ includeStaff: z.boolean().optional() }).strict(),
   'profiles:get': byId,
@@ -275,7 +305,27 @@ const SCHEMAS = {
       actorUserId: idLike.optional(),
       from: text(40).optional(),
       to: text(40).optional(),
+      /* "Export selected": an explicit list of guests, still read through the
+         caller's scope, so an id outside it simply matches nothing. */
+      ids: z.array(idLike).min(1).max(5000).optional(),
+      /* The guest-list filters the screens show, so an export is what is on screen. */
+      createdFrom: businessDate.optional(),
+      createdTo: businessDate.optional(),
+      hasReservation: z.boolean().optional(),
+      hasCrm: z.boolean().optional(),
     }).strict().optional(),
+    format: z.enum(['csv', 'xlsx']).optional(),
+    /* Column labels to include; unknown labels are ignored by the service. */
+    columns: z.array(text(60)).max(40).optional(),
+    includeAllNotes: z.boolean().optional(),
+  }).strict(),
+  'export:columns': z.object({
+    entity: z.enum(['customerlist', 'norecord', 'reservations', 'cancelled', 'deleted', 'profiles', 'audit']),
+  }).strict(),
+
+  'reports:monthlyPdf': z.object({
+    year: z.number().int().min(2020).max(2200),
+    month: z.number().int().min(1).max(12),
   }).strict(),
 
   'photos:import': empty,
@@ -299,4 +349,4 @@ const SCHEMAS = {
   'updates:install': empty,
 };
 
-module.exports = { SCHEMAS };
+module.exports = { SCHEMAS, IMPORT_FIELDS };

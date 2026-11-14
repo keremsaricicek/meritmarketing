@@ -16,13 +16,13 @@ do not edit by hand.** Run `npm run ipc:doc` after changing the contract;
 
 | | |
 |---|---|
-| Channels | **65** |
+| Channels | **76** |
 | Callable with no session | 6 |
-| Record- or query-scoped | 36 |
+| Record- or query-scoped | 46 |
 | Destructive | 9 |
-| Written to the audit log | 31 |
-| Enforcing guest protection | 4 |
-| Reachable by MARKETING | 43 |
+| Written to the audit log | 35 |
+| Enforcing guest protection | 5 |
+| Reachable by MARKETING | 53 |
 
 ## This file is load-bearing
 
@@ -106,6 +106,14 @@ table, including other marketers'.
 | `customers:assign` | required | `customers.assign` | ADMIN, MANAGER | `record` | yes | — | yes | `FORBIDDEN` |
 | `customers:delete` | required | `customers.delete` | ADMIN, MANAGER | `record` | — | yes | yes | `FORBIDDEN` |
 | `customers:protection` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
+| `customers:bulkAssign` | required | `customers.assign` | ADMIN, MANAGER | `record` | yes | — | yes | `FORBIDDEN` |
+| `import:choose` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `import:sheet` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `import:preview` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `import:commit` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | yes | `FORBIDDEN` |
+| `import:templates` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `import:saveTemplate` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `import:deleteTemplate` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
 | `reservations:list` | required | `reservations.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
 | `reservations:listDeleted` | required | `reservations.deleted.read` | ADMIN, MANAGER | `query` | — | — | — | `FORBIDDEN` |
 | `reservations:get` | required | `reservations.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
@@ -117,6 +125,7 @@ table, including other marketers'.
 | `crmNotes:create` | required | `crm.create` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
 | `crmNotes:update` | required | `crm.update` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
 | `crmNotes:delete` | required | `crm.delete` | ADMIN, MANAGER | `record` | — | yes | yes | `FORBIDDEN` |
+| `crmNotes:bulkCreate` | required | `crm.create` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
 | `profiles:list` | required | `profiles.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
 | `profiles:get` | required | `profiles.read` | ADMIN, MANAGER, MARKETING | `none` | — | — | — | `FORBIDDEN` |
 | `profiles:related` | required | `profiles.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
@@ -144,6 +153,8 @@ table, including other marketers'.
 | `search:global` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
 | `team:overview` | required | `team.control` | ADMIN | `none` | — | — | — | `FORBIDDEN` |
 | `export:run` | required | `export.run` | ADMIN, MANAGER, MARKETING | `query` | — | — | yes | `FORBIDDEN` |
+| `export:columns` | required | `export.run` | ADMIN, MANAGER, MARKETING | `none` | — | — | — | `FORBIDDEN` |
+| `reports:monthlyPdf` | required | `reports.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | yes | `FORBIDDEN` |
 | `photos:import` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | — | yes | `FORBIDDEN` |
 | `app:openDataFolder` | required | `backup.read` | ADMIN, MANAGER | `none` | — | — | yes | `FORBIDDEN` |
 | `photos:crop` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | — | yes | `FORBIDDEN` |
@@ -171,6 +182,12 @@ table, including other marketers'.
 - `customers:update` — REJECTS a changed marketing_profile_id; ownership moves only through assign.
 - `customers:assign` — The authorized override. Writes explicit history; never rewrites historical Invited By.
 - `customers:delete` — Archive, not destroy — reservations and audit history survive.
+- `customers:bulkAssign` — A loop over customers:assign, so scope and the one-year protection rule run per guest. A selection containing a guest outside the caller's scope is refused outright; business-rule refusals (protection, inactive profile, missing guest) are reported per row. One summary audit row plus the per-guest rows.
+- `import:choose` — Native Open dialog in the main process; .xlsx/.csv only, 10 MB cap, zip-bomb and macro checks, formulas never evaluated. The renderer receives a token, sheet names and sample rows — never a path.
+- `import:sheet` — Reads another sheet of the caller's own pending file; a token from another account resolves to nothing.
+- `import:preview` — Duplicates are matched across the whole book by phone, passport or Guest ID, but a match outside the caller's scope is reported by Guest ID and name only — the customers:summary projection.
+- `import:commit` — One transaction, one audit row with the counts. MARKETING imports are owned by the caller whatever the owner column says. "Update empty fields" needs customers.update, touches only in-scope guests and never ownership.
+- `import:templates` — The caller's own saved column mappings (user_preferences).
 - `reservations:list` — Active and Cancelled are two disjoint views; neither includes deleted rows.
 - `reservations:listDeleted` — A separate VERB, not a view parameter — MARKETING cannot reach it by crafting a request.
 - `reservations:get` — A deleted row answers NOT_FOUND to anyone who may not see deleted history.
@@ -178,6 +195,7 @@ table, including other marketers'.
 - `reservations:update` — Retargeting re-validates existence, scope and protection — it is a create in disguise.
 - `reservations:cancel` — Idempotent; a repeat submit does not rewrite the recorded reason.
 - `reservations:delete` — Soft delete. Hard ADMIN check beyond the capability; requires a reason.
+- `crmNotes:bulkCreate` — The same note on each selected guest through crmNotes:create. A guest outside the caller's scope refuses the whole request; a missing guest is reported per row.
 - `profiles:list` — Other marketers' guest and reservation counts are masked for MARKETING.
 - `profiles:related` — A profile's guest book is that marketer's book — own profile only for MARKETING.
 - `profiles:delete` — Archive, not destroy — historical Invited By attribution must stay readable.
@@ -194,7 +212,9 @@ table, including other marketers'.
 - `activity:feed` — Everyone's work only with activity.team; otherwise the caller's own actions, whatever is asked. A scoped caller never sees the guest detail of work outside its own book.
 - `search:global` — Partial, case-insensitive match over guests, CRM notes, reservations and profiles, through the same record scope as the lists; each section also needs its own read capability.
 - `team:overview` — Read-only summary. No non-admin role holds team.control until an administrator grants it.
-- `export:run` — Scope applies to the dataset; the file path comes from a native Save dialog, never the renderer.
+- `export:run` — Scope applies to the dataset (an explicit ids selection is read through the same scope); CSV or .xlsx, the latter optionally with every CRM note on a second sheet (needs crm.read). The file path comes from a native Save dialog, never the renderer.
+- `export:columns` — Column labels of a dataset for the export dialog. Needs the dataset's own read capability too.
+- `reports:monthlyPdf` — Scoped like the lists: a marketer's report covers their own book and invitations. Rendered offscreen with JavaScript off, no network and a no-remote CSP; saved through a native dialog.
 - `photos:import` — Opens a native picker in the main process; validates type, signature and size.
 - `app:openDataFolder` — Opens the FIXED application data folder. Takes no arguments: the renderer supplies no path, so there is nothing to traverse. Uses shell.openPath, never a shell command or a URL.
 - `photos:crop` — Crops an ALREADY-MANAGED photo by name plus a rectangle. No filesystem path and no image bytes cross the boundary; the rectangle is clamped to the real image.
