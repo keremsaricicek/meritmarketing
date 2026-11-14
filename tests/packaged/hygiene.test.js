@@ -66,6 +66,13 @@ module.exports = async function () {
     ours.some((f) => f.startsWith('/src/main/main.js')), 'main.js missing');
   s.check('the archive contains the renderer',
     ours.some((f) => f === '/src/renderer/index.html'), 'renderer missing');
+  /* docs/ is left out of the package, so Help reads its own copy of the
+     manual from the renderer folder. */
+  s.check('the archive contains the in-app user manual and its screenshots',
+    ours.includes('/src/renderer/scripts/help-content.js') && ours.some((f) => /^\/src\/renderer\/manual-images\/(en|tr)-.+\.png$/.test(f)),
+    'help-content.js or manual-images missing');
+  s.check('the archive contains the interface dictionaries',
+    ours.includes('/src/renderer/scripts/i18n.js'), 'i18n.js missing');
   s.check('the archive contains the migrations',
     ours.some((f) => f.startsWith('/database/migrations/')), 'migrations missing');
 

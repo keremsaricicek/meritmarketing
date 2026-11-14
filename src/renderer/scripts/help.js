@@ -15,6 +15,7 @@
 
 function helpSlug(text){
   return 'help-' + String(text).toLowerCase()
+    .replace(/['’]/g, '')
     .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
     .normalize('NFKD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -36,7 +37,7 @@ function helpInline(parent, text){
         const a = document.createElement('a');
         a.href = '#';
         a.textContent = m[6];
-        a.dataset.helpTarget = helpSlug(decodeURIComponent(target.slice(1)).replace(/-/g, ' '));
+        a.dataset.helpTarget = helpSlug(decodeURIComponent(target.slice(1)));
         parent.appendChild(a);
       } else {
         /* An outside address is shown as text, never as a link. */
@@ -81,7 +82,8 @@ function helpRender(markdown){
       h.id = helpSlug(text);
       helpInline(h, text);
       frag.appendChild(h);
-      if (level === 2) toc.push({ id: h.id, text });
+      /* The manual's own contents list is already the sidebar. */
+      if (level === 2 && !/^(contents|içindekiler)$/i.test(text)) toc.push({ id: h.id, text });
       i++; continue;
     }
     if (/^---+$/.test(line.trim())){ frag.appendChild(document.createElement('hr')); i++; continue; }

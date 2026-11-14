@@ -247,7 +247,10 @@ app.whenReady().then(async () => {
     return { title: document.querySelector('#page-help .page-title').textContent,
       firstHeading: document.querySelector('#helpBody h2, #helpBody h3')?.textContent || '',
       toc: document.querySelectorAll('#helpToc li').length,
-      scripts: document.querySelectorAll('#helpBody script, #helpBody iframe').length };
+      scripts: document.querySelectorAll('#helpBody script, #helpBody iframe').length,
+      images: [...document.querySelectorAll('#helpBody img')].map(i => i.getAttribute('src')),
+      brokenLinks: [...document.querySelectorAll('#page-help [data-help-target]')].filter(a => !document.getElementById(a.dataset.helpTarget)).map(a => a.textContent),
+      outsideLinks: [...document.querySelectorAll('#helpBody a')].filter(a => a.getAttribute('href') !== '#').length };
   })()\`);
   await both('14-help-tr', 'help');
 
@@ -408,6 +411,9 @@ module.exports = async function () {
     s.check('Team control is Turkish', /Atanmamış misafirler/.test(p.team.text) && /Ekip/.test(p.team.text), p.team.text.slice(0, 200));
     s.check('Help opens the Turkish manual', p.help.title === 'Kullanım kılavuzu' && p.help.toc > 0 && /Merit|Başlarken|Kurulum/.test(p.help.firstHeading), J(p.help));
     s.check('the manual renders no script or frame', p.help.scripts === 0);
+    s.check('every jump in the manual lands on a heading', p.help.brokenLinks.length === 0, J(p.help.brokenLinks));
+    s.check('the manual links nowhere outside itself', p.help.outsideLinks === 0, String(p.help.outsideLinks));
+    s.check('the manual shows its bundled screenshots', p.help.images.length >= 5 && p.help.images.every((src) => /^\.\/manual-images\/tr-[a-z-]+\.png$/.test(src)), J(p.help.images));
     s.check('the new-reservation dialog is Turkish', /Yeni rezervasyon/.test(p.resModal) && /Kaydet/.test(p.resModal) && /Davet eden/i.test(p.resModal), p.resModal);
     s.check('the export dialog is Turkish', /Dışa aktar/.test(p.exportModal) && /Excel çalışma kitabı/.test(p.exportModal), p.exportModal);
     s.check('search groups and help text are Turkish', p.palette.groups.includes('Misafirler') && /kayıt bulundu|Eşleşen kayıt yok/.test(p.palette.meta), J(p.palette));
