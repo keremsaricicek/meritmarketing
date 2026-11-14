@@ -82,8 +82,9 @@ const state = {
   session: null,
   profiles: [],
   settings: {},
+  tags: [],
   photoCache: new Map(),
-  cust: { page:1, pageSize:50, search:'', status:'', marketing:'', sort:'updated', dir:'desc', total:0, rows:[] },
+  cust: { page:1, pageSize:50, search:'', status:'', marketing:'', tagId:'', sort:'updated', dir:'desc', total:0, rows:[] },
   res:  { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', sort:'check_in', dir:'desc', total:0, rows:[] },
   list: { sort:'created', dir:'desc' },
   audit:{ page:1, pageSize:50, total:0, action:'', actorUserId:'', from:'', to:'', facets:null },
@@ -113,7 +114,7 @@ async function call(fn, payload, { silent = false } = {}){
     if (res.error?.code === 'UNAUTHENTICATED'){ handleSignedOut(); return null; }
     if (!silent) toast('error', 'Could not complete', res.error?.message || 'Unexpected error.');
     const err = new Error(res.error?.message || 'Error');
-    err.code = res.error?.code; err.field = res.error?.field; err.conflicts = res.error?.conflicts;
+    err.code = res.error?.code; err.field = res.error?.field; err.conflicts = res.error?.conflicts || res.error?.details?.conflicts;
     throw err;
   } catch (e) {
     if (e instanceof TypeError){ toast('error','Connection problem','The application backend did not respond.'); }
@@ -315,10 +316,11 @@ function resetViewState(){
   state.profiles = [];
   state.settings = {};
   state.selectedCustomerId = null;
-  state.cust = { page:1, pageSize:50, search:'', status:'', marketing:'', sort:'updated', dir:'desc', total:0, rows:[] };
+  state.tags = [];
+  state.cust = { page:1, pageSize:50, search:'', status:'', marketing:'', tagId:'', sort:'updated', dir:'desc', total:0, rows:[] };
   state.res  = { page:1, pageSize:50, search:'', status:'', invitedBy:'', from:'', to:'', view:'active', sort:'check_in', dir:'desc', total:0, rows:[] };
   state.list = { sort:'created', dir:'desc', status:'', createdBy:'', assignedTo:'',
-    hasReservation:'', hasCrm:'', createdFrom:'', createdTo:'' };
+    hasReservation:'', hasCrm:'', createdFrom:'', createdTo:'', tagId:'' };
   state.audit = { page:1, pageSize:50, total:0, action:'', actorUserId:'', from:'', to:'', facets:null };
   state.act = { range:'today', from:'', to:'', actorUserId:null, kind:'' };
   state.guestPage = { id:null, name:'', from:'customers', filter:'all' };
@@ -339,9 +341,12 @@ async function enterApp(){
   await refreshProfiles();
   try {
     const prefs = await call(window.api.settings.all, {}, { silent:true });
+    state.settings = prefs || {};
     applyTheme(prefs?.['appearance.theme'] || 'light', false);
     applyDensity(prefs?.['appearance.density'] || 'comfortable', false);
   } catch (_) {}
+  /* The shared tag vocabulary, for the chips every guest row shows. */
+  await refreshTags();
   await applyRoleToChrome();
   await switchTab('dashboard');
   refreshNotifBadge();
@@ -879,7 +884,9 @@ function focusSearch(){
     return;
   }
   const id = { 'page-reservations':'resSearch' }[page];
-  if (id) el(id)?.focus();
+  /* A page with no search box of its own searches everything. */
+  if (id && el(id)) el(id).focus();
+  else openPalette();
 }
 function contextualNew(){
   const page = document.querySelector('.page.active')?.id || '';
@@ -937,6 +944,12 @@ function openPalette(){
   input.value = '';
   palette.results = null; palette.expanded = new Set(); palette.seq++;
   renderPalette(defaultCommands());
+  /* Nothing typed yet: the guests opened most recently come first. */
+  const seq = palette.seq;
+  paletteRecentItems().then((recent) => {
+    if (!palette.open || seq !== palette.seq || el('paletteInput').value.trim() || !recent.length) return;
+    renderPalette([...recent, ...defaultCommands()]);
+  }).catch(() => {});
   setTimeout(() => {
     input.focus();
     document.querySelectorAll('.main, .workspace-strip, .topbar').forEach(n => n.setAttribute('aria-hidden', 'true'));
@@ -1208,6 +1221,11 @@ document.addEventListener('keydown', (e) => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
   const inModal = !!document.querySelector('.overlay.show');
   if (typing || inModal) return;
+
+  /* Guest panel / full record: N note, R reservation, E edit, T tags. */
+  if (!meta && !e.altKey && !e.shiftKey && ['n','r','e','t'].includes(e.key) && handleGuestShortcut(e.key)){
+    e.preventDefault(); return;
+  }
 
   switch (e.key){
     case '/': e.preventDefault(); focusSearch(); break;

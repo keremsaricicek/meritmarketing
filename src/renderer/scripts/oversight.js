@@ -74,14 +74,17 @@ async function renderGuestPage(){
   }
   if (!c){ wrap.innerHTML = emptyState({ icon:'guests', title:'Guest not found' }); return; }
 
-  const [resList, cancelledList, notes, history] = await Promise.all([
+  const [resList, cancelledList, notes, history, reminders] = await Promise.all([
     call(window.api.reservations.list, { customerId, pageSize:200, sort:'check_in', dir:'desc' }, { silent:true }).catch(() => null),
     call(window.api.reservations.list, { customerId, pageSize:200, sort:'check_in', dir:'desc', view:'cancelled' }, { silent:true }).catch(() => null),
     call(window.api.crmNotes.list, { customerId }, { silent:true }).catch(() => []),
-    call(window.api.customers.history, { id:customerId }, { silent:true }).catch(() => [])
+    call(window.api.customers.history, { id:customerId }, { silent:true }).catch(() => []),
+    call(window.api.reminders.forCustomer, { customerId }, { silent:true }).catch(() => [])
   ]);
   /* The guest may have changed while the calls were in flight. */
   if (state.guestPage.id !== customerId) return;
+  markGuestViewed(c.id);
+  await ensureTagsFor(c.tags);
 
   g.name = c.full_name;
   renderWorkspaceStrip(); updateCrumbs();
@@ -152,6 +155,7 @@ async function renderGuestPage(){
         <div class="gp-ident">
           <h1 class="page-title" tabindex="-1">${escapeHtml(c.full_name)}</h1>
           <div class="gp-sub">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''} ${statusTagHTML(c.status)}</div>
+          ${guestTagsRowHTML(c)}
         </div>
         ${guestActionsHTML(c, 'gp-actions')}
       </div>
@@ -164,17 +168,26 @@ async function renderGuestPage(){
     </section>
     <div class="gp-grid">
       <div class="gp-col">
+        ${(reminders || []).length ? `<section class="panel gp-card">
+          <div class="gp-card-body">${remindersHTML(reminders, c.id)}</div>
+        </section>` : ''}
         <section class="panel gp-card">
           <div class="panel-head"><h2 class="panel-title">Guest note</h2>
             ${can1('customers.update') ? `<button class="btn-link" data-act="openCustomerModal" data-on="click" data-args='[${c.id}]'>Edit</button>` : ''}</div>
           <div class="gp-card-body">${guestNoteHTML(c) || '<div class="empty-mini">No guest note.</div>'}</div>
         </section>
         <section class="panel gp-card">
-          <div class="panel-head"><h2 class="panel-title">Contact &amp; identity</h2></div>
+          <div class="panel-head"><h2 class="panel-title">Contact &amp; identity</h2>
+            ${hasCap('customers.merge') ? `<button class="btn-link" data-act="openMergeModal" data-on="click" data-args='[${c.id}]' title="Fold a duplicate record into this guest">Merge duplicate</button>` : ''}</div>
           <div class="gp-card-body">
             ${row('Phone', c.phone)}${row('Email', c.email)}${row('Passport', c.passport_no)}${row('Nationality', c.nationality)}
             ${row('Registered', fmtDate(c.created_at))}${row('Created by', c.created_by_label)}
           </div>
+        </section>
+        <section class="panel gp-card">
+          <div class="panel-head"><h2 class="panel-title">Birthday and special dates</h2>
+            ${can1('customers.update') ? `<button class="btn-link" data-act="openDatesModal" data-on="click" data-args='[${c.id}]'>Edit</button>` : ''}</div>
+          <div class="gp-card-body">${datesSummaryHTML(c) || '<div class="empty-mini">No dates recorded.</div>'}</div>
         </section>
       </div>
       <section class="panel gp-history">
@@ -218,6 +231,10 @@ function custActiveFilters(){
     const p = state.profiles.find(x => String(x.id) === String(s.marketing));
     out.push({ key:'marketing', label:`Marketing: ${p ? p.full_name : '#' + s.marketing}` });
   }
+  if (s.tagId){
+    const t = tagById(s.tagId);
+    out.push({ key:'tag', label:`Tag: ${t ? t.name : '#' + s.tagId}` });
+  }
   return out;
 }
 function renderCustFilterChips(){
@@ -246,6 +263,10 @@ function removeCustFilter(key){
   if (key === 'marketing'){
     state.cust.marketing = '';
     const sel = el('custFMarketing'); if (sel) sel.value = '';
+  }
+  if (key === 'tag'){
+    state.cust.tagId = '';
+    const sel = el('custFTag'); if (sel) sel.value = '';
   }
   state.cust.page = 1;
   renderCustomers();

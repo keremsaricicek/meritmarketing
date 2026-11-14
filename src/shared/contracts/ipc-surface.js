@@ -71,13 +71,45 @@ const SURFACE = {
   'import:sheet':        { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
                            notes: 'Reads another sheet of the caller\'s own pending file; a token from another account resolves to nothing.' },
   'import:preview':      { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN',
-                           notes: 'Duplicates are matched across the whole book by phone, passport or Guest ID, but a match outside the caller\'s scope is reported by Guest ID and name only — the customers:summary projection.' },
+                           notes: 'Duplicates are matched across the whole book by phone, passport or Guest ID, using the customers:duplicates keys; a match outside the caller\'s scope is reported only as existing, never who.' },
   'import:commit':       { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: true, denial: 'FORBIDDEN',
                            notes: 'One transaction, one audit row with the counts. MARKETING imports are owned by the caller whatever the owner column says. "Update empty fields" needs customers.update, touches only in-scope guests and never ownership.' },
   'import:templates':    { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
                            notes: 'The caller\'s own saved column mappings (user_preferences).' },
   'import:saveTemplate': { auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN' },
   'import:deleteTemplate':{ auth: 'required', capability: 'customers.create', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true, destructive: false, audit: false, denial: 'FORBIDDEN' },
+  // ------------------------------------------------- guest features
+  'customers:duplicates':{ auth: 'required', capability: 'customers.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none',   protection: false, validation: true,  destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Same phone (digits only) or passport across the whole book; an out-of-scope match is reported only as "exists", never who.' },
+  'customers:merge':     { auth: 'required', capability: 'customers.merge',  roles: ['ADMIN'],                       scope: 'record', protection: false, validation: true,  destructive: true,  audit: true,  denial: 'FORBIDDEN',
+                           notes: 'Configurable, ADMIN-only by default. Moves notes, stays, reminders, tags and dates in one transaction; archives the duplicate with a pointer to the primary.' },
+  'customers:setTags':   { auth: 'required', capability: 'customers.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN' },
+  'customers:setDates':  { auth: 'required', capability: 'customers.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN',
+                           notes: "Replaces the guest's special dates (label + month/day)." },
+  'customers:recent':    { auth: 'required', capability: 'customers.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self',   protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: "The caller's last ten opened guests, re-checked against scope on every read." },
+  'customers:viewed':    { auth: 'required', capability: 'customers.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: true,  destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: "Records a view in the caller's own preferences. Not audited: reading is not a change." },
+
+  // --------------------------------------------------------------- tags
+  'tags:list':           { auth: 'required', capability: 'customers.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none',   protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: 'Names and colours only, never which guests carry a tag.' },
+  'tags:create':         { auth: 'required', capability: 'customers.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'none',   protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN',
+                           notes: 'An existing name (any case) answers with the existing tag.' },
+  'tags:update':         { auth: 'required', capability: 'settings.write',   roles: ['ADMIN','MANAGER'],             scope: 'none',   protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN' },
+  'tags:delete':         { auth: 'required', capability: 'settings.write',   roles: ['ADMIN','MANAGER'],             scope: 'none',   protection: false, validation: true,  destructive: true,  audit: true,  denial: 'FORBIDDEN' },
+
+  // ---------------------------------------------------------- reminders
+  'reminders:due':       { auth: 'required', capability: 'crm.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self',   protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: "The caller's own follow-ups due today or overdue, inside their scope." },
+  'reminders:forCustomer': { auth: 'required', capability: 'crm.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN' },
+  'reminders:done':      { auth: 'required', capability: 'crm.update', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'record', protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN' },
+
+  // -------------------------------------------------------- saved views
+  'views:list':          { auth: 'required', capability: 'customers.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',
+                           notes: "The caller's own saved filters, newest first." },
+  'views:save':          { auth: 'required', capability: 'customers.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true,  destructive: false, audit: true,  denial: 'FORBIDDEN' },
+  'views:delete':        { auth: 'required', capability: 'customers.read', roles: ['ADMIN','MANAGER','MARKETING'], scope: 'self', protection: false, validation: true,  destructive: true,  audit: true,  denial: 'FORBIDDEN' },
 
   // ------------------------------------------------------- reservations
   'reservations:list':   { auth: 'required', capability: 'reservations.read',   roles: ['ADMIN','MANAGER','MARKETING'], scope: 'query',  protection: false, validation: false, destructive: false, audit: false, denial: 'FORBIDDEN',

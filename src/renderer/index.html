@@ -202,6 +202,13 @@
         <div class="dash-section-label">Needs You</div>
         <div class="panel">
           <div class="panel-head">
+            <h2 class="panel-title">Due today<span class="count-pill" id="dueTodayCount">0</span></h2>
+            <span class="setting-hint">Your follow-ups</span>
+          </div>
+          <div class="panel-body scroll-250" id="dueTodayList"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
             <h2 class="panel-title">Requires Attention</h2>
             <button class="btn-link" data-act="switchTab" data-on="click" data-args='["customers"]'>CRM Panel</button>
           </div>
@@ -226,10 +233,23 @@
         </div>
         <div class="panel">
           <div class="panel-head">
+            <h2 class="panel-title">Birthdays and special dates<span class="count-pill" id="upcomingDatesCount">0</span></h2>
+            <span class="setting-hint">Next 7 days</span>
+          </div>
+          <div class="panel-body scroll-230" id="upcomingDatesList"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
             <h2 class="panel-title">Recent Reservations</h2>
             <button class="btn-link" data-act="switchTab" data-on="click" data-args='["reservations"]'>View All</button>
           </div>
           <div class="panel-body scroll-250" id="recentResList"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Recently viewed</h2>
+          </div>
+          <div class="panel-body scroll-230" id="recentGuestsList"></div>
         </div>
       </div>
       <div class="dash-col is-hidden" id="rankCol">
@@ -296,6 +316,13 @@
           </div>
         </div>
       </div>
+      <div class="filter-wrap views-wrap">
+          <button class="btn btn-outline btn-sm views-btn" id="resViewsBtn" data-act="toggleViewsMenu" data-on="click" data-args='["reservations",{"$":"event"}]' aria-haspopup="true" title="Saved views">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4Z"/></svg>
+            Saved views
+          </button>
+          <div class="filter-menu wide views-menu" id="viewsMenu_reservations" data-act="stopPropagation" data-on="click" data-args='[]'></div>
+        </div>
       <button class="btn btn-outline btn-sm" data-act="exportCurrentView" data-on="click" data-args='["reservations"]' title="Export what is on screen">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
         EXPORT
@@ -403,8 +430,17 @@
             <div class="fm-sep"></div>
             <div class="fm-title">Marketing</div>
             <select class="fm-input" id="custFMarketing" data-act-change="applyCustFilters" data-args-change='[]' data-act-click="stopPropagation" data-args-click='[]'></select>
+            <div class="fm-title">Tag</div>
+            <select class="fm-input" id="custFTag" data-act-change="applyCustFilters" data-args-change='[]' data-act-click="stopPropagation" data-args-click='[]'></select>
             <div class="fm-actions"><button class="pager-btn" data-act="clearCustFilters" data-on="click" data-args='[]'>Clear</button></div>
           </div>
+        </div>
+        <div class="filter-wrap views-wrap">
+          <button class="btn btn-outline btn-sm views-btn" id="custViewsBtn" data-act="toggleViewsMenu" data-on="click" data-args='["overview",{"$":"event"}]' aria-haspopup="true" title="Saved views">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4Z"/></svg>
+            Saved views
+          </button>
+          <div class="filter-menu wide views-menu" id="viewsMenu_overview" data-act="stopPropagation" data-on="click" data-args='[]'></div>
         </div>
         <button class="btn btn-outline btn-sm" data-act="exportCurrentView" data-on="click" data-args='["customers"]' title="Export what is on screen">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -456,6 +492,7 @@
         <div class="filter-wrap">
           <button class="filter-btn" id="listFilterBtn" data-act="toggleFilterMenu" data-on="click" data-args='["listFilterMenu",{"$":"event"}]' aria-label="Filter" aria-haspopup="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+            <span class="filter-count hidden" id="listFilterCount">0</span>
           </button>
           <div class="filter-menu wide" id="listFilterMenu" data-act="stopPropagation" data-on="click" data-args='[]'>
             <div class="fm-title">Status</div>
@@ -482,6 +519,8 @@
               <option value="yes">Has CRM activity</option>
               <option value="no">No CRM activity</option>
             </select>
+            <div class="fm-title">Tag</div>
+            <select class="fm-input" id="listFTag" data-act="applyListFilters" data-on="change" data-args='[]'></select>
             <div class="fm-title">Created Between</div>
             <div class="fm-row">
               <input class="fm-input" type="date" id="listFCreatedFrom" data-act="applyListFilters" data-on="change" data-args='[]'>
@@ -493,11 +532,19 @@
             </div>
           </div>
         </div>
+        <div class="filter-wrap views-wrap">
+          <button class="btn btn-outline btn-sm views-btn" id="listViewsBtn" data-act="toggleViewsMenu" data-on="click" data-args='["customerlist",{"$":"event"}]' aria-haspopup="true" title="Saved views">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4Z"/></svg>
+            Saved views
+          </button>
+          <div class="filter-menu wide views-menu" id="viewsMenu_customerlist" data-act="stopPropagation" data-on="click" data-args='[]'></div>
+        </div>
         <button class="btn btn-outline btn-sm" data-act="exportCurrentView" data-on="click" data-args='["customerlist"]' title="Export what is on screen">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
           EXPORT
         </button>
       </div>
+      <div class="chip-row hidden" id="listChips" aria-label="Active filters"></div>
       <div class="bulk-bar is-hidden" id="bulkBar_customerlist" role="region" aria-label="Selected guests">
         <span class="bulk-count" id="bulkCount_customerlist" aria-live="polite">0 selected</span>
         <button class="btn btn-outline btn-sm bulk-assign-btn" data-act="openBulkAssign" data-on="click" data-args='["customerlist"]'>Reassign owner</button>
@@ -711,6 +758,28 @@
             <button class="btn btn-outline btn-sm" data-act="openPasswordModal" data-on="click" data-args='[]'>CHANGE PASSWORD</button>
           </div>
         </div>
+      </div>
+
+      <div class="settings-section is-hidden" id="templatesSection">
+        <h2 class="settings-section-title">CRM note templates</h2>
+        <div class="setting-row items-start">
+          <div><div class="setting-label">Quick templates</div>
+               <div class="setting-hint">One per line. They appear as one-click buttons above every CRM note box.</div></div>
+          <div class="setting-control w-340 tpl-settings">
+            <label class="visually-hidden" for="setNoteTemplates">Templates, one per line</label>
+            <textarea id="setNoteTemplates" rows="7" maxlength="2000"></textarea>
+            <div class="row-gap-7">
+              <button class="btn btn-ghost btn-sm" data-act="resetNoteTemplates" data-on="click" data-args='[]'>Restore defaults</button>
+              <button class="btn btn-gold btn-sm" data-act="saveNoteTemplates" data-on="click" data-args='[]'>Save templates</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section is-hidden" id="tagsSection">
+        <h2 class="settings-section-title">Guest tags</h2>
+        <div class="setting-hint mb-3">Rename or recolour a tag for every guest that carries it.</div>
+        <div class="tag-settings" id="tagSettingsList"></div>
       </div>
 
       <div class="settings-section is-hidden" id="permissionsSection">
@@ -1121,6 +1190,12 @@
           <div class="field"><label for="custPassport">Passport No</label><input type="text" id="custPassport" autocomplete="off">
             <div class="field-error" id="err-custPassport" role="alert"></div></div>
         </div>
+        <div class="field-row">
+          <div class="field"><label for="custBirth">Birth date</label><input type="date" id="custBirth">
+            <div class="field-error" id="err-custBirth" role="alert"></div></div>
+          <div class="field"></div>
+        </div>
+        <div class="dup-warning" id="custDupWarning" role="alert" aria-live="polite"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -1199,8 +1274,16 @@
       <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalCrmNote"]' aria-label="Close dialog">✕</button>
     </div>
     <div class="modal-body">
-      <div class="field"><label for="crmNoteDate">Date</label><input type="date" id="crmNoteDate"></div>
-      <div class="field"><label for="crmNoteText">Note</label><textarea id="crmNoteText"></textarea></div>
+      <div class="field"><label for="crmNoteText">Note</label>
+        <div id="crmNoteTemplates"></div>
+        <textarea id="crmNoteText"></textarea>
+        <div class="field-error" id="err-crmNoteText" role="alert"></div></div>
+      <div class="field-row">
+        <div class="field"><label for="crmNoteDate">Date</label><input type="date" id="crmNoteDate"></div>
+        <div class="field"><label for="crmNoteRemind">Remind me on</label><input type="date" id="crmNoteRemind">
+          <div class="field-hint">Optional. Shows on your dashboard and in notifications that day.</div>
+          <div class="field-error" id="err-crmNoteRemind" role="alert"></div></div>
+      </div>
     </div>
     <div class="modal-foot">
       <div class="foot-right">
@@ -1333,6 +1416,99 @@
   </div>
 </div>
 
+<!-- ================= MODAL: TAGS ================= -->
+<div class="overlay" id="modalTags" role="dialog" aria-modal="true" aria-labelledby="tagsModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="tagsModalTitle">Tags</h2>
+        <div class="modal-subtitle" id="tagsModalSubtitle"></div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalTags"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group first">
+        <div class="form-group-title">Choose tags</div>
+        <div class="tag-picker" id="tagPicker" role="group" aria-label="Tags"></div>
+      </div>
+      <div class="form-group">
+        <div class="form-group-title">New tag</div>
+        <div class="field"><label for="newTagName">Name</label>
+          <div class="field-input-row">
+            <input type="text" id="newTagName" maxlength="40" autocomplete="off" placeholder="e.g. VIP" data-act-keydown="newTagKey" data-args-keydown='[{"$":"event"}]'>
+            <button type="button" class="btn btn-outline btn-sm" data-act="addNewTag" data-on="click" data-args='[]'>Add tag</button>
+          </div>
+          <div class="field-error" id="err-newTagName" role="alert"></div></div>
+        <div class="field"><div class="field-label-text">Colour</div><div class="swatches" id="newTagColors" role="group" aria-label="Tag colour"></div></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalTags"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="tagsSaveBtn" data-act="saveTags" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: BIRTHDAY AND SPECIAL DATES ================= -->
+<div class="overlay" id="modalDates" role="dialog" aria-modal="true" aria-labelledby="datesModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="datesModalTitle">Birthday and special dates</h2>
+        <div class="modal-subtitle" id="datesModalSubtitle"></div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalDates"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label for="datesBirth">Birth date</label><input type="date" id="datesBirth">
+        <div class="field-error" id="err-datesBirth" role="alert"></div></div>
+      <div class="form-group">
+        <div class="form-group-title">Special dates</div>
+        <div class="setting-hint mb-3">Every year on the day — an anniversary, a name day. Shown on the dashboard a week ahead.</div>
+        <div class="date-rows" id="datesRows"></div>
+        <div class="field-error" id="err-datesRowsAnchor" role="alert"></div>
+        <button type="button" class="btn-link mt-2" data-act="addDateRow" data-on="click" data-args='[]'>+ Add a date</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalDates"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="datesSaveBtn" data-act="saveDates" data-on="click" data-args='[]'>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: MERGE GUESTS ================= -->
+<div class="overlay" id="modalMerge" role="dialog" aria-modal="true" aria-labelledby="mergeModalTitle">
+  <div class="modal modal-md">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="mergeModalTitle">Merge duplicate guest</h2>
+        <div class="modal-subtitle">Fold a duplicate record into this guest</div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalMerge"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mergeDuplicateSelect" value="">
+      <div class="merge-cards" id="mergeCards"></div>
+      <ul class="merge-explain">
+        <li>CRM notes, reservations, follow-ups, tags and special dates move to the guest you keep.</li>
+        <li>The kept guest's details stay; only empty fields are filled from the duplicate.</li>
+        <li>The duplicate is archived and points to the kept guest. This is recorded in the audit log.</li>
+      </ul>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalMerge"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="mergeConfirmBtn" data-act="confirmMerge" data-on="click" data-args='[]'>Merge guests</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ================= FINDER (customer / profile search, shared) ================= -->
 <div class="overlay finder-overlay" id="modalFinder" role="dialog" aria-modal="true" aria-labelledby="finderTitle" data-act="finderKeydown" data-on="keydown" data-args='[{"$":"event"}]'>
   <div class="modal finder-modal">
@@ -1387,6 +1563,14 @@
         <div class="shortcut-row"><span>Close panel or dialog</span><kbd>Esc</kbd></div>
         <div class="shortcut-row"><span>This list</span><kbd>?</kbd></div>
       </div>
+      <div class="shortcut-group-title">In a guest panel or full record</div>
+      <div class="shortcut-grid" id="guestShortcutGrid">
+        <div class="shortcut-row"><span>New CRM note</span><kbd>N</kbd></div>
+        <div class="shortcut-row"><span>New reservation</span><kbd>R</kbd></div>
+        <div class="shortcut-row"><span>Edit the guest</span><kbd>E</kbd></div>
+        <div class="shortcut-row"><span>Tags</span><kbd>T</kbd></div>
+      </div>
+      <div class="setting-hint mt-2">Shortcuts never fire while you are typing in a field.</div>
     </div>
   </div>
 </div>
@@ -1618,6 +1802,7 @@
   <script src="./scripts/core.js"></script>
   <script src="./scripts/views.js"></script>
   <script src="./scripts/oversight.js"></script>
+  <script src="./scripts/guests.js"></script>
   <script src="./scripts/screens.js"></script>
   <script src="./scripts/data-tools.js"></script>
 </body>

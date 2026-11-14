@@ -21,6 +21,8 @@ const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a YYYY-MM
 const text = (max) => z.string().max(max);
 const optionalText = (max) => text(max).nullish();
 const profileRef = z.union([idLike, z.literal(''), z.null()]).nullish();
+/* An optional business date a form may send blank. */
+const optionalDate = z.union([businessDate, z.literal(''), z.null()]).optional();
 
 /* Paging and sorting are bounded here rather than trusted: an unbounded
    pageSize is a denial-of-service against the main process, and a free-text
@@ -92,6 +94,8 @@ const SCHEMAS = {
     createdTo: businessDate.optional(),
     hasReservation: z.boolean().optional(),
     hasCrm: z.boolean().optional(),
+    /* Guests carrying one tag. */
+    tagId: idLike.optional(),
   }).strict(),
   'customers:get': byId,
   'customers:history': byId,
@@ -107,6 +111,7 @@ const SCHEMAS = {
     nationality: optionalText(80),
     photoName: optionalText(120),
     notes: optionalText(4000),
+    birthDate: optionalDate,
     marketingProfileId: profileRef,
   }).strict(),
   'customers:update': z.object({
@@ -120,6 +125,7 @@ const SCHEMAS = {
     nationality: optionalText(80),
     photoName: optionalText(120),
     notes: optionalText(4000),
+    birthDate: optionalDate,
     /* Accepted only so a round-tripping edit form still works; the service
        refuses any value that differs from the current owner. */
     marketingProfileId: profileRef,
@@ -139,6 +145,45 @@ const SCHEMAS = {
     mapping: z.object(Object.fromEntries(IMPORT_FIELDS.map((f) => [f, text(120).optional()]))).strict(),
   }).strict(),
   'import:deleteTemplate': z.object({ name: text(60) }).strict(),
+  /* Duplicate lookup while a guest is being created or edited. */
+  'customers:duplicates': z.object({
+    phone: optionalText(40),
+    passportNo: optionalText(60),
+    excludeId: idLike.optional(),
+  }).strict(),
+  'customers:merge': z.object({ primaryId: idLike, duplicateId: idLike }).strict(),
+  'customers:setTags': z.object({ id: idLike, tagIds: z.array(idLike).max(20) }).strict(),
+  'customers:setDates': z.object({
+    id: idLike,
+    dates: z.array(z.object({
+      label: text(60),
+      month: z.number().int().min(1).max(12),
+      day: z.number().int().min(1).max(31),
+    }).strict()).max(20),
+  }).strict(),
+  'customers:recent': empty,
+  'customers:viewed': byId,
+
+  'tags:list': empty,
+  'tags:create': z.object({ name: text(40), color: text(20).optional() }).strict(),
+  'tags:update': z.object({ id: idLike, name: text(40).optional(), color: text(20).optional() }).strict(),
+  'tags:delete': byId,
+
+  'reminders:due': empty,
+  'reminders:forCustomer': z.object({ customerId: idLike }).strict(),
+  'reminders:done': byId,
+
+  /* A saved view is a name plus the flat filter state of one screen. Values
+     are scalars only, and there are few of them: it is a bookmark, not a
+     document store. */
+  'views:list': z.object({ screen: z.enum(['overview', 'customerlist', 'reservations']).optional() }).strict(),
+  'views:save': z.object({
+    screen: z.enum(['overview', 'customerlist', 'reservations']),
+    name: text(60),
+    state: z.record(z.string().max(40), z.union([text(200), z.number(), z.boolean(), z.null()]))
+      .refine((o) => Object.keys(o).length <= 30, 'Too many fields in a saved view'),
+  }).strict(),
+  'views:delete': byId,
 
   'reservations:list': z.object({
     ...paging,
@@ -181,8 +226,10 @@ const SCHEMAS = {
   /* `noteDate` is the day the CONVERSATION happened — a business date the
      operator picks, distinct from `created_at`, which is when the row was
      written. The form has always offered it; the contract had not. */
-  'crmNotes:create': z.object({ customerId: idLike, note: text(4000), noteDate: businessDate.optional() }).strict(),
-  'crmNotes:update': z.object({ id: idLike, note: text(4000), noteDate: businessDate.optional() }).strict(),
+  /* `remindOn` is the optional "Remind me on" follow-up date. On update,
+     null clears the note's open reminder and absence leaves it alone. */
+  'crmNotes:create': z.object({ customerId: idLike, note: text(4000), noteDate: businessDate.optional(), remindOn: optionalDate }).strict(),
+  'crmNotes:update': z.object({ id: idLike, note: text(4000), noteDate: businessDate.optional(), remindOn: optionalDate }).strict(),
   'crmNotes:delete': byId,
   'crmNotes:bulkCreate': z.object({ ids: selection, note: text(4000), noteDate: businessDate.optional() }).strict(),
 

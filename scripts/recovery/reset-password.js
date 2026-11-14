@@ -11,8 +11,8 @@
  *
  * What it does: sets a new Argon2id hash for ONE named user, in place. It
  * touches nothing else — no guest, no reservation, no note, no photo. It
- * refuses to invent a user, refuses a weak password (the same strength rule the
- * application enforces), and writes an audit row so the reset is visible in the
+ * refuses to invent a user, refuses an empty or over-long password (the same rule
+ * the application enforces: any password of 1-200 characters), and writes an audit row so the reset is visible in the
  * log afterwards rather than being silent.
  *
  * It is NOT shipped inside the installed application: forge.config.js excludes
@@ -110,9 +110,9 @@ function fail(message, hint) {
 
   /* The same rule the application applies, so a password set here is one the
      application would have accepted. */
-  const strength = passwords.validateStrength(args.password, { username: user.username });
+  const strength = passwords.validateStrength(args.password);
   if (strength && strength.ok === false) {
-    fail(strength.message || 'that password is too weak.', 'Use at least 10 characters.');
+    fail(strength.message || 'that password is not allowed.', 'Any password of 1 to 200 characters is accepted.');
   }
 
   const hash = await passwords.hash(args.password);

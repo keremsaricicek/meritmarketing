@@ -95,15 +95,19 @@ function normalisePhone(raw) {
   return plus ? `+${digits}` : digits;
 }
 
-/* The comparable core of a phone number: the last ten digits, so +90 532…,
-   0532… and 532… are recognised as the same line. */
+/* Duplicate keys are the SAME ones the duplicate warning on the guest form
+   uses (guest-service), so an import and the form never disagree about
+   whether two guests are one: digits only, leading zeros dropped, last ten
+   digits — +90 532…, 0532… and 532… are one line. */
 function phoneKey(phone) {
-  const digits = String(phone || '').replace(/\D/g, '');
-  return digits.length >= 7 ? digits.slice(-10) : '';
+  const { normalizePhone, MIN_PHONE_DIGITS } = require('../guest-service');
+  const key = normalizePhone(phone);
+  return key.length >= MIN_PHONE_DIGITS ? key : '';
 }
 
 function passportKey(passport) {
-  return String(passport || '').replace(/[\s-]/g, '').toUpperCase();
+  const key = require('../guest-service').normalizePassport(passport);
+  return key.length >= 3 ? key : '';
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

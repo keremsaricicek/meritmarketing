@@ -50,6 +50,9 @@ const DERIVED = `
   (SELECT COALESCE(u.full_name, u.username) FROM crm_notes n LEFT JOIN users u ON u.id = n.created_by
      WHERE n.customer_id = c.id AND n.deleted_at IS NULL
      ORDER BY COALESCE(n.note_date, date(n.created_at,'localtime')) DESC, n.created_at DESC, n.id DESC LIMIT 1) AS last_note_by,
+  /* Tag ids as a comma list; the service turns it into an array. Names and
+     colours come from the shared tag vocabulary, not from every row. */
+  (SELECT GROUP_CONCAT(ct.tag_id) FROM customer_tags ct WHERE ct.customer_id = c.id) AS tag_ids,
   p.full_name AS marketing_name
 `;
 
@@ -86,6 +89,10 @@ function buildFilters(q, scopeId) {
     params.ids = JSON.stringify(q.ids.map(Number));
   }
   if (q.registeredOnly) where.push('c.registered = 1');
+  if (q.tagId !== undefined && q.tagId !== null && q.tagId !== '') {
+    where.push('EXISTS (SELECT 1 FROM customer_tags ct WHERE ct.customer_id = c.id AND ct.tag_id = @tagId)');
+    params.tagId = Number(q.tagId);
+  }
   if (q.unregisteredOnly) where.push('c.registered = 0');
   if (q.assignedTo !== undefined && q.assignedTo !== null && q.assignedTo !== '') {
     where.push('c.marketing_profile_id = @assignedTo');
@@ -112,10 +119,10 @@ function buildFilters(q, scopeId) {
 function create(db, row) {
   const stmt = db.prepare(`
     INSERT INTO customers (code, full_name, registered, phone, email, passport_no, nationality,
-                           photo_name, notes, marketing_profile_id, created_at, created_by, updated_at, updated_by)
+                           photo_name, notes, birth_date, marketing_profile_id, created_at, created_by, updated_at, updated_by)
     VALUES (@code, @full_name, @registered, @phone, @email, @passport_no, @nationality,
-            @photo_name, @notes, @marketing_profile_id, @created_at, @created_by, @updated_at, @updated_by)`);
-  return stmt.run(row).lastInsertRowid;
+            @photo_name, @notes, @birth_date, @marketing_profile_id, @created_at, @created_by, @updated_at, @updated_by)`);
+  return stmt.run({ birth_date: null, ...row }).lastInsertRowid;
 }
 
 function findById(db, id) {
@@ -159,7 +166,7 @@ function list(db, q = {}, scopeId = null) {
   const inner = `
     SELECT c.id, c.code, c.full_name, c.registered, c.phone, c.email, c.passport_no,
            c.nationality, c.photo_name, c.marketing_profile_id, c.created_at, c.created_by,
-           c.updated_at, ${DERIVED}
+           c.updated_at, c.birth_date, ${DERIVED}
     FROM customers c LEFT JOIN profiles p ON p.id = c.marketing_profile_id
     WHERE ${whereSql}`;
 

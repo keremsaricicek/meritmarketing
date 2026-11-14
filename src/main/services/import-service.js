@@ -14,8 +14,8 @@
  *   - SCOPE. A marketer's imported guests are theirs — the owner column is
  *     ignored for MARKETING, as customers:create ignores a foreign owner — and
  *     a marketer can only ever update a guest in their own book. A duplicate
- *     owned by somebody else is reported by Guest ID and name only, the same
- *     identity customers:summary already discloses.
+ *     owned by somebody else is reported only as existing, exactly as the
+ *     duplicate warning (customers:duplicates) reports it.
  *   - ATOMICITY. The whole import is one transaction: a crash halfway leaves
  *     the book as it was.
  *   - ONE AUDIT ROW per import, with the counts, rather than a few thousand
@@ -194,12 +194,17 @@ function analyse(ctx, session, sheet, rawMapping, duplicates) {
       const by = ck && existing.byCode.get(ck) === match ? 'Guest ID'
         : pk && existing.byPhone.get(pk) === match ? 'phone' : 'passport';
       verdict.status = 'duplicate';
-      verdict.match = { code: match.code, name: match.full_name };
       verdict.action = 'skip';
-      verdict.reason = `Matches #${match.code} ${match.full_name} by ${by}`;
-      if (duplicates === 'update') {
-        if (!inScope) verdict.reason += ' — belongs to another marketer, skipped';
-        else if (!canUpdate) verdict.reason += ' — you cannot edit guests, skipped';
+      /* Same disclosure rule as customers:duplicates: a guest outside the
+         caller's book is reported as existing, never who it is. */
+      if (inScope) {
+        verdict.match = { code: match.code, name: match.full_name };
+        verdict.reason = `Matches #${match.code} ${match.full_name} by ${by}`;
+      } else {
+        verdict.reason = `Already in another marketer's book (same ${by}) — skipped`;
+      }
+      if (duplicates === 'update' && inScope) {
+        if (!canUpdate) verdict.reason += ' — you cannot edit guests, skipped';
         else {
           const patch = fillPatch(match, values);
           if (Object.keys(patch).length) {

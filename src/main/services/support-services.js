@@ -17,6 +17,9 @@ const { nowIso, today, addDays, isBusinessDate } = require('../../shared/contrac
 const { ROLES, CONFIGURABLE, ADMIN_ONLY } = require('../../shared/contracts/roles');
 const { validation, forbidden, notFound } = require('../../shared/errors');
 
+/* Lazy, because guest-service reaches back into the notification service. */
+const guestService = () => require('./guest-service');
+
 /* ============================================================== CRM notes */
 
 const crmNotes = {
@@ -25,14 +28,17 @@ const crmNotes = {
     const customer = customersRepo.findById(ctx.db, Number(customerId));
     guard.requireCustomerInScope(ctx, customer);
     return ctx.db.prepare(`
-      SELECT n.*, u.username AS created_by_username, COALESCE(u.full_name, u.username) AS created_by_name FROM crm_notes n
+      SELECT n.*, u.username AS created_by_username, COALESCE(u.full_name, u.username) AS created_by_name,
+        (SELECT rm.due_date FROM reminders rm WHERE rm.crm_note_id = n.id AND rm.done_at IS NULL AND rm.deleted_at IS NULL
+           ORDER BY rm.id DESC LIMIT 1) AS remind_on
+      FROM crm_notes n
       LEFT JOIN users u ON u.id = n.created_by
       WHERE n.customer_id = ? AND n.deleted_at IS NULL
       ORDER BY COALESCE(n.note_date, date(n.created_at,'localtime')) DESC, n.created_at DESC`)
       .all(Number(customerId));
   },
 
-  create(ctx, { customerId, note, noteDate }) {
+  create(ctx, { customerId, note, noteDate, remindOn }) {
     const session = guard.requireCapability(ctx, 'crm.create');
     const customer = customersRepo.findById(ctx.db, Number(customerId));
     guard.requireCustomerInScope(ctx, customer);
@@ -41,26 +47,36 @@ const crmNotes = {
     const now = nowIso();
     /* Defaults to the LOCAL business day, not a UTC slice of `now`. */
     const when = noteDate || today();
-    const id = ctx.db.prepare(`
-      INSERT INTO crm_notes (customer_id, note, note_date, created_at, created_by, updated_at, updated_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .run(Number(customerId), text, when, now, session.id, now, session.id).lastInsertRowid;
-    ctx.audit({ action: 'CRM_NOTE_CREATE', entity_type: 'crm_note', entity_id: id,
-      description: `Note added for ${customer.full_name}` });
-    return { id };
+    const run = ctx.db.transaction(() => {
+      const id = ctx.db.prepare(`
+        INSERT INTO crm_notes (customer_id, note, note_date, created_at, created_by, updated_at, updated_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run(Number(customerId), text, when, now, session.id, now, session.id).lastInsertRowid;
+      /* "Remind me on" travels with the note, in the same transaction, so a
+         note can never be saved with its follow-up silently lost. */
+      const reminderId = remindOn ? guestService().reminders.setForNote(ctx, session, { customerId, noteId: id, remindOn }) : null;
+      ctx.audit({ action: 'CRM_NOTE_CREATE', entity_type: 'crm_note', entity_id: id,
+        description: `Note added for ${customer.full_name}${remindOn ? ` · reminder ${remindOn}` : ''}` });
+      return { id, reminderId };
+    });
+    return run();
   },
 
-  update(ctx, { id, note, noteDate }) {
+  update(ctx, { id, note, noteDate, remindOn }) {
     const session = guard.requireCapability(ctx, 'crm.update');
     const row = ctx.db.prepare('SELECT * FROM crm_notes WHERE id = ? AND deleted_at IS NULL').get(Number(id));
     if (!row) throw notFound('Note not found.');
     guard.requireCustomerInScope(ctx, customersRepo.findById(ctx.db, row.customer_id));
     const text = String(note || '').trim();
     if (!text) throw validation('A note cannot be empty.', 'note');
-    ctx.db.prepare(`UPDATE crm_notes SET note = ?, note_date = COALESCE(?, note_date),
-        updated_at = ?, updated_by = ?, row_version = row_version + 1 WHERE id = ?`)
-      .run(text, noteDate || null, nowIso(), session.id, row.id);
-    ctx.audit({ action: 'CRM_NOTE_UPDATE', entity_type: 'crm_note', entity_id: row.id, description: 'Note edited' });
+    const run = ctx.db.transaction(() => {
+      ctx.db.prepare(`UPDATE crm_notes SET note = ?, note_date = COALESCE(?, note_date),
+          updated_at = ?, updated_by = ?, row_version = row_version + 1 WHERE id = ?`)
+        .run(text, noteDate || null, nowIso(), session.id, row.id);
+      guestService().reminders.setForNote(ctx, session, { customerId: row.customer_id, noteId: row.id, remindOn });
+      ctx.audit({ action: 'CRM_NOTE_UPDATE', entity_type: 'crm_note', entity_id: row.id, description: 'Note edited' });
+    });
+    run();
     return { id: row.id };
   },
 
@@ -212,7 +228,7 @@ const users = {
     if (ctx.db.prepare('SELECT 1 FROM users WHERE username = ? COLLATE NOCASE').get(username)) {
       throw validation('That username is already taken.', 'username');
     }
-    const strength = passwords.validateStrength(params.password, { username });
+    const strength = passwords.validateStrength(params.password);
     if (!strength.ok) throw validation(strength.message, 'password');
     if (params.role === 'MARKETING' && !params.profileId) {
       throw validation('A marketing account must be linked to a profile.', 'profileId');
@@ -259,7 +275,7 @@ const users = {
     if (params.profileId !== undefined) patch.profile_id = params.profileId ? Number(params.profileId) : null;
     if (params.active !== undefined) patch.active = params.active ? 1 : 0;
     if (params.password) {
-      const strength = passwords.validateStrength(params.password, { username: row.username });
+      const strength = passwords.validateStrength(params.password);
       if (!strength.ok) throw validation(strength.message, 'password');
       patch.password_hash = await passwords.hash(params.password);
     }
@@ -323,8 +339,9 @@ const settings = {
     return shared;
   },
 
-  set(ctx, { key, value }) {
+  set(ctx, { key, value: rawValue }) {
     const session = guard.requireCapability(ctx, 'settings.read');
+    let value = rawValue;
     const name = String(key || '');
     if (PERSONAL_KEYS.includes(name)) {
       ctx.db.prepare(`INSERT INTO user_preferences (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)
@@ -333,6 +350,7 @@ const settings = {
       return { ok: true };
     }
     if (!ctx.sessions.can('settings.write')) throw forbidden('Only an administrator can change this setting.');
+    if (name === guestService().TEMPLATE_KEY) value = guestService().validateTemplates(value);
     ctx.db.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
       .run(name, String(value), nowIso(), session.id);
@@ -437,6 +455,7 @@ const notifications = {
        read rather than stored, because they stop being true on their own as
        the calendar moves. */
     notificationService.refreshDerived(ctx.db, who.scope ?? session.profile_id ?? null);
+    notificationService.refreshUserDerived(ctx.db, session);
     return ctx.db.prepare(`
       SELECT * FROM notifications
       WHERE ${VISIBLE}
@@ -582,7 +601,12 @@ const dashboard = {
     const attention = customersRepo.list(ctx.db, { status: 'COLD', pageSize: 8, sort: 'last_visit', dir: 'asc' }, scope)
       .rows.map((r) => require('./customer-service').decorate(r));
 
-    return { stats, recent, pending, attention };
+    /* My follow-ups due today or overdue, and the birthdays and special dates
+       of the next seven days — both inside the caller's own scope. */
+    const dueReminders = ctx.sessions.can('crm.read') ? guestService().reminders.due(ctx) : [];
+    const upcomingDates = guestService().upcomingDates(ctx.db, scope, { days: 7 });
+
+    return { stats, recent, pending, attention, dueReminders, upcomingDates };
   },
 };
 

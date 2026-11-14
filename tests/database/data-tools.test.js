@@ -178,9 +178,9 @@ module.exports = async function () {
     s.check("one account cannot use another account's import token", !stolen.ok && stolen.code === 'NOT_FOUND', J(stolen));
     const senaPreview = csvImporter.preview(app.ctx(), { token: csvOpen.token, sheet: 0, mapping: csvOpen.mapping, duplicates: 'update' });
     const aviRow = senaPreview.rows.find((r) => r.name === 'Avi Cohen');
-    s.check("a marketer sees another marketer's duplicate by ID and name only, and cannot update it",
+    s.check("a marketer is told another marketer's duplicate exists, never who, and cannot update it",
       aviRow.status === 'duplicate' && aviRow.action === 'skip' && /another marketer/.test(aviRow.reason)
-        && J(Object.keys(aviRow.match)) === J(['code', 'name']), J(aviRow));
+        && aviRow.match === null && !/G-AVI/.test(J(aviRow)), J(aviRow));
     const senaDone = csvImporter.commit(app.ctx(), { token: csvOpen.token, sheet: 0, mapping: csvOpen.mapping, duplicates: 'update' });
     s.check("a marketer's import creates only valid new rows", senaDone.created === 2 && senaDone.invalid === 2, J(senaDone));
     const owners = app.db.prepare("SELECT DISTINCT marketing_profile_id m FROM customers WHERE created_by = (SELECT id FROM users WHERE username='sena')").all();

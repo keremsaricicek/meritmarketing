@@ -53,6 +53,9 @@ const DEFAULTS = Object.freeze({
 const CONFIGURABLE = Object.freeze({
   'customers.delete': 'Delete guests',
   'customers.assign': 'Reassign guest ownership',
+  /* Merging folds one guest's whole history into another and archives it.
+     Administrators only until an administrator decides otherwise. */
+  'customers.merge': 'Merge duplicate guests',
   'crm.delete': 'Delete CRM notes',
   'profiles.create': 'Create marketing profiles',
   'profiles.update': 'Edit marketing profiles',

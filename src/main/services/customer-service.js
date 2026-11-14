@@ -13,11 +13,18 @@ const guard = require('./guard');
 const { nowIso, today } = require('../../shared/contracts/dates');
 const { validation, conflict, protectedGuest, notFound, forbidden } = require('../../shared/errors');
 
+/* GROUP_CONCAT hands back "3,7" (or null); the wire carries [3, 7]. */
+function parseTagIds(raw) {
+  if (raw === null || raw === undefined || raw === '') return [];
+  return String(raw).split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).sort((a, b) => a - b);
+}
+
 /** Attach the derived status the whole product agrees on. */
 function decorate(row) {
   if (!row) return null;
   return {
     ...row,
+    tags: parseTagIds(row.tag_ids),
     status: domain.customerStatus({
       registered: row.registered,
       qualifyingReservationCount: row.qualifying_reservation_count,
@@ -39,7 +46,10 @@ function get(ctx, { id }) {
   guard.requireCapability(ctx, 'customers.read');
   const row = repo.findById(ctx.db, Number(id));
   guard.requireCustomerInScope(ctx, row);
-  return decorate(repo.detail(ctx.db, Number(id)));
+  const detail = decorate(repo.detail(ctx.db, Number(id)));
+  detail.special_dates = ctx.db.prepare(`SELECT id, label, month, day FROM customer_special_dates
+    WHERE customer_id = ? ORDER BY month, day, id`).all(Number(id));
+  return detail;
 }
 
 /* The inspector's extra panel. Assignment history is a separate call precisely
@@ -119,6 +129,7 @@ function create(ctx, params) {
       phone: params.phone || null, email: params.email || null,
       passport_no: params.passportNo || null, nationality: params.nationality || null,
       photo_name: params.photoName || null, notes: params.notes || null,
+      birth_date: params.birthDate || null,
       marketing_profile_id: owner,
       created_at: now, created_by: session.id, updated_at: now, updated_by: session.id,
     });
@@ -147,6 +158,7 @@ const EDITABLE = Object.freeze({
   fullName: 'full_name', phone: 'phone', email: 'email',
   passportNo: 'passport_no', nationality: 'nationality',
   photoName: 'photo_name', notes: 'notes', registered: 'registered',
+  birthDate: 'birth_date',
 });
 
 function update(ctx, params) {

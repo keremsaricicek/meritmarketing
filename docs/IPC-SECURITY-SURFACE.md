@@ -16,13 +16,13 @@ do not edit by hand.** Run `npm run ipc:doc` after changing the contract;
 
 | | |
 |---|---|
-| Channels | **76** |
+| Channels | **92** |
 | Callable with no session | 6 |
-| Record- or query-scoped | 46 |
-| Destructive | 9 |
-| Written to the audit log | 35 |
+| Record- or query-scoped | 57 |
+| Destructive | 12 |
+| Written to the audit log | 44 |
 | Enforcing guest protection | 5 |
-| Reachable by MARKETING | 53 |
+| Reachable by MARKETING | 66 |
 
 ## This file is load-bearing
 
@@ -114,6 +114,22 @@ table, including other marketers'.
 | `import:templates` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
 | `import:saveTemplate` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
 | `import:deleteTemplate` | required | `customers.create` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `customers:duplicates` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `none` | — | — | — | `FORBIDDEN` |
+| `customers:merge` | required | `customers.merge` | ADMIN | `record` | — | yes | yes | `FORBIDDEN` |
+| `customers:setTags` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
+| `customers:setDates` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
+| `customers:recent` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `customers:viewed` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
+| `tags:list` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `none` | — | — | — | `FORBIDDEN` |
+| `tags:create` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | — | yes | `FORBIDDEN` |
+| `tags:update` | required | `settings.write` | ADMIN, MANAGER | `none` | — | — | yes | `FORBIDDEN` |
+| `tags:delete` | required | `settings.write` | ADMIN, MANAGER | `none` | — | yes | yes | `FORBIDDEN` |
+| `reminders:due` | required | `crm.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `reminders:forCustomer` | required | `crm.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
+| `reminders:done` | required | `crm.update` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
+| `views:list` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `views:save` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | yes | `FORBIDDEN` |
+| `views:delete` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | yes | yes | `FORBIDDEN` |
 | `reservations:list` | required | `reservations.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
 | `reservations:listDeleted` | required | `reservations.deleted.read` | ADMIN, MANAGER | `query` | — | — | — | `FORBIDDEN` |
 | `reservations:get` | required | `reservations.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
@@ -185,9 +201,18 @@ table, including other marketers'.
 - `customers:bulkAssign` — A loop over customers:assign, so scope and the one-year protection rule run per guest. A selection containing a guest outside the caller's scope is refused outright; business-rule refusals (protection, inactive profile, missing guest) are reported per row. One summary audit row plus the per-guest rows.
 - `import:choose` — Native Open dialog in the main process; .xlsx/.csv only, 10 MB cap, zip-bomb and macro checks, formulas never evaluated. The renderer receives a token, sheet names and sample rows — never a path.
 - `import:sheet` — Reads another sheet of the caller's own pending file; a token from another account resolves to nothing.
-- `import:preview` — Duplicates are matched across the whole book by phone, passport or Guest ID, but a match outside the caller's scope is reported by Guest ID and name only — the customers:summary projection.
+- `import:preview` — Duplicates are matched across the whole book by phone, passport or Guest ID, using the customers:duplicates keys; a match outside the caller's scope is reported only as existing, never who.
 - `import:commit` — One transaction, one audit row with the counts. MARKETING imports are owned by the caller whatever the owner column says. "Update empty fields" needs customers.update, touches only in-scope guests and never ownership.
 - `import:templates` — The caller's own saved column mappings (user_preferences).
+- `customers:duplicates` — Same phone (digits only) or passport across the whole book; an out-of-scope match is reported only as "exists", never who.
+- `customers:merge` — Configurable, ADMIN-only by default. Moves notes, stays, reminders, tags and dates in one transaction; archives the duplicate with a pointer to the primary.
+- `customers:setDates` — Replaces the guest's special dates (label + month/day).
+- `customers:recent` — The caller's last ten opened guests, re-checked against scope on every read.
+- `customers:viewed` — Records a view in the caller's own preferences. Not audited: reading is not a change.
+- `tags:list` — Names and colours only, never which guests carry a tag.
+- `tags:create` — An existing name (any case) answers with the existing tag.
+- `reminders:due` — The caller's own follow-ups due today or overdue, inside their scope.
+- `views:list` — The caller's own saved filters, newest first.
 - `reservations:list` — Active and Cancelled are two disjoint views; neither includes deleted rows.
 - `reservations:listDeleted` — A separate VERB, not a view parameter — MARKETING cannot reach it by crafting a request.
 - `reservations:get` — A deleted row answers NOT_FOUND to anyone who may not see deleted history.

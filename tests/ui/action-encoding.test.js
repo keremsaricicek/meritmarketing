@@ -29,7 +29,8 @@ module.exports = async function () {
   const core = fs.readFileSync(path.join(RENDERER, 'scripts', 'core.js'), 'utf8');
   const views = fs.readFileSync(path.join(RENDERER, 'scripts', 'views.js'), 'utf8');
   const screens = fs.readFileSync(path.join(RENDERER, 'scripts', 'screens.js'), 'utf8');
-  const oversight = fs.readFileSync(path.join(RENDERER, 'scripts', 'oversight.js'), 'utf8');
+  const oversight = fs.readFileSync(path.join(RENDERER, 'scripts', 'oversight.js'), 'utf8')
+    + fs.readFileSync(path.join(RENDERER, 'scripts', 'guests.js'), 'utf8');
   const html = fs.readFileSync(path.join(RENDERER, 'index.html'), 'utf8');
   const all = [core, views, screens, oversight, html].join('\n');
 

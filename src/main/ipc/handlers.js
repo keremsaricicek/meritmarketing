@@ -13,6 +13,7 @@ const authService = require('../services/auth-service');
 const support = require('../services/support-services');
 const oversight = require('../services/oversight-service');
 const bulk = require('../services/bulk-service');
+const guests = require('../services/guest-service');
 const guard = require('../services/guard');
 const { CONFIGURABLE } = require('../../shared/contracts/roles');
 const { validation } = require('../../shared/errors');
@@ -64,6 +65,25 @@ function build({ app, backup, photos, updates, exporter, importer, reporter }) {
     'import:templates': (ctx) => importer.templates(ctx),
     'import:saveTemplate': (ctx, p) => importer.saveTemplate(ctx, p),
     'import:deleteTemplate': (ctx, p) => importer.deleteTemplate(ctx, p),
+    'customers:duplicates': (ctx, p) => guests.duplicates(ctx, p),
+    'customers:merge': (ctx, p) => guests.merge(ctx, p),
+    'customers:setTags': (ctx, p) => guests.tags.setForCustomer(ctx, p),
+    'customers:setDates': (ctx, p) => guests.specialDates.set(ctx, p),
+    'customers:recent': (ctx) => guests.recent.list(ctx),
+    'customers:viewed': (ctx, p) => guests.recent.viewed(ctx, p),
+
+    'tags:list': (ctx) => guests.tags.list(ctx),
+    'tags:create': (ctx, p) => guests.tags.create(ctx, p),
+    'tags:update': (ctx, p) => guests.tags.update(ctx, p),
+    'tags:delete': (ctx, p) => guests.tags.remove(ctx, p),
+
+    'reminders:due': (ctx) => guests.reminders.due(ctx),
+    'reminders:forCustomer': (ctx, p) => guests.reminders.forCustomer(ctx, p),
+    'reminders:done': (ctx, p) => guests.reminders.markDone(ctx, p),
+
+    'views:list': (ctx, p) => guests.views.list(ctx, p),
+    'views:save': (ctx, p) => guests.views.save(ctx, p),
+    'views:delete': (ctx, p) => guests.views.remove(ctx, p),
 
     'reservations:list': (ctx, p) => reservations.list(ctx, p),
     'reservations:listDeleted': (ctx, p) => reservations.listDeleted(ctx, p),
