@@ -90,7 +90,7 @@ function nextCodeFactory(db) {
 
 function profileIndex(db) {
   const byName = new Map();
-  for (const p of db.prepare("SELECT id, full_name, employment_status FROM profiles WHERE COALESCE(kind,'marketing') = 'marketing'").all()) {
+  for (const p of db.prepare("SELECT id, full_name, employment_status FROM profiles WHERE COALESCE(kind,'marketing') = 'marketing' AND archived_at IS NULL").all()) {
     byName.set(rules.fold(p.full_name), p);
   }
   return byName;

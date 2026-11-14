@@ -1787,19 +1787,101 @@ td.note-cell{ max-width:420px; min-width:220px; padding-top:7px; padding-bottom:
    panel: drop the ID column (the code is in the panel and the search) and
    let the note and date columns keep readable widths. */
 /* Column widths follow content: the latest note gets the room. */
-#crmPane_overview th:nth-child(1){ width:9%; }
-#crmPane_overview th:nth-child(2){ width:17%; }
-#crmPane_overview th:nth-child(3){ width:14%; }
-#crmPane_overview th:nth-child(4){ width:32%; }
-#crmPane_overview th:nth-child(5){ width:14%; }
-#crmPane_overview th:nth-child(6){ width:14%; }
+/* Column 1 is the bulk-selection checkbox; it keeps a fixed width and the
+   rest share what is left. */
+/* The percentages add up to 94%, leaving room for the 44px checkbox column. */
+#crmPane_overview th:nth-child(2){ width:8%; }
+#crmPane_overview th:nth-child(3){ width:16%; }
+#crmPane_overview th:nth-child(4){ width:13%; }
+#crmPane_overview th:nth-child(5){ width:28%; }
+#crmPane_overview th:nth-child(6){ width:15%; }
+#crmPane_overview th:nth-child(7){ width:14%; }
 td.mod-cell{ line-height:1.35; padding-top:7px; padding-bottom:7px; }
 @media (max-width:1500px){
-  #crmPane_overview th:first-child, #custTableBody td:first-child{ display:none; }
-  #crmPane_overview th:nth-child(2){ width:21%; }
-  #crmPane_overview th:nth-child(3){ width:17%; }
-  #crmPane_overview th:nth-child(4){ width:32%; }
-  #crmPane_overview th:nth-child(5){ width:14%; }
-  #crmPane_overview th:nth-child(6){ width:16%; }
+  #crmPane_overview th:nth-child(2), #custTableBody td.sel-cell + td{ display:none; }
+  #crmPane_overview th:nth-child(3){ width:19%; }
+  #crmPane_overview th:nth-child(4){ width:14%; }
+  #crmPane_overview th:nth-child(5){ width:24%; }
+  #crmPane_overview th:nth-child(6){ width:18%; }
+  #crmPane_overview th:nth-child(7){ width:18%; }
   td.note-cell{ min-width:0; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Bulk selection on the CRM tables */
+thead th.sel-col{ width:44px; padding:0 0 0 var(--sp-4); }
+tbody td.sel-cell{ width:44px; padding:0 0 0 var(--sp-4); cursor:default; text-overflow:clip; }
+.sel-box{ width:16px; height:16px; margin:0; vertical-align:middle; accent-color:var(--accent); cursor:pointer; }
+#crmPane_customerlist th:nth-child(2){ width:12%; }
+#crmPane_customerlist th:nth-child(3){ width:26%; }
+.bulk-bar{
+  display:flex; align-items:center; flex-wrap:wrap; gap:var(--sp-2);
+  margin:0 0 var(--sp-3); padding:var(--sp-2) var(--sp-3);
+  background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:var(--r-2);
+}
+.bulk-count{ font-weight:600; color:var(--accent); margin-right:var(--sp-2); font-variant-numeric:tabular-nums; }
+.bulk-bar .btn-ghost{ margin-left:auto; }
+
+/* Import guests */
+.import-modal{ height:min(760px, 88vh); }
+.import-steps{
+  display:flex; gap:var(--sp-1); list-style:none; margin:0; padding:var(--sp-2) var(--sp-6);
+  border-bottom:1px solid var(--line); background:var(--s0); flex-shrink:0;
+}
+.import-steps li{
+  font-size:var(--t-sm); color:var(--ink-3); padding:4px 10px; border-radius:var(--r-1); white-space:nowrap;
+}
+.import-steps li.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.import-steps li.done{ color:var(--ink-2); }
+.modal.modal-xl .import-body{ padding:var(--sp-5) var(--sp-6); display:flex; flex-direction:column; min-height:0; }
+.import-pane{ display:flex; flex-direction:column; gap:var(--sp-3); min-height:0; flex:1; }
+.import-pick{ display:flex; align-items:center; gap:var(--sp-3); }
+.import-file{ font-weight:500; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.import-file-opts{ margin-top:var(--sp-3); max-width:760px; }
+.import-inline{ display:flex; gap:var(--sp-2); align-items:center; }
+.import-inline select, .import-inline .fm-input{ flex:1; min-width:0; }
+.import-map-layout{ display:grid; grid-template-columns:minmax(300px, 360px) minmax(0, 1fr); gap:var(--sp-6); min-height:0; flex:1; }
+.import-map-fields{ overflow-y:auto; padding-right:var(--sp-2); }
+.import-map-grid{ display:grid; grid-template-columns:minmax(110px, auto) minmax(0, 1fr); gap:var(--sp-2) var(--sp-3); align-items:center; margin-bottom:var(--sp-3); }
+.import-map-label{ font-size:var(--t-sm); color:var(--ink-2); font-weight:500; }
+.import-radio{ display:flex; flex-direction:column; gap:var(--sp-2); font-size:var(--t-md); }
+.import-radio label, .export-notes, .export-col{ display:flex; align-items:center; gap:var(--sp-2); cursor:pointer; }
+.import-radio input, .export-notes input, .export-col input{ accent-color:var(--accent); margin:0; }
+.import-sample{ min-width:0; display:flex; flex-direction:column; min-height:0; }
+.import-sample-scroll{ overflow:auto; border:1px solid var(--line); border-radius:var(--r-2); background:var(--s0); flex:1; min-height:0; }
+.import-sample-table{ table-layout:auto; width:max-content; min-width:100%; }
+.import-sample-table thead{ position:sticky; top:0; }
+.import-sample-table td, .import-sample-table th{ max-width:220px; padding:0 var(--sp-3); }
+.import-sample-table tbody td{ height:34px; font-size:var(--t-sm); }
+.import-sample-table td:first-child, .import-sample-table th:first-child{ padding-left:var(--sp-3); }
+.col-letter{ color:var(--accent); margin-right:2px; }
+.import-counts{ display:flex; align-items:stretch; gap:var(--sp-2); flex-wrap:wrap; }
+.import-count{ border:1px solid var(--line); border-radius:var(--r-2); padding:6px 14px; min-width:88px; background:var(--s1); }
+.import-count b{ display:block; font-size:var(--t-lg); font-variant-numeric:tabular-nums; }
+.import-count span{ font-size:var(--t-sm); color:var(--ink-3); }
+.import-count.ok b{ color:var(--ok); }
+.import-count.warn b{ color:var(--warn); }
+.import-count.bad b{ color:var(--danger); }
+.import-count-plan{ align-self:center; margin-left:var(--sp-2); color:var(--ink-2); }
+.import-filter{ align-self:flex-start; }
+.import-preview-table{ flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+.import-preview-table .table-scroll{ overflow:auto; flex:1; min-height:0; }
+.import-preview-table thead{ position:sticky; top:0; }
+.import-preview-table th:nth-child(1){ width:64px; }
+.import-preview-table th:nth-child(2){ width:20%; }
+.import-preview-table th:nth-child(3){ width:15%; }
+.import-preview-table th:nth-child(4){ width:13%; }
+.import-preview-table th:nth-child(5){ width:110px; }
+.import-detail{ color:var(--ink-2); }
+.import-more{ padding:var(--sp-3) var(--sp-5); color:var(--ink-3); }
+.import-done-title{ font-size:var(--t-lg); font-weight:600; margin-bottom:var(--sp-1); }
+.import-problems{ margin:0; padding-left:var(--sp-5); display:flex; flex-direction:column; gap:4px; max-height:320px; overflow:auto; }
+@media (max-width:1100px){ .import-map-layout{ grid-template-columns:1fr; } }
+
+/* Export dialog */
+.export-cols{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:var(--sp-2) var(--sp-4); }
+.export-col{ font-size:var(--t-md); min-width:0; }
+.export-notes{ margin-top:var(--sp-3); }
+.export-notes.disabled{ color:var(--ink-4); cursor:not-allowed; }
+.export-cols-title{ display:flex; align-items:center; justify-content:space-between; }
+.export-cols-actions{ display:flex; gap:var(--sp-3); text-transform:none; letter-spacing:0; }

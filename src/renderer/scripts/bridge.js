@@ -81,7 +81,12 @@
     dialog: {
       /* window.confirm is unavailable under a sandboxed renderer and blocks the
          process anyway. Screens that used it get the in-app confirmation modal. */
-      confirm: async ({ message, detail }) => ({ ok: true, data: await window.confirmDialog(message, detail) }),
+      /* Calls the modal through its private name. screens.js declares a global
+         `confirmDialog(opts)` that wraps THIS verb; a function declaration
+         replaces the window property set below, so going through
+         window.confirmDialog here recursed into the wrapper and every
+         confirmation threw instead of asking. */
+      confirm: async ({ message, detail } = {}) => ({ ok: true, data: await showConfirmModal(message, detail) }),
     },
   };
 
@@ -160,7 +165,7 @@
   /* A promise-based confirmation modal, so a destructive action can await an
      answer the way it awaited window.confirm. Defined here because the screens
      assume it exists. */
-  window.confirmDialog = function confirmDialog(message, detail) {
+  const showConfirmModal = window.confirmDialog = function confirmDialog(message, detail) {
     return new Promise((resolve) => {
       const existing = document.getElementById('appConfirm');
       if (existing) existing.remove();

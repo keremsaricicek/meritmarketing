@@ -595,6 +595,7 @@ async function renderCustomers(){
   const tbody = el('custTableBody');
   tbody.innerHTML = data.rows.length ? data.rows.map(c => `
     <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"detailPanel"]' data-act-dblclick="openCustomerModal" data-args-dblclick='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
+      ${bulkCellHTML('overview', c)}
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
@@ -614,7 +615,7 @@ async function renderCustomers(){
       </td>
       <td class="muted n mod-cell">${fmtDate(c.updated_at)}<div class="note-meta">${escapeHtml(fmtDateTime(c.updated_at).slice(11))}</div></td>
     </tr>`).join('')
-    : emptyRow(6, (s.status || s.marketing) && !s.search
+    : emptyRow(7, (s.status || s.marketing) && !s.search
         ? emptyState({ icon:'search', title:'No guests match the active filters',
             actions:[{ label:'Clear filters', act:'clearCustFilters', actArgs:[] }] })
         : s.search
@@ -626,6 +627,7 @@ async function renderCustomers(){
             text:'Register a guest to start building the book.',
             actions:[{ label:'New Customer', act:'openCustomerModal', actArgs:[], primary:true }] }));
   pagerHTML('custPager', s.page, s.pageSize, s.total, 'goCustPage');
+  bulkAfterRender('overview', data.rows);
 }
 
 /* ---------------- CUSTOMER LIST (registered only) ---------------- */
@@ -671,8 +673,11 @@ function clearListFilters(){
 }
 function listFilterParams(){
   const s = state.list;
+  /* The two yes/no selects hold strings; the contract takes booleans, and a
+     string there failed validation so the whole list rendered nothing. */
+  const yesNo = (v) => v === 'yes' ? true : v === 'no' ? false : '';
   return omitBlank({ status:s.status, createdBy:s.createdBy, assignedTo:s.assignedTo,
-    hasReservation:s.hasReservation, hasCrm:s.hasCrm, createdFrom:s.createdFrom, createdTo:s.createdTo });
+    hasReservation:yesNo(s.hasReservation), hasCrm:yesNo(s.hasCrm), createdFrom:s.createdFrom, createdTo:s.createdTo });
 }
 async function renderCustomerList(){
   const q = el('listSearch')?.value.trim() || '';
@@ -683,6 +688,7 @@ async function renderCustomerList(){
   if (!data) return;
   el('listTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
     <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"listDetailPanel"]' data-act-dblclick="openCustomerModal" data-args-dblclick='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
+      ${bulkCellHTML('customerlist', c)}
       <td class="muted">#${escapeHtml(c.code)}</td>
       <td>${escapeHtml(c.full_name)}</td>
       <td class="muted">${escapeHtml(c.created_by_label)}</td>
@@ -690,12 +696,13 @@ async function renderCustomerList(){
       <td>${statusTagHTML(c.status)}</td>
       <td class="muted">${fmtDate(c.created_at)}</td>
     </tr>`).join('')
-    : emptyRow(6, q || s.status || s.createdBy || s.assignedTo
+    : emptyRow(7, q || s.status || s.createdBy || s.assignedTo
         ? emptyState({ icon:'search', title:'No guests match the active filters',
             actions:[{ label:'Clear filters', act:'clearListFiltersAndSearch', actArgs:[] }] })
         : emptyState({ icon:'guests', title:'No guests registered yet',
             text:'Everyone added through New Customer shows up here.',
             actions:[{ label:'New Customer', act:'openCustomerModal', actArgs:[], primary:true }] }));
+  bulkAfterRender('customerlist', data.rows);
 }
 
 /* Change a reservation's state straight from the table. */
@@ -1657,14 +1664,14 @@ async function exportEntity(entity){
   if (r) toast('success','Export complete', `${r.rows} rows → ${r.name}`);
 }
 
-/** Exports exactly what is on screen: same search, filters and sort order. */
+/** Exports exactly what is on screen: same search, filters and sort order.
+    The dialog picks the format (CSV or Excel) and the columns. */
 async function exportCurrentView(entity){
   const params = entity === 'norecord' ? { search: el('norecSearch')?.value.trim() || '', noRecord:true, registeredOnly:true }
                : entity === 'reservations' ? resFilterParams()
-               : entity === 'customerlist' ? { search: el('listSearch')?.value.trim() || '', sort:state.list.sort, dir:state.list.dir }
+               : entity === 'customerlist' ? omitBlank({ search: el('listSearch')?.value.trim() || '', sort:state.list.sort, dir:state.list.dir, ...listFilterParams() })
                : custFilterParams();
-  const r = await call(window.api.export.filtered, { entity, params });
-  if (r) toast('success','Export complete', `${r.rows} rows → ${r.name}`);
+  await openExportDialog(entity, params);
 }
 
 /* ---------------- appearance ---------------- */

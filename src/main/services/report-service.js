@@ -117,11 +117,18 @@ function monthlyData(ctx, { year, month }) {
       AND COALESCE(n.note_date, date(n.created_at,'localtime')) BETWEEN @first AND @last${guestScope}
     GROUP BY c.id ORDER BY note_count DESC, c.full_name COLLATE NOCASE LIMIT 10`).all(bind()) : null;
 
+  /* Every note written this month on a guest in scope — including notes by
+     managers and administrators, who have no marketing profile of their own. */
+  const notesInMonth = canNotes ? db.prepare(`
+    SELECT COUNT(*) AS n FROM crm_notes n JOIN customers c ON c.id = n.customer_id
+    WHERE n.deleted_at IS NULL AND c.deleted_at IS NULL
+      AND COALESCE(n.note_date, date(n.created_at,'localtime')) BETWEEN @first AND @last${guestScope}`).get(bind()).n : 0;
+
   const totals = {
     invites: team.reduce((s, r) => s + r.invites, 0),
     arrivals: arrivals.length,
     nights,
-    notes: team.reduce((s, r) => s + r.notes, 0),
+    notes: notesInMonth,
     newGuests: newGuests.length,
     cold: cold.total,
   };

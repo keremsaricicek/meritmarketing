@@ -368,9 +368,11 @@
       <h1 class="page-title" tabindex="-1">CRM Panel</h1>
       <div class="head-actions">
         <div class="crm-action" id="crmAction_overview">
+          <button class="btn btn-outline btn-sm" data-act="openImportDialog" data-on="click" data-args='[]'>Import guests</button>
           <button class="btn btn-gold btn-sm" data-act="openRecordModal" data-on="click" data-args='[]'>NEW RECORD</button>
         </div>
         <div class="crm-action hidden" id="crmAction_customerlist">
+          <button class="btn btn-outline btn-sm" data-act="openImportDialog" data-on="click" data-args='[]'>Import guests</button>
           <button class="btn btn-gold btn-sm" data-act="openCustomerModal" data-on="click" data-args='[]'>NEW CUSTOMER</button>
         </div>
         <div class="crm-action hidden" id="crmAction_norecord">
@@ -420,13 +422,20 @@
         </div>
       </div>
       <div class="chip-row hidden" id="custChips" aria-label="Active filters"></div>
+      <div class="bulk-bar is-hidden" id="bulkBar_overview" role="region" aria-label="Selected guests">
+        <span class="bulk-count" id="bulkCount_overview" aria-live="polite">0 selected</span>
+        <button class="btn btn-outline btn-sm bulk-assign-btn" data-act="openBulkAssign" data-on="click" data-args='["overview"]'>Reassign owner</button>
+        <button class="btn btn-outline btn-sm" data-act="openBulkNote" data-on="click" data-args='["overview"]'>Add CRM note</button>
+        <button class="btn btn-outline btn-sm" data-act="exportSelected" data-on="click" data-args='["overview"]'>Export selected</button>
+        <button class="btn btn-ghost btn-sm" data-act="clearBulkSelection" data-on="click" data-args='["overview"]'>Clear selection</button>
+      </div>
       <div id="custActivityView" class="hidden"></div>
       <div class="customer-layout" id="custTableView">
         <div class="table-wrap">
           <div class="table-scroll">
           <table>
             <thead>
-              <tr><th scope="col">ID</th>
+              <tr><th scope="col" class="sel-col"><input type="checkbox" class="sel-box" id="bulkAll_overview" aria-label="Select all on page" data-act-change="toggleBulkPage" data-args-change='["overview",{"$":"checked"}]'></th><th scope="col">ID</th>
                   <th scope="col" class="sortable" data-act="sortCustomers" data-on="click" data-args='["name"]' aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
                   <th scope="col">MARKETING</th><th scope="col">LATEST CRM NOTE</th><th scope="col">STATUS</th>
                   <th scope="col" class="sortable sorted" data-act="sortCustomers" data-on="click" data-args='["updated"]' aria-sort="descending">LAST MODIFIED<span class="sort-arrow">↓</span></th></tr>
@@ -489,12 +498,19 @@
           EXPORT
         </button>
       </div>
+      <div class="bulk-bar is-hidden" id="bulkBar_customerlist" role="region" aria-label="Selected guests">
+        <span class="bulk-count" id="bulkCount_customerlist" aria-live="polite">0 selected</span>
+        <button class="btn btn-outline btn-sm bulk-assign-btn" data-act="openBulkAssign" data-on="click" data-args='["customerlist"]'>Reassign owner</button>
+        <button class="btn btn-outline btn-sm" data-act="openBulkNote" data-on="click" data-args='["customerlist"]'>Add CRM note</button>
+        <button class="btn btn-outline btn-sm" data-act="exportSelected" data-on="click" data-args='["customerlist"]'>Export selected</button>
+        <button class="btn btn-ghost btn-sm" data-act="clearBulkSelection" data-on="click" data-args='["customerlist"]'>Clear selection</button>
+      </div>
       <div class="customer-layout">
         <div class="table-wrap">
           <div class="table-scroll">
           <table>
             <thead>
-              <tr><th scope="col">ID</th>
+              <tr><th scope="col" class="sel-col"><input type="checkbox" class="sel-box" id="bulkAll_customerlist" aria-label="Select all on page" data-act-change="toggleBulkPage" data-args-change='["customerlist",{"$":"checked"}]'></th><th scope="col">ID</th>
               <th scope="col" class="sortable" data-act="sortList" data-on="click" data-args='["name"]' aria-sort="none">NAME SURNAME<span class="sort-arrow"></span></th>
               <th scope="col">CREATED BY</th>
               <th scope="col">ASSIGNED TO</th>
@@ -532,6 +548,9 @@
       <div>
         <h1 class="page-title" tabindex="-1">Reports</h1>
         <div class="setting-hint" id="reportScope"></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn btn-outline btn-sm" id="monthlyReportOpenBtn" data-act="openMonthlyReport" data-on="click" data-args='[]'>Monthly report (PDF)</button>
       </div>
     </div>
     <div class="view-switch" role="tablist" aria-label="Report type" id="reportTypeTabs">
@@ -1372,6 +1391,227 @@
   </div>
 </div>
 
+<!-- ================= MODAL: IMPORT GUESTS ================= -->
+<div class="overlay" id="modalImport" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
+  <div class="modal modal-xl import-modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="importModalTitle">Import guests</h2>
+        <div class="modal-subtitle" id="importSubtitle">From an Excel workbook (.xlsx) or a CSV file</div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalImport"]' aria-label="Close dialog">✕</button>
+    </div>
+    <ol class="import-steps" id="importSteps" aria-label="Import steps">
+      <li data-step="file" class="active">1 · File</li>
+      <li data-step="map">2 · Columns</li>
+      <li data-step="preview">3 · Preview</li>
+      <li data-step="done">4 · Summary</li>
+    </ol>
+    <div class="modal-body import-body">
+      <section class="import-pane" id="importPane_file">
+        <div class="import-pick">
+          <button class="btn btn-gold btn-sm" id="importChooseBtn" data-act="importChooseFile" data-on="click" data-args='[]'>Choose file…</button>
+          <div class="import-file" id="importFileName">No file chosen</div>
+        </div>
+        <p class="setting-hint">The first row of the sheet must hold the column headers. Up to 5,000 rows and 10 MB. Formulas are read as their saved values; macros are refused.</p>
+        <div class="field-row import-file-opts is-hidden" id="importFileOpts">
+          <div class="field">
+            <label for="importSheet">Sheet</label>
+            <select id="importSheet" data-act="importPickSheet" data-on="change" data-args='[{"$":"value"}]'></select>
+          </div>
+          <div class="field">
+            <label for="importTemplate">Saved mapping</label>
+            <div class="import-inline">
+              <select id="importTemplate"></select>
+              <button class="btn btn-outline btn-sm" id="importTemplateApplyBtn" data-act="importApplyTemplate" data-on="click" data-args='[]'>Apply</button>
+              <button class="btn btn-ghost btn-sm" id="importTemplateDeleteBtn" data-act="importDeleteTemplate" data-on="click" data-args='[]'>Delete</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="import-pane is-hidden" id="importPane_map">
+        <div class="import-map-layout">
+          <div class="import-map-fields">
+            <div class="form-group-title">Match columns to fields</div>
+            <div class="import-map-grid" id="importMapGrid"></div>
+            <p class="setting-hint">Use either one Full name column, or Name and Surname. Gaming power has no field of its own, so it is added to the guest note.</p>
+            <div class="form-group-title mt-5">Duplicates</div>
+            <div class="import-radio">
+              <label><input type="radio" name="importDup" value="skip" checked> Skip guests already in the book</label>
+              <label><input type="radio" name="importDup" value="update"> Fill their empty fields from the file</label>
+            </div>
+            <div class="form-group-title mt-5">Save this mapping</div>
+            <div class="import-inline">
+              <label class="visually-hidden" for="importTemplateName">Template name</label>
+              <input class="fm-input" id="importTemplateName" placeholder="Template name" maxlength="60">
+              <button class="btn btn-outline btn-sm" data-act="importSaveTemplate" data-on="click" data-args='[]'>Save template</button>
+            </div>
+          </div>
+          <div class="import-sample">
+            <div class="form-group-title">First rows of the sheet</div>
+            <div class="import-sample-scroll" id="importSample"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="import-pane is-hidden" id="importPane_preview">
+        <div class="import-counts" id="importCounts"></div>
+        <div class="seg import-filter" id="importFilter" role="group" aria-label="Show rows">
+          <button class="active" aria-pressed="true" data-act="importFilterRows" data-on="click" data-args='["all"]'>All</button>
+          <button aria-pressed="false" data-act="importFilterRows" data-on="click" data-args='["new"]'>New</button>
+          <button aria-pressed="false" data-act="importFilterRows" data-on="click" data-args='["duplicate"]'>Duplicate</button>
+          <button aria-pressed="false" data-act="importFilterRows" data-on="click" data-args='["invalid"]'>Invalid</button>
+        </div>
+        <div class="table-wrap import-preview-table">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col">Row</th><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Passport</th><th scope="col">Status</th><th scope="col">Details</th></tr></thead>
+              <tbody id="importPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="import-pane is-hidden" id="importPane_done">
+        <div class="import-summary" id="importSummary"></div>
+      </section>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm is-hidden" id="importBackBtn" data-act="importBack" data-on="click" data-args='[]'>Back</button>
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" id="importCancelBtn" data-act="closeModal" data-on="click" data-args='["modalImport"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="importNextBtn" data-act="importNext" data-on="click" data-args='[]' disabled>Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: EXPORT ================= -->
+<div class="overlay" id="modalExport" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+  <div class="modal modal-md">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="exportModalTitle">Export</h2>
+        <div class="modal-subtitle" id="exportSubtitle"></div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalExport"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <div class="form-group-title">Format</div>
+        <div class="import-radio">
+          <label><input type="radio" name="exportFormat" value="xlsx" checked data-act="exportFormatChanged" data-on="change" data-args='[]'> Excel workbook (.xlsx)</label>
+          <label><input type="radio" name="exportFormat" value="csv" data-act="exportFormatChanged" data-on="change" data-args='[]'> CSV (.csv)</label>
+        </div>
+        <label class="export-notes" id="exportNotesWrap"><input type="checkbox" id="exportAllNotes"> Add every CRM note on a second sheet</label>
+      </div>
+      <div class="form-group">
+        <div class="form-group-title export-cols-title">
+          <span>Columns</span>
+          <span class="export-cols-actions">
+            <button class="btn-link" data-act="exportSelectColumns" data-on="click" data-args='[true]'>All</button>
+            <button class="btn-link" data-act="exportSelectColumns" data-on="click" data-args='[false]'>None</button>
+          </span>
+        </div>
+        <div class="export-cols" id="exportColumns"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalExport"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="exportRunBtn" data-act="runExportDialog" data-on="click" data-args='[]'>Export</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: BULK REASSIGN ================= -->
+<div class="overlay" id="modalBulkAssign" role="dialog" aria-modal="true" aria-labelledby="bulkAssignTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="bulkAssignTitle">Reassign owner</h2>
+        <div class="modal-subtitle" id="bulkAssignSubtitle"></div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalBulkAssign"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label for="bulkAssignSelect">New owner</label><select id="bulkAssignSelect"></select></div>
+      <div class="field"><label for="bulkAssignReason">Reason (optional)</label><input id="bulkAssignReason" maxlength="200" placeholder="For example: portfolio rebalance"></div>
+      <p class="setting-hint">Each guest goes through the normal reassignment rules. Guests that cannot move are listed afterwards.</p>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalBulkAssign"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="bulkAssignBtn" data-act="runBulkAssign" data-on="click" data-args='[]'>Reassign</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: BULK NOTE ================= -->
+<div class="overlay" id="modalBulkNote" role="dialog" aria-modal="true" aria-labelledby="bulkNoteTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="bulkNoteTitle">Add CRM note</h2>
+        <div class="modal-subtitle" id="bulkNoteSubtitle"></div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalBulkNote"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label for="bulkNoteDate">Date</label><input type="date" id="bulkNoteDate"></div>
+      <div class="field"><label for="bulkNoteText">Note</label><textarea id="bulkNoteText" maxlength="4000"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalBulkNote"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="bulkNoteBtn" data-act="runBulkNote" data-on="click" data-args='[]'>Add note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: BULK RESULT ================= -->
+<div class="overlay" id="modalBulkResult" role="dialog" aria-modal="true" aria-labelledby="bulkResultTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="bulkResultTitle">Done</h2>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalBulkResult"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body" id="bulkResultBody"></div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-gold btn-sm" data-act="closeModal" data-on="click" data-args='["modalBulkResult"]'>Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: MONTHLY REPORT ================= -->
+<div class="overlay" id="modalMonthlyReport" role="dialog" aria-modal="true" aria-labelledby="monthlyReportTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title" id="monthlyReportTitle">Monthly report (PDF)</h2>
+        <div class="modal-subtitle" id="monthlyReportScope"></div>
+      </div>
+      <button class="modal-close" data-act="closeModal" data-on="click" data-args='["modalMonthlyReport"]' aria-label="Close dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label for="monthlyReportMonth">Month</label><input type="month" id="monthlyReportMonth" min="2026-01"></div>
+      <p class="setting-hint">Team performance, arrivals and stays in the month, new guests, cold guests and the most discussed guests, as a printable A4 PDF.</p>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-right">
+        <button class="btn btn-ghost btn-sm" data-act="closeModal" data-on="click" data-args='["modalMonthlyReport"]'>Cancel</button>
+        <button class="btn btn-gold btn-sm" id="monthlyReportBtn" data-act="runMonthlyReport" data-on="click" data-args='[]'>Create PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast-stack" id="toastStack" role="status" aria-live="polite" aria-atomic="false"></div>
   <script src="./scripts/bridge.js"></script>
   <script src="./scripts/actions.js"></script>
@@ -1379,5 +1619,6 @@
   <script src="./scripts/views.js"></script>
   <script src="./scripts/oversight.js"></script>
   <script src="./scripts/screens.js"></script>
+  <script src="./scripts/data-tools.js"></script>
 </body>
 </html>

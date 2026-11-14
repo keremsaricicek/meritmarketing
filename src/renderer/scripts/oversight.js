@@ -601,8 +601,8 @@ async function checkForUpdates(){
 }
 async function installUpdate(){
   const err = el('updError'); err?.classList.add('hidden');
-  const ok = await window.confirmDialog('Restart and install the update now?',
-    'A safety backup is taken first. Everyone using this computer is signed out while the application restarts.');
+  const ok = await confirmDialog({ message: 'Restart and install the update now?',
+    detail: 'A safety backup is taken first. Everyone using this computer is signed out while the application restarts.' });
   if (!ok) return;
   await withBusy(el('updInstallBtn'), 'Preparing…', async () => {
     try { await call(window.api.updates.install, {}, { silent:true }); }
