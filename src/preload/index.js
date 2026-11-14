@@ -43,6 +43,28 @@ const api = {
     assign: call('customers:assign'),
     delete: call('customers:delete'),
     protection: call('customers:protection'),
+    duplicates: call('customers:duplicates'),
+    merge: call('customers:merge'),
+    setTags: call('customers:setTags'),
+    setDates: call('customers:setDates'),
+    recent: call('customers:recent'),
+    viewed: call('customers:viewed'),
+  },
+  tags: {
+    list: call('tags:list'),
+    create: call('tags:create'),
+    update: call('tags:update'),
+    delete: call('tags:delete'),
+  },
+  reminders: {
+    due: call('reminders:due'),
+    forCustomer: call('reminders:forCustomer'),
+    done: call('reminders:done'),
+  },
+  views: {
+    list: call('views:list'),
+    save: call('views:save'),
+    delete: call('views:delete'),
   },
   reservations: {
     list: call('reservations:list'),

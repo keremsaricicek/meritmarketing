@@ -28,7 +28,7 @@ const { nowIso, today, daysBetween } = require('../../shared/contracts/dates');
    subset: a feed that carries everything is a feed nobody reads. */
 const FEED = new Set([
   'RESERVATION_CREATE', 'RESERVATION_UPDATE', 'RESERVATION_CANCEL', 'RESERVATION_DELETE',
-  'CUSTOMER_CREATE', 'CUSTOMER_UPDATE', 'CUSTOMER_ASSIGN', 'CUSTOMER_DELETE',
+  'CUSTOMER_CREATE', 'CUSTOMER_UPDATE', 'CUSTOMER_ASSIGN', 'CUSTOMER_DELETE', 'CUSTOMER_MERGE',
   'PROFILE_CREATE', 'PROFILE_UPDATE', 'PROFILE_DELETE',
   'CRM_NOTE_CREATE', 'USER_CREATE', 'USER_UPDATE', 'USER_DELETE',
 ]);
@@ -69,6 +69,7 @@ function adminAlertFor(entry) {
   switch (entry.action) {
     case 'RESERVATION_DELETE': return 'Reservation deleted';
     case 'CUSTOMER_DELETE': return 'Guest deleted';
+    case 'CUSTOMER_MERGE': return 'Guests merged';
     case 'ACCOUNT_LOCKED': return 'Account locked';
     case 'EXPORT': return 'Data exported';
     case 'USER_UPDATE': return entry.metadata && entry.metadata.role_changed ? 'Role changed' : null;
@@ -250,6 +251,63 @@ function refreshDerived(db, profileId) {
     related_customer_id: r.customer_id,
     related_reservation_id: r.id,
   }));
+
+  refreshSpecialDates(db, profileId);
+}
+
+/* DERIVED — a birthday or special date of one of the profile's own guests,
+   raised ON the day and gone the day after. Keyed by guest: two dates on the
+   same day are one entry naming both. */
+function refreshSpecialDates(db, profileId) {
+  const { upcomingDates } = require('./guest-service');
+  const todays = new Map();
+  for (const d of upcomingDates(db, profileId, { days: 0 })) {
+    const prev = todays.get(d.customer_id);
+    if (prev) prev.labels.push(d.label);
+    else todays.set(d.customer_id, { ...d, labels: [d.label] });
+  }
+  reconcile(db, profileId, 'special_date', 'related_customer_id', todays, (d) => ({
+    type: 'special_date',
+    title: d.kind === 'birthday' && d.labels.length === 1 ? 'Birthday today' : 'Special date today',
+    message: `${d.full_name} — ${d.labels.join(', ')}`,
+    target_profile_id: profileId,
+    related_customer_id: d.customer_id,
+  }));
+}
+
+/* DERIVED — follow-up reminders that are due today or overdue, addressed to
+   the PERSON who set them (target_user_id), one entry per guest. A reminder
+   for a guest who has left a marketer's book since is not raised to them. */
+const REMINDER_TYPE = 'reminder_due';
+function refreshUserDerived(db, session) {
+  if (!session || !session.id) return;
+  const scope = domain.scopeProfileId(session);
+  const due = db.prepare(`
+    SELECT rm.customer_id, MIN(rm.due_date) AS first_due, COUNT(*) AS n, c.full_name
+    FROM reminders rm JOIN customers c ON c.id = rm.customer_id AND c.deleted_at IS NULL
+    WHERE rm.created_by = @me AND rm.done_at IS NULL AND rm.deleted_at IS NULL AND rm.due_date <= @today
+      AND (@scope IS NULL OR c.marketing_profile_id = @scope)
+    GROUP BY rm.customer_id, c.full_name`).all({ me: session.id, today: today(), scope });
+  const live = new Map(due.map((r) => [r.customer_id, r]));
+  const existing = db.prepare('SELECT id, related_customer_id AS ref FROM notifications WHERE type = ? AND target_user_id = ?')
+    .all(REMINDER_TYPE, session.id);
+  const seen = new Set();
+  for (const row of existing) {
+    if (live.has(row.ref) && !seen.has(row.ref)) { seen.add(row.ref); continue; }
+    db.prepare('DELETE FROM notifications WHERE id = ?').run(row.id);
+  }
+  const now = today();
+  for (const [ref, r] of live) {
+    if (seen.has(ref)) continue;
+    const late = daysBetween(r.first_due, now);
+    insert(db, {
+      type: REMINDER_TYPE,
+      title: 'Follow-up due',
+      message: `${r.full_name} — ${late > 0 ? `overdue by ${late} day${late === 1 ? '' : 's'}` : 'due today'}`,
+      target_user_id: session.id,
+      related_customer_id: ref,
+    });
+  }
 }
 
 /* One row per live condition. `column` is the identity of the condition — the
@@ -273,6 +331,7 @@ function reconcile(db, profileId, type, column, liveById, build) {
 }
 
 module.exports = {
-  emitActivity, emitAssignment, emitAdminAlert, adminRecipients, refreshDerived,
+  emitActivity, emitAssignment, emitAdminAlert, adminRecipients, refreshDerived, refreshUserDerived,
+  REMINDER_TYPE,
   FEED, COLD_DAYS, UPCOMING_DAYS, ADMIN_ALERT_TYPE,
 };

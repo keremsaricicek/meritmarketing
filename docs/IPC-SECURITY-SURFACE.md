@@ -16,13 +16,13 @@ do not edit by hand.** Run `npm run ipc:doc` after changing the contract;
 
 | | |
 |---|---|
-| Channels | **65** |
+| Channels | **81** |
 | Callable with no session | 6 |
-| Record- or query-scoped | 36 |
-| Destructive | 9 |
-| Written to the audit log | 31 |
+| Record- or query-scoped | 47 |
+| Destructive | 12 |
+| Written to the audit log | 40 |
 | Enforcing guest protection | 4 |
-| Reachable by MARKETING | 43 |
+| Reachable by MARKETING | 56 |
 
 ## This file is load-bearing
 
@@ -106,6 +106,22 @@ table, including other marketers'.
 | `customers:assign` | required | `customers.assign` | ADMIN, MANAGER | `record` | yes | — | yes | `FORBIDDEN` |
 | `customers:delete` | required | `customers.delete` | ADMIN, MANAGER | `record` | — | yes | yes | `FORBIDDEN` |
 | `customers:protection` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
+| `customers:duplicates` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `none` | — | — | — | `FORBIDDEN` |
+| `customers:merge` | required | `customers.merge` | ADMIN | `record` | — | yes | yes | `FORBIDDEN` |
+| `customers:setTags` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
+| `customers:setDates` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
+| `customers:recent` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `customers:viewed` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
+| `tags:list` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `none` | — | — | — | `FORBIDDEN` |
+| `tags:create` | required | `customers.update` | ADMIN, MANAGER, MARKETING | `none` | — | — | yes | `FORBIDDEN` |
+| `tags:update` | required | `settings.write` | ADMIN, MANAGER | `none` | — | — | yes | `FORBIDDEN` |
+| `tags:delete` | required | `settings.write` | ADMIN, MANAGER | `none` | — | yes | yes | `FORBIDDEN` |
+| `reminders:due` | required | `crm.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `reminders:forCustomer` | required | `crm.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
+| `reminders:done` | required | `crm.update` | ADMIN, MANAGER, MARKETING | `record` | — | — | yes | `FORBIDDEN` |
+| `views:list` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | — | `FORBIDDEN` |
+| `views:save` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | — | yes | `FORBIDDEN` |
+| `views:delete` | required | `customers.read` | ADMIN, MANAGER, MARKETING | `self` | — | yes | yes | `FORBIDDEN` |
 | `reservations:list` | required | `reservations.read` | ADMIN, MANAGER, MARKETING | `query` | — | — | — | `FORBIDDEN` |
 | `reservations:listDeleted` | required | `reservations.deleted.read` | ADMIN, MANAGER | `query` | — | — | — | `FORBIDDEN` |
 | `reservations:get` | required | `reservations.read` | ADMIN, MANAGER, MARKETING | `record` | — | — | — | `FORBIDDEN` |
@@ -171,6 +187,15 @@ table, including other marketers'.
 - `customers:update` — REJECTS a changed marketing_profile_id; ownership moves only through assign.
 - `customers:assign` — The authorized override. Writes explicit history; never rewrites historical Invited By.
 - `customers:delete` — Archive, not destroy — reservations and audit history survive.
+- `customers:duplicates` — Same phone (digits only) or passport across the whole book; an out-of-scope match is reported only as "exists", never who.
+- `customers:merge` — Configurable, ADMIN-only by default. Moves notes, stays, reminders, tags and dates in one transaction; archives the duplicate with a pointer to the primary.
+- `customers:setDates` — Replaces the guest's special dates (label + month/day).
+- `customers:recent` — The caller's last ten opened guests, re-checked against scope on every read.
+- `customers:viewed` — Records a view in the caller's own preferences. Not audited: reading is not a change.
+- `tags:list` — Names and colours only, never which guests carry a tag.
+- `tags:create` — An existing name (any case) answers with the existing tag.
+- `reminders:due` — The caller's own follow-ups due today or overdue, inside their scope.
+- `views:list` — The caller's own saved filters, newest first.
 - `reservations:list` — Active and Cancelled are two disjoint views; neither includes deleted rows.
 - `reservations:listDeleted` — A separate VERB, not a view parameter — MARKETING cannot reach it by crafting a request.
 - `reservations:get` — A deleted row answers NOT_FOUND to anyone who may not see deleted history.

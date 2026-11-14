@@ -42,6 +42,22 @@ const PROBE = (ctx) => ({
   'customers:assign': { id: ctx.foreignCustomer, profileId: ctx.senaProfile },
   'customers:delete': { id: ctx.foreignCustomer },
   'customers:protection': { id: ctx.foreignCustomer },
+  'customers:duplicates': { phone: '5551234567' },
+  'customers:merge': { primaryId: ctx.protectedCustomer, duplicateId: ctx.foreignCustomer },
+  'customers:setTags': { id: ctx.foreignCustomer, tagIds: [] },
+  'customers:setDates': { id: ctx.foreignCustomer, dates: [] },
+  'customers:recent': {},
+  'customers:viewed': { id: ctx.foreignCustomer },
+  'tags:list': {},
+  'tags:create': { name: 'PROBE TAG' },
+  'tags:update': { id: ctx.tag, color: 'red' },
+  'tags:delete': { id: ctx.tag },
+  'reminders:due': {},
+  'reminders:forCustomer': { customerId: ctx.foreignCustomer },
+  'reminders:done': { id: ctx.foreignReminder },
+  'views:list': {},
+  'views:save': { screen: 'overview', name: 'Probe', state: {} },
+  'views:delete': { id: 999 },
   'reservations:list': {},
   'reservations:listDeleted': {},
   'reservations:get': { id: ctx.foreignReservation },
@@ -105,6 +121,12 @@ const FOREIGN_PROBE = {
   'customers:delete': (c) => ({ id: c.foreignCustomer }),
   'customers:create': (c) => ({ code: 'PROBE-CROSS', fullName: 'CROSS OWNED', marketingProfileId: c.keremProfile }),
   'customers:protection': (c) => ({ id: c.foreignCustomer }),
+  'customers:merge': (c) => ({ primaryId: c.foreignCustomer, duplicateId: c.protectedCustomer }),
+  'customers:setTags': (c) => ({ id: c.foreignCustomer, tagIds: [c.tag] }),
+  'customers:setDates': (c) => ({ id: c.foreignCustomer, dates: [{ label: 'probe', month: 1, day: 1 }] }),
+  'customers:viewed': (c) => ({ id: c.foreignCustomer }),
+  'reminders:forCustomer': (c) => ({ customerId: c.foreignCustomer }),
+  'reminders:done': (c) => ({ id: c.foreignReminder }),
   'reservations:get': (c) => ({ id: c.foreignReservation }),
   'reservations:update': (c) => ({ id: c.foreignReservation, checkIn: addDays(today(), 220), checkOut: addDays(today(), 222) }),
   'reservations:cancel': (c) => ({ id: c.foreignReservation, reason: 'probe' }),
@@ -165,6 +187,9 @@ module.exports = async function () {
     const protectedGuest = customers.create(app.ctx(), {
       code: 'IPC-PROTECTED', fullName: 'IPC PROTECTED GUEST', marketingProfileId: kerem.profileId,
     });
+    const foreignReminder = require('../../src/main/services/support-services')
+      .crmNotes.create(app.ctx(), { customerId: foreign.id, note: 'kerem follow-up', remindOn: today() }).reminderId;
+    const tag = require('../../src/main/services/guest-service').tags.create(app.ctx(), { name: 'IPC VIP', color: 'gold' }).id;
     const foreignNotification = app.db.prepare(`
       INSERT INTO notifications (type, title, message, target_profile_id, created_at)
       VALUES ('PROBE','kerem only','kerem only', ?, ?)`)
@@ -181,7 +206,7 @@ module.exports = async function () {
       foreignCustomer: foreign.id, foreignReservation: foreignRes.id, foreignNote: foreignNote.id,
       protectedCustomer: protectedGuest.id, ownReservation: senaRes.id,
       keremProfile: kerem.profileId, senaProfile: sena.profileId,
-      adminUser, managerUser: manager.userId, foreignNotification,
+      adminUser, managerUser: manager.userId, foreignNotification, foreignReminder, tag,
     };
     s.check('every probe fixture was created',
       Object.values(probeCtx).every((v) => Number.isInteger(v) && v > 0), JSON.stringify(probeCtx));
