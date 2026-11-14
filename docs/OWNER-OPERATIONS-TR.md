@@ -33,7 +33,7 @@ hazır şifre de yoktur. Program tamamen boş başlar.
 İlk açılışta sizden bir **yönetici hesabı** oluşturmanız istenir:
 
 1. Kullanıcı adı yazın (örnek: `kerem`)
-2. Şifre yazın — **en az 10 karakter**
+2. Şifre yazın — **istediğiniz herhangi bir şifre** (örnek: `1234`; boş olamaz)
 3. Şifreyi tekrar yazın
 4. Kaydedin
 

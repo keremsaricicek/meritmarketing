@@ -443,7 +443,7 @@ Ayrıntılı kılavuz: `docs/OWNER-OPERATIONS-TR.md`. Özet:
 
 **İlk kurulum.** Programda hazır kullanıcı, örnek misafir veya hazır şifre
 **yoktur**. İlk açılışta bir yönetici hesabı oluşturursunuz: kullanıcı adı,
-en az 10 karakterlik şifre, şifre tekrarı. Sonra sırasıyla Pazarlama Profili,
+istenen herhangi bir şifre (boş olamaz), şifre tekrarı. Sonra sırasıyla Pazarlama Profili,
 pazarlama kullanıcısı, misafir ve rezervasyon eklersiniz.
 
 > **Şifrenizi unutmayın.** Arka kapı, gizli şifre veya "şifremi unuttum"

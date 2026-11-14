@@ -228,7 +228,7 @@ const users = {
     if (ctx.db.prepare('SELECT 1 FROM users WHERE username = ? COLLATE NOCASE').get(username)) {
       throw validation('That username is already taken.', 'username');
     }
-    const strength = passwords.validateStrength(params.password, { username });
+    const strength = passwords.validateStrength(params.password);
     if (!strength.ok) throw validation(strength.message, 'password');
     if (params.role === 'MARKETING' && !params.profileId) {
       throw validation('A marketing account must be linked to a profile.', 'profileId');
@@ -275,7 +275,7 @@ const users = {
     if (params.profileId !== undefined) patch.profile_id = params.profileId ? Number(params.profileId) : null;
     if (params.active !== undefined) patch.active = params.active ? 1 : 0;
     if (params.password) {
-      const strength = passwords.validateStrength(params.password, { username: row.username });
+      const strength = passwords.validateStrength(params.password);
       if (!strength.ok) throw validation(strength.message, 'password');
       patch.password_hash = await passwords.hash(params.password);
     }

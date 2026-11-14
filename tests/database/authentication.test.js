@@ -51,11 +51,18 @@ module.exports = async function () {
     s.check('the plaintext password is nowhere in the audit log', !auditDump.includes(PW));
 
     // ------------------------------------------------------ password policy
-    const weak = passwords.validateStrength('short');
-    s.check('a too-short password is refused', weak.ok === false, JSON.stringify(weak));
-    s.check('an obvious password is refused', passwords.validateStrength('password1').ok === false);
-    s.check('a password containing the username is refused',
-      passwords.validateStrength('marketing-hub-1', { username: 'marketing' }).ok === false);
+    // The owner explicitly allows ANY password: short, simple, or containing
+    // the username. Only empty and over-long passwords are refused.
+    s.check("'1234' is accepted", passwords.validateStrength('1234').ok === true);
+    s.check("'0000' is accepted", passwords.validateStrength('0000').ok === true);
+    s.check('a one-character password is accepted', passwords.validateStrength('x').ok === true);
+    s.check('a password containing the username is accepted',
+      passwords.validateStrength('marketing').ok === true);
+    const empty = passwords.validateStrength('');
+    s.check('an empty password is refused', empty.ok === false, JSON.stringify(empty));
+    s.check('a missing password is refused', passwords.validateStrength(undefined).ok === false);
+    s.check('an over-long password is refused',
+      passwords.validateStrength('a'.repeat(passwords.MAX_LENGTH + 1)).ok === false);
     s.check('a reasonable passphrase is accepted',
       passwords.validateStrength('quiet-oxblood-lantern').ok === true);
 
