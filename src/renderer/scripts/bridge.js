@@ -77,7 +77,8 @@
     dialog: {
       /* window.confirm is unavailable under a sandboxed renderer and blocks the
          process anyway. Screens that used it get the in-app confirmation modal. */
-      confirm: async ({ message, detail }) => ({ ok: true, data: await window.confirmDialog(message, detail) }),
+      confirm: async ({ message, detail, title, confirmLabel, tone }) =>
+        ({ ok: true, data: await showConfirm(message, detail, { title, confirmLabel, tone }) }),
     },
   };
 
@@ -149,7 +150,13 @@
   /* A promise-based confirmation modal, so a destructive action can await an
      answer the way it awaited window.confirm. Defined here because the screens
      assume it exists. */
-  window.confirmDialog = function confirmDialog(message, detail) {
+  /* Held privately as well as published: screens.js declares a global
+     `confirmDialog` of its own (the options-object form), and a function
+     declaration in a later classic script REPLACES this window property. The
+     adapter used to call window.confirmDialog and so reached the screens'
+     version with a string where it expected options — every confirmation
+     (overlapping stay, archive guest, install update) threw instead of asking. */
+  const showConfirm = function confirmDialogModal(message, detail, opts = {}) {
     return new Promise((resolve) => {
       const existing = document.getElementById('appConfirm');
       if (existing) existing.remove();
@@ -167,7 +174,7 @@
       head.className = 'modal-head';
       const title = document.createElement('h2');
       title.className = 'modal-title';
-      title.textContent = 'Confirm';
+      title.textContent = String(opts.title || 'Confirm');
       head.appendChild(title);
 
       const body = document.createElement('div');
@@ -189,8 +196,10 @@
       cancel.className = 'btn btn-ghost btn-sm';
       cancel.textContent = 'Cancel';
       const confirm = document.createElement('button');
-      confirm.className = 'btn btn-gold btn-sm btn-destructive-solid';
-      confirm.textContent = 'Confirm';
+      /* A warning ("save anyway") is not a deletion, so it does not wear the
+         destructive colour. */
+      confirm.className = opts.tone === 'warning' ? 'btn btn-gold btn-sm' : 'btn btn-gold btn-sm btn-destructive-solid';
+      confirm.textContent = String(opts.confirmLabel || 'Confirm');
       foot.append(cancel, confirm);
 
       box.append(head, body, foot);
@@ -204,6 +213,7 @@
       confirm.focus();
     });
   };
+  window.confirmDialog = showConfirm;
 
   /* The main process ends a session when the account is disabled, its role
      changes, or the workstation goes idle. Clearing the screen is not

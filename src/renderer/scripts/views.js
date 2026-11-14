@@ -98,7 +98,7 @@ async function renderDashboard(){
     </div>`; }).join('') : '<div class="panel-empty">No pending reservations</div>';
 
   /* one panel failing should never take the dashboard down with it */
-  await Promise.allSettled([renderNotifications(), renderRolePanel()]);
+  await Promise.allSettled([renderNotifications(), renderRolePanel(), renderGuestDashboardPanels(d)]);
 
   el('attentionList').innerHTML = d.attention.length ? d.attention.map(a => `
     <div class="list-row" data-act="goToGuest" data-on="click" data-args='[${a.id},"customers"]'>
@@ -533,17 +533,20 @@ function custFilterParams(){
   if (s.search) p.search = s.search;
   if (s.status) p.status = s.status;
   if (s.marketing) p.assignedTo = s.marketing;
+  if (s.tagId) p.tagId = Number(s.tagId);
   return p;
 }
 function applyCustFilters(){
   state.cust.marketing = el('custFMarketing').value;
+  state.cust.tagId = el('custFTag')?.value || '';
   state.cust.page = 1;
-  el('custFilterBtn').classList.toggle('filtered', !!(state.cust.status || state.cust.marketing));
+  el('custFilterBtn').classList.toggle('filtered', !!(state.cust.status || state.cust.marketing || state.cust.tagId));
   renderCustomers();
 }
 function clearCustFilters(){
-  state.cust.status = ''; state.cust.marketing = '';
+  state.cust.status = ''; state.cust.marketing = ''; state.cust.tagId = '';
   el('custFMarketing').value = '';
+  if (el('custFTag')) el('custFTag').value = '';
   const all = document.querySelector('#custFilterMenu .filter-opt[data-val=""]');
   if (all) markFilterActive('custFilterMenu', all);
   el('custFilterBtn').classList.remove('filtered');
@@ -591,12 +594,13 @@ async function renderCustomers(){
     ...custFilterParams(), page:s.page, pageSize:s.pageSize });
   if (!data) return;
   s.total = data.total; s.rows = data.rows;
+  await ensureTagsFor(data.rows.flatMap(r => r.tags || []));
 
   const tbody = el('custTableBody');
   tbody.innerHTML = data.rows.length ? data.rows.map(c => `
     <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"detailPanel"]' data-act-dblclick="openCustomerModal" data-args-dblclick='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
-      <td>${escapeHtml(c.full_name)}</td>
+      <td><div class="name-cell">${escapeHtml(c.full_name)}${tagChipsHTML(c.tags)}</div></td>
       <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
       <td class="note-cell">${latestNoteHTML(c)}</td>
       <td>
@@ -614,7 +618,7 @@ async function renderCustomers(){
       </td>
       <td class="muted n mod-cell">${fmtDate(c.updated_at)}<div class="note-meta">${escapeHtml(fmtDateTime(c.updated_at).slice(11))}</div></td>
     </tr>`).join('')
-    : emptyRow(6, (s.status || s.marketing) && !s.search
+    : emptyRow(6, (s.status || s.marketing || s.tagId) && !s.search
         ? emptyState({ icon:'search', title:'No guests match the active filters',
             actions:[{ label:'Clear filters', act:'clearCustFilters', actArgs:[] }] })
         : s.search
@@ -659,38 +663,42 @@ function applyListFilters(){
   s.hasCrm = el('listFHasCrm').value;
   s.createdFrom = el('listFCreatedFrom').value;
   s.createdTo = el('listFCreatedTo').value;
-  const active = !!(s.status || s.createdBy || s.assignedTo || s.hasReservation || s.hasCrm || s.createdFrom || s.createdTo);
-  el('listFilterBtn').classList.toggle('filtered', active);
+  s.tagId = el('listFTag')?.value || '';
   renderCustomerList();
 }
 function clearListFilters(){
-  ['listFStatus','listFCreatedBy','listFAssignedTo','listFHasRes','listFHasCrm','listFCreatedFrom','listFCreatedTo']
+  ['listFStatus','listFCreatedBy','listFAssignedTo','listFHasRes','listFHasCrm','listFCreatedFrom','listFCreatedTo','listFTag']
     .forEach(id => el(id).value = '');
   applyListFilters();
   closeAllFilterMenus();
 }
 function listFilterParams(){
   const s = state.list;
+  /* The menus say "yes"/"no"; the boundary wants a boolean. */
+  const yesNo = (v) => v === 'yes' ? true : v === 'no' ? false : '';
   return omitBlank({ status:s.status, createdBy:s.createdBy, assignedTo:s.assignedTo,
-    hasReservation:s.hasReservation, hasCrm:s.hasCrm, createdFrom:s.createdFrom, createdTo:s.createdTo });
+    hasReservation:yesNo(s.hasReservation), hasCrm:yesNo(s.hasCrm), createdFrom:s.createdFrom, createdTo:s.createdTo,
+    tagId: s.tagId ? Number(s.tagId) : '' });
 }
 async function renderCustomerList(){
   const q = el('listSearch')?.value.trim() || '';
   const s = state.list;
   fillListFilterSelects();
+  renderListFilterChips();
   const data = await call(window.api.customers.list,
     { search:q, registeredOnly:true, sort:s.sort, dir:s.dir, pageSize:500, ...listFilterParams() });
   if (!data) return;
+  await ensureTagsFor(data.rows.flatMap(r => r.tags || []));
   el('listTableBody').innerHTML = data.rows.length ? data.rows.map(c => `
     <tr class="clickable" tabindex="0" data-activatable data-act="showCustomerDetail" data-on="click" data-args='[${c.id},"listDetailPanel"]' data-act-dblclick="openCustomerModal" data-args-dblclick='[${c.id}]' aria-label="${escapeHtml(c.full_name)}, #${escapeHtml(c.code)}">
       <td class="muted">#${escapeHtml(c.code)}</td>
-      <td>${escapeHtml(c.full_name)}</td>
+      <td><div class="name-cell">${escapeHtml(c.full_name)}${tagChipsHTML(c.tags)}</div></td>
       <td class="muted">${escapeHtml(c.created_by_label)}</td>
       <td>${invitedByHTML(c.marketing_name, c.marketing_status)}</td>
       <td>${statusTagHTML(c.status)}</td>
       <td class="muted">${fmtDate(c.created_at)}</td>
     </tr>`).join('')
-    : emptyRow(6, q || s.status || s.createdBy || s.assignedTo
+    : emptyRow(6, q || s.status || s.createdBy || s.assignedTo || s.tagId || s.hasReservation || s.hasCrm || s.createdFrom || s.createdTo
         ? emptyState({ icon:'search', title:'No guests match the active filters',
             actions:[{ label:'Clear filters', act:'clearListFiltersAndSearch', actArgs:[] }] })
         : emptyState({ icon:'guests', title:'No guests registered yet',
@@ -779,11 +787,14 @@ async function showCustomerDetail(customerId, panelId){
      else in the app (spec §6/§41) — the guest inspector's history must be
      the same: a cancelled stay is still part of this guest's record, just
      visibly marked, not silently missing from the timeline (spec §15). */
-  const [resList, cancelledList, notes] = await Promise.all([
+  const [resList, cancelledList, notes, reminders] = await Promise.all([
     call(window.api.reservations.list, { customerId, pageSize:200, sort:'check_in', dir:'desc' }, { silent:true }),
     call(window.api.reservations.list, { customerId, pageSize:200, sort:'check_in', dir:'desc', view:'cancelled' }, { silent:true }),
-    call(window.api.crmNotes.list, { customerId }, { silent:true })
+    call(window.api.crmNotes.list, { customerId }, { silent:true }),
+    call(window.api.reminders.forCustomer, { customerId }, { silent:true }).catch(() => [])
   ]);
+  markGuestViewed(c.id);
+  await ensureTagsFor(c.tags);
   const stays = [...(resList?.rows || []), ...(cancelledList?.rows || [])]
     .filter(r => r.customer_id === c.id)
     .sort((a,b) => b.check_in.localeCompare(a.check_in));
@@ -837,6 +848,7 @@ async function showCustomerDetail(customerId, panelId){
   const sortedNotes = sortNotesNewestFirst(noteList);
   const canNote = can1('crmNotes.create');
   const overviewHTML = `
+    ${remindersHTML(reminders, c.id)}
     ${guestNoteHTML(c)}
     <div class="pane-head"><div class="pane-title">CRM notes · newest first</div>
       ${sortedNotes.length ? `<span class="muted gi-count">${sortedNotes.length}</span>` : ''}</div>
@@ -852,7 +864,9 @@ async function showCustomerDetail(customerId, panelId){
       <div class="gc-field"><div class="gf-l">Assigned to</div><div class="gf-v">${invitedByHTML(c.marketing_name, c.marketing_status)}</div></div>
       <div class="gc-field"><div class="gf-l">Registered</div><div class="gf-v">${fmtDate(c.created_at)}</div></div>
       <div class="gc-field"><div class="gf-l">Last activity</div><div class="gf-v">${lastActivity ? fmtDate(lastActivity) : '—'}</div></div>
-    </div>`;
+      ${datesSummaryHTML(c)}
+    </div>
+    ${can1('customers.update') ? `<button class="btn-link mt-2" data-act="openDatesModal" data-on="click" data-args='[${c.id}]'>${c.birth_date || (c.special_dates || []).length ? 'Edit dates' : 'Add birthday or special date'}</button>` : ''}`;
 
   const statusM = statusMeta(c.status);
   panel.classList.remove('empty', 'collapsed');
@@ -870,6 +884,7 @@ async function showCustomerDetail(customerId, panelId){
         <div class="gc-name">${escapeHtml(c.full_name)}</div>
         <div class="setting-hint">#${escapeHtml(c.code)}${c.nationality ? ' · ' + escapeHtml(c.nationality) : ''}</div>
         ${c.status ? `<div class="dh-status">${statusTagHTML(c.status)}</div>` : ''}
+        ${guestTagsRowHTML(c)}
       </div>
       <div class="dh-tools">
         <button class="btn btn-outline btn-sm" data-act="openGuestPage" data-on="click" data-args='[${c.id}]' title="Open the full guest record">Full record</button>
@@ -920,12 +935,16 @@ function guestActionsHTML(c, cls){
   ].filter(Boolean);
   return btns.length ? `<div class="${cls}">${btns.join('')}</div>` : '';
 }
+const noteCache = new Map();
 function crmNoteCardHTML(n){
   const when = n.created_at ? fmtDateTime(n.created_at) : fmtDate(n.note_date);
   const dateLabel = n.note_date && n.created_at && n.note_date !== String(n.created_at).slice(0, 10)
     ? `${fmtDate(n.note_date)} · written ${when}` : when;
+  if (n.id) noteCache.set(Number(n.id), n);
   return `<div class="crm-note">
-    <div class="cn-meta"><b>${escapeHtml(n.created_by_name || n.created_by_username || 'Unknown')}</b><span>${escapeHtml(dateLabel)}</span></div>
+    <div class="cn-meta"><b>${escapeHtml(n.created_by_name || n.created_by_username || 'Unknown')}</b><span>${escapeHtml(dateLabel)}</span>
+      ${n.remind_on ? `<span class="cn-remind" title="Follow-up reminder">Reminder ${escapeHtml(fmtDate(n.remind_on))}</span>` : ''}
+      ${n.id ? `<button type="button" class="btn-link cn-edit" data-act="openCrmNoteEdit" data-on="click" data-args='[${Number(n.id)}]' aria-label="Edit this note">Edit</button>` : ''}</div>
     <div class="cn-text">${escapeHtml(n.note)}</div>
   </div>`;
 }
@@ -945,12 +964,19 @@ function toggleMoreNotes(id, btn, total){
   if (btn) btn.textContent = open ? 'Show fewer' : `Show all ${total} notes`;
 }
 function noteComposerHTML(customerId, inputId, withDate){
-  return `<div class="note-composer${withDate ? ' with-date' : ''}">
+  return `<div class="note-composer-wrap">
+    ${noteTemplatesHTML(inputId)}
+    <div class="note-composer${withDate ? ' with-date' : ''}">
     <label class="visually-hidden" for="${inputId}">Write a CRM note</label>
     <textarea id="${inputId}" rows="2" maxlength="4000" placeholder="Write a CRM note…"></textarea>
-    ${withDate ? `<label class="visually-hidden" for="${inputId}_date">Note date</label><input type="date" id="${inputId}_date" value="${todayYMD()}">` : ''}
+    ${withDate ? `<label class="visually-hidden" for="${inputId}_date">Note date</label><input type="date" id="${inputId}_date" value="${todayYMD()}" title="Note date">` : ''}
     <button class="btn btn-outline btn-sm" data-act="saveInlineCrmNote" data-on="click" data-args='[${Number(customerId)},"${jsonAttr(inputId)}",{"$":"this"}]'>Save</button>
     <div class="field-error" id="err-${inputId}" role="alert"></div>
+    </div>
+    <div class="composer-remind">
+      <label for="${inputId}_remind">Remind me on</label>
+      <input type="date" id="${inputId}_remind" min="${todayYMD()}">
+    </div>
   </div>`;
 }
 /* The inline composer goes through the same crmNotes.create verb the modal
@@ -965,12 +991,16 @@ async function saveInlineCrmNote(customerId, inputId, btn){
     input.focus(); return;
   }
   const dateInput = el(inputId + '_date');
+  const remindInput = el(inputId + '_remind');
+  const remindOn = remindInput?.value || '';
   await withBusy(btn, 'Saving…', async () => {
     try {
       await call(window.api.crmNotes.create,
-        { customerId, note, noteDate: dateInput?.value || todayYMD() }, { silent:true });
+        omitBlank({ customerId, note, noteDate: dateInput?.value || todayYMD(), remindOn }), { silent:true });
       input.value = '';
-      toast('success', 'Note added');
+      if (remindInput) remindInput.value = '';
+      toast('success', remindOn ? 'Note added with a reminder' : 'Note added');
+      if (workspace.open.includes('dashboard')) renderGuestDashboardPanels().catch(() => {});
       await refreshOpenInspectors(customerId);
       await refreshCrmViews();
     } catch (e){
@@ -1267,9 +1297,12 @@ const NOTIF_ICONS = {
   checkin_soon:  '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>',
   checkin_urgent:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>',
   assignment:    '<path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>',
-  admin_alert:   '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6Z"/><path d="M12 8v4M12 16h.01"/>'
+  admin_alert:   '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6Z"/><path d="M12 8v4M12 16h.01"/>',
+  reminder_due:  '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M5 3 2 6M19 3l3 3"/>',
+  special_date:  '<path d="M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7ZM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/>'
 };
-const NOTIF_TONE = { cold_guest:'cold', checkin_soon:'soon', checkin_urgent:'urgent', assignment:'assign', admin_alert:'admin' };
+const NOTIF_TONE = { cold_guest:'cold', checkin_soon:'soon', checkin_urgent:'urgent', assignment:'assign', admin_alert:'admin',
+  reminder_due:'urgent', special_date:'soon' };
 
 async function renderNotifications(){
   const node = el('notifList');
@@ -1567,6 +1600,12 @@ async function renderSettings(){
   el('setDensity').value = s?.['appearance.density'] || 'comfortable';
   const who = el('settingsWhoAmI');
   if (who) who.textContent = `Signed in as ${state.session?.username || ''} · ${state.session?.role || ''}`;
+
+  /* Note templates and the tag vocabulary are shared settings. */
+  const sharedWriter = hasCap('settings.write');
+  el('templatesSection').style.display = sharedWriter ? 'block' : 'none';
+  el('tagsSection').style.display = sharedWriter ? 'block' : 'none';
+  if (sharedWriter){ renderTemplateSettings(); renderTagSettings().catch(() => {}); }
 
   /* Backup, restore and permissions are administrator territory. */
   el('backupSection').style.display = isAdmin() ? 'block' : 'none';

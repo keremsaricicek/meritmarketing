@@ -405,7 +405,7 @@ module.exports = async function () {
        what the user will see. */
     for (const file of ['index.html', path.join('scripts', 'core.js'), path.join('scripts', 'views.js'),
       path.join('scripts', 'screens.js'), path.join('scripts', 'bridge.js'), path.join('scripts', 'actions.js'),
-      path.join('scripts', 'oversight.js')]) {
+      path.join('scripts', 'oversight.js'), path.join('scripts', 'guests.js')]) {
       const source = fs.readFileSync(path.join(ROOT, 'src', 'renderer', file), 'utf8');
       const hits = source.match(/style="/g) || [];
       s.check(`${file} authors no style attribute`, hits.length === 0, `${hits.length} occurrences`);

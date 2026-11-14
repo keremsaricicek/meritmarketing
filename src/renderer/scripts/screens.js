@@ -8,8 +8,11 @@ function applyServerError(err, map){
   if (err?.field && map[err.field]) { showFieldError(map[err.field], err.message); return true; }
   return false;
 }
-async function confirmDialog(opts){
-  const r = await window.api.dialog.confirm(opts);
+/* Accepts the options object, or the older (message, detail) pair that a few
+   call sites still use. */
+async function confirmDialog(opts, detail){
+  if (typeof opts === 'string') opts = { message: opts, detail };
+  const r = await window.api.dialog.confirm(opts || {});
   return !!(r && r.data);
 }
 
@@ -150,6 +153,10 @@ async function saveReservation(force){
   }
 
   let customerId = sel;
+  /* "Save anyway" re-submits with force. It must run AFTER this attempt has
+     released the button: withBusy refuses a second call on a busy button, so
+     re-submitting from inside the handler silently did nothing. */
+  let retryWithForce = false;
   const btn = document.querySelector('#modalReservation .btn-gold');
   await withBusy(btn, 'Saving…', async () => {
     try {
@@ -181,9 +188,9 @@ async function saveReservation(force){
         const overlap = (e.conflicts || []).map(c => `${fmtDate(c.check_in)} – ${fmtDate(c.check_out)}`).join(', ');
         const proceed = await confirmDialog({
           title:'Overlapping reservation', message:e.message,
-          detail: overlap ? `Existing: ${overlap}` : '', confirmLabel:'Save anyway'
+          detail: overlap ? `Already booked: ${overlap}` : '', confirmLabel:'Save anyway', tone:'warning'
         });
-        if (proceed) await saveReservation(true);
+        retryWithForce = proceed;
         return;
       }
       if (!applyServerError(e, { customerId:'resCustomerSelect', checkIn:'resCheckIn', checkOut:'resCheckOut',
@@ -192,6 +199,7 @@ async function saveReservation(force){
       }
     }
   });
+  if (retryWithForce) await saveReservation(true);
 }
 
 /* ---------------- CUSTOMER ---------------- */
@@ -201,6 +209,8 @@ let pendingCustomerPhoto = null;
 async function openCustomerModal(id){
   editingCustomerId = id ?? null;
   pendingCustomerPhoto = null;
+  duplicateAcknowledged = null;
+  hideDuplicateWarning();
   clearFieldErrors(el('modalCustomer'));
 
   if (editingCustomerId !== null){
@@ -212,6 +222,7 @@ async function openCustomerModal(id){
     el('custName').value = c.full_name || '';
     el('custPassport').value = c.passport_no || '';
     el('custPhone').value = c.phone || '';
+    el('custBirth').value = c.birth_date || '';
     pendingCustomerPhoto = c.photo_name || null;
     await resolvePhotos([c.photo_name]);
     setPhotoDrop('custPhotoDrop', photoUrl(c.photo_name));
@@ -220,7 +231,7 @@ async function openCustomerModal(id){
     el('custModalTitle').textContent = 'New Customer';
     el('custModalSubtitle').textContent = 'Create a new guest profile';
     el('custId').value = ''; el('custId').disabled = false;
-    ['custName','custPassport','custPhone'].forEach(f => el(f).value = '');
+    ['custName','custPassport','custPhone','custBirth'].forEach(f => el(f).value = '');
     setPhotoDrop('custPhotoDrop', null);
     el('custDeleteBtn').style.display = 'none';
   }
@@ -239,20 +250,41 @@ function setPhotoDrop(elId, url){
     </span>`;
   }
 }
+/* The phone/passport pair the operator already saw a duplicate warning for.
+   Changing either one asks again. */
+let duplicateAcknowledged = null;
+function saveCustomerAnyway(){
+  duplicateAcknowledged = `${el('custPhone').value.trim()}|${el('custPassport').value.trim()}`;
+  saveCustomer();
+}
 async function saveCustomer(){
   clearFieldErrors(el('modalCustomer'));
   const fullName = el('custName').value.trim();
   const passportNo = el('custPassport').value.trim();
   const phone = el('custPhone').value.trim();
+  const birthDate = el('custBirth').value || null;
   if (!fullName){ showFieldError('custName','Name is required.'); return; }
 
-  const btn = document.querySelector('#modalCustomer .btn-gold');
+  const btn = document.querySelector('#modalCustomer .modal-foot .btn-gold');
   await withBusy(btn, 'Saving…', async () => {
     try {
       const editedId = editingCustomerId;
+      /* Same phone or passport as a guest already in the book? Say so before
+         a second record forks the guest's history. */
+      if (duplicateAcknowledged !== `${phone}|${passportNo}`){
+        const dupes = await findDuplicateGuests({ phone, passportNo, excludeId: editedId });
+        if (hasDuplicates(dupes)){
+          const box = el('custDupWarning');
+          box.innerHTML = duplicateWarningHTML(dupes, { editing: editedId !== null });
+          box.classList.add('show');
+          box.scrollIntoView?.({ block:'nearest' });
+          return;
+        }
+      }
+      hideDuplicateWarning();
       if (editedId !== null){
         await call(window.api.customers.update,
-          { id:editedId, fullName, passportNo, phone, photoName:pendingCustomerPhoto }, { silent:true });
+          { id:editedId, fullName, passportNo, phone, birthDate, photoName:pendingCustomerPhoto }, { silent:true });
       } else {
         const code = el('custId').value.trim();
         if (!code){ showFieldError('custId','A unique ID is required.'); return; }
@@ -262,14 +294,15 @@ async function saveCustomer(){
            for reservations' Invited By (spec §3) */
         const marketingProfileId = state.session?.role === 'MARKETING' ? state.session.profile_id : undefined;
         await call(window.api.customers.create,
-          { code, fullName, passportNo, phone, photoName:pendingCustomerPhoto, registered:true, marketingProfileId }, { silent:true });
+          { code, fullName, passportNo, phone, birthDate, photoName:pendingCustomerPhoto, registered:true, marketingProfileId }, { silent:true });
       }
       closeModal('modalCustomer');
       editingCustomerId = null;
+      duplicateAcknowledged = null;
       toast('success','Customer saved');
       await Promise.all([refreshCrmViews(), renderDashboard(), editedId !== null ? refreshOpenInspectors(editedId) : Promise.resolve()]);
     } catch (e) {
-      if (!applyServerError(e, { code:'custId', fullName:'custName', passportNo:'custPassport', email:'custPhone' })){
+      if (!applyServerError(e, { code:'custId', fullName:'custName', passportNo:'custPassport', email:'custPhone', birthDate:'custBirth' })){
         toast('error','Customer not saved', e.message);
       }
     }
@@ -498,27 +531,57 @@ async function deleteProfile(){
 
 /* ---------------- CRM NOTE ---------------- */
 let crmNoteCustomerId = null;
+let crmNoteEditingId = null;
 function openCrmNoteModal(customerId){
   crmNoteCustomerId = customerId;
+  crmNoteEditingId = null;
   clearFieldErrors(el('modalCrmNote'));
+  el('crmNoteModalTitle').textContent = 'New CRM Note';
   el('crmNoteDate').value = todayYMD();
   el('crmNoteText').value = '';
+  el('crmNoteRemind').value = '';
+  el('crmNoteTemplates').innerHTML = noteTemplatesHTML('crmNoteText');
   openModal('modalCrmNote');
+  setTimeout(() => el('crmNoteText')?.focus(), 60);
+}
+/* Editing a note also moves or clears its "Remind me on" follow-up. */
+function openCrmNoteEdit(noteId){
+  const n = noteCache.get(Number(noteId));
+  if (!n) return;
+  crmNoteCustomerId = n.customer_id;
+  crmNoteEditingId = n.id;
+  clearFieldErrors(el('modalCrmNote'));
+  el('crmNoteModalTitle').textContent = 'Edit CRM Note';
+  el('crmNoteDate').value = n.note_date || todayYMD();
+  el('crmNoteText').value = n.note || '';
+  el('crmNoteRemind').value = n.remind_on || '';
+  el('crmNoteTemplates').innerHTML = noteTemplatesHTML('crmNoteText');
+  openModal('modalCrmNote');
+  setTimeout(() => el('crmNoteText')?.focus(), 60);
 }
 async function saveCrmNote(){
   clearFieldErrors(el('modalCrmNote'));
   const note = el('crmNoteText').value.trim();
   if (!note){ showFieldError('crmNoteText','Enter the note text.'); return; }
-  const btn = document.querySelector('#modalCrmNote .btn-gold');
+  const remindOn = el('crmNoteRemind').value || null;
+  const btn = document.querySelector('#modalCrmNote .modal-foot .btn-gold');
   await withBusy(btn, 'Saving…', async () => {
     try {
-      await call(window.api.crmNotes.create,
-        { customerId:crmNoteCustomerId, note, noteDate: el('crmNoteDate').value || todayYMD() }, { silent:true });
+      if (crmNoteEditingId !== null){
+        await call(window.api.crmNotes.update,
+          { id:crmNoteEditingId, note, noteDate: el('crmNoteDate').value || undefined, remindOn }, { silent:true });
+      } else {
+        await call(window.api.crmNotes.create,
+          omitBlank({ customerId:crmNoteCustomerId, note, noteDate: el('crmNoteDate').value || todayYMD(), remindOn }), { silent:true });
+      }
+      const edited = crmNoteEditingId !== null;
+      crmNoteEditingId = null;
       closeModal('modalCrmNote');
-      toast('success','Note added');
+      toast('success', edited ? 'Note updated' : (remindOn ? 'Note added with a reminder' : 'Note added'));
       await refreshOpenInspectors(crmNoteCustomerId);
       await refreshCrmViews();
-    } catch (e){ if (!applyServerError(e, { note:'crmNoteText' })) toast('error','Note not saved', e.message); }
+      if (workspace.open.includes('dashboard')) renderGuestDashboardPanels().catch(() => {});
+    } catch (e){ if (!applyServerError(e, { note:'crmNoteText', remindOn:'crmNoteRemind', noteDate:'crmNoteDate' })) toast('error','Note not saved', e.message); }
   });
 }
 
