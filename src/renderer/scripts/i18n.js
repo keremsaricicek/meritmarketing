@@ -1766,7 +1766,9 @@ const I18N_TR = Object.assign({
   "There is no downloaded update to install.": "Kurulacak indirilmiş bir güncelleme yok.",
   "The update is already being installed.": "Güncelleme zaten kuruluyor.",
   "The application could not restart to install the update. Close and reopen it to finish.": "Uygulama güncellemeyi kurmak için yeniden başlatılamadı. Bitirmek için kapatıp yeniden açın.",
-  "The backup could not be verified.": "Yedek doğrulanamadı."
+  "The backup could not be verified.": "Yedek doğrulanamadı.",
+  "CHECKED_IN": "KONAKLIYOR",
+  "NO_RECORD": "KAYIT YOK"
 });
 
 /* Turkish renderings of sentences the main process composes around names,
@@ -1870,7 +1872,12 @@ function tNotice(text){
   if (Object.prototype.hasOwnProperty.call(I18N_TR, s)) return I18N_TR[s];
   for (const [re, out] of I18N_TR_PATTERNS){
     const m = re.exec(s);
-    if (m) return out.replace(/\{(\d)\}/g, (_, i) => m[Number(i)] ?? '');
+    /* A captured status or role code (UPCOMING, MARKETING…) is shown in
+       Turkish too; names and dates pass through untouched. */
+    if (m) return out.replace(/\{(\d)\}/g, (_, i) => {
+      const v = m[Number(i)] ?? '';
+      return /^[A-Z][A-Z_]+$/.test(v) && Object.prototype.hasOwnProperty.call(I18N_TR, v) ? I18N_TR[v] : v;
+    });
   }
   /* "admin: Created guest …" — a notification names the actor first. */
   const prefixed = /^([^\s:]{1,40}): (.+)$/s.exec(s);

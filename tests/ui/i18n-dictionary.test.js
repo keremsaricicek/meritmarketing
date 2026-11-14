@@ -96,6 +96,8 @@ module.exports = async function () {
   s.check('tNotice() translates a known main-process sentence', d.tNotice('Guest not found.') === 'Misafir bulunamadı.');
   s.check('tNotice() translates a patterned sentence and keeps the values',
     d.tNotice('owner: Created guest Ayşe Demir (G1007)') === 'owner: Ayşe Demir (G1007) misafiri oluşturuldu', d.tNotice('owner: Created guest Ayşe Demir (G1007)'));
+  s.check('tNotice() shows a captured role or status code in Turkish',
+    d.tNotice('Created account sena (MARKETING)') === 'sena hesabı oluşturuldu (PAZARLAMA)', d.tNotice('Created account sena (MARKETING)'));
   s.check('tNotice() leaves an unknown sentence unchanged', d.tNotice('Something else entirely.') === 'Something else entirely.');
   d.setLang('en');
   s.check('English is unchanged by the dictionary', d.t('Note added') === 'Note added' && d.t('h.save') === 'Save' && d.tNotice('Guest not found.') === 'Guest not found.');
